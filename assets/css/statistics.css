@@ -1,6 +1,6 @@
 /* Shared statistics-card system. Loaded from the common footer so it wins over
    legacy page-level declarations while leaving regular content cards alone. */
-.content-area :is(.stats-grid, .module-stats-grid, .three-per-row, .fu-stats-grid,
+:is(.content-area, .content-wrapper) :is(.stats-grid, .module-stats-grid, .member-stats, .three-per-row, .fu-stats-grid,
   .birds-stat-grid, .project-stats-grid, .stats-grid-3, .member-stats-grid,
   .users-summary-grid, .attendance-stats-grid, .attendance-view-stats,
   .baptism-stats-grid, .contrib-stats-grid, .ev-stats-grid, .ss-stats-grid,
@@ -13,7 +13,7 @@
   margin-bottom: 18px;
 }
 
-.content-area :is(.stat-card, [class*="-stat-card"]:not(.role-stat-card),
+:is(.content-area, .content-wrapper) :is(.stat-card, .member-stat, [class*="-stat-card"]:not(.role-stat-card),
   .church-stat, .ce-stat, .fin-kpi, .member-stat-card, .users-stat-card,
   .dept-stat-card, .attendance-view-stat) {
   position: relative;
@@ -33,14 +33,14 @@
   transition: box-shadow .18s ease, transform .18s ease;
 }
 
-.content-area :is(.stat-card, [class*="-stat-card"]:not(.role-stat-card),
+:is(.content-area, .content-wrapper) :is(.stat-card, [class*="-stat-card"]:not(.role-stat-card),
   .church-stat, .ce-stat, .fin-kpi, .member-stat-card, .users-stat-card,
   .dept-stat-card, .attendance-view-stat):hover {
   transform: translateY(-1px);
   box-shadow: 0 5px 14px rgba(15, 23, 42, .08) !important;
 }
 
-.content-area :is(.stat-icon, [class*="-stat-icon"], .church-stat-icon,
+:is(.content-area, .content-wrapper) :is(.stat-icon, .member-stat>span, [class*="-stat-icon"], .church-stat-icon,
   .member-stat-icon, .users-stat-icon, .dept-stat-icon) {
   display: inline-flex;
   align-items: center;
@@ -55,7 +55,7 @@
   font-size: 15px !important;
 }
 
-.content-area :is(.stat-value, .stat-number, [class*="-stat-value"],
+:is(.content-area, .content-wrapper) :is(.stat-value, .member-stat strong, .stat-number, [class*="-stat-value"],
   [class*="-stat-number"], .member-stat-card strong, .users-stat-card h3,
   .fin-kpi-value, .church-stat b, .ce-stat b, .dept-stat-value) {
   display: block;
@@ -69,7 +69,7 @@
   overflow-wrap: anywhere;
 }
 
-.content-area :is(.stat-label, [class*="-stat-label"], .member-stat-card span,
+:is(.content-area, .content-wrapper) :is(.stat-label, .member-stat small, [class*="-stat-label"], .member-stat-card span,
   .users-stat-card p, .fin-kpi-label, .church-stat-content span,
   .ce-stat span, .dept-stat-label) {
   display: block;
@@ -94,8 +94,8 @@
 .content-area .dashboard-stat-grid > * { min-width: 0; }
 .content-area .dashboard-stat-grid .stat-card { height: 100%; }
 
-@media (max-width: 1100px) {
-  .content-area :is(.stats-grid, .module-stats-grid, .three-per-row, .fu-stats-grid,
+  @media (max-width: 1100px) {
+  :is(.content-area, .content-wrapper) :is(.stats-grid, .module-stats-grid, .member-stats, .three-per-row, .fu-stats-grid,
     .birds-stat-grid, .project-stats-grid, .stats-grid-3, .member-stats-grid,
     .users-summary-grid, .attendance-stats-grid, .attendance-view-stats,
     .baptism-stats-grid, .contrib-stats-grid, .ev-stats-grid, .ss-stats-grid,
@@ -107,7 +107,7 @@
 }
 
 @media (max-width: 380px) {
-  .content-area :is(.stats-grid, .module-stats-grid, .three-per-row, .fu-stats-grid,
+  :is(.content-area, .content-wrapper) :is(.stats-grid, .module-stats-grid, .member-stats, .three-per-row, .fu-stats-grid,
     .birds-stat-grid, .project-stats-grid, .stats-grid-3, .member-stats-grid,
     .users-summary-grid, .attendance-stats-grid, .attendance-view-stats,
     .baptism-stats-grid, .contrib-stats-grid, .ev-stats-grid, .ss-stats-grid,

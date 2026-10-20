@@ -26,11 +26,11 @@ require_once __DIR__ . '/../includes/sidebar.php';
 <div class="member-module-header">
   <div><h2><i class="fas fa-calendar-days"></i> Church Programs</h2><p>View upcoming and completed church programs.</p></div>
 </div>
-<div class="member-module-stats">
+<div class="stats-grid module-stats-grid">
   <?php foreach ($stats as $stat): ?>
-  <div class="member-module-stat">
-    <div class="icon"><i class="fas <?= mp_h($stat['icon']) ?>"></i></div>
-    <div><strong><?= !empty($stat['money']) ? 'UGX '.mp_money((float)$stat['value'],0) : number_format((float)$stat['value']) ?></strong><span><?= mp_h($stat['label']) ?></span></div>
+  <div class="stat-card">
+    <div class="stat-icon"><i class="fas <?= mp_h($stat['icon']) ?>"></i></div>
+    <div><strong class="stat-value"><?= !empty($stat['money']) ? 'UGX '.mp_money((float)$stat['value'],0) : number_format((float)$stat['value']) ?></strong><span class="stat-label"><?= mp_h($stat['label']) ?></span></div>
   </div>
   <?php endforeach; ?>
 </div>
