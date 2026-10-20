@@ -23,7 +23,7 @@
       <button type="button" data-accessibility="ruler" aria-pressed="false">Reading guide</button>
       <button type="button" data-accessibility="motion" aria-pressed="false">Reduce motion</button>
       <div class="accessibility-speech">
-        <label class="accessibility-select-label" for="accessibilityVoice">Read aloud voice</label>
+        <label class="accessibility-select-label" for="accessibilityVoice">Read aloud voice (English only; African woman preferred)</label>
         <select id="accessibilityVoice" aria-label="Select a read aloud voice"><option value="">System default voice</option></select>
         <label class="accessibility-select-label" for="accessibilityRate">Speech speed <output id="accessibilityRateValue">1×</output></label>
         <input id="accessibilityRate" type="range" min="0.7" max="1.5" step="0.1" value="1">

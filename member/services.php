@@ -5,13 +5,18 @@ require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/_helpers.php';
 require_permission('member.services.view');
 
-$rows = mp_table($conn,'church_services')
-    ? mp_rows($conn,"SELECT * FROM church_services WHERE status <> 'Cancelled' ORDER BY service_date DESC,service_time DESC")
-    : [];
+$rows = [];
+if (mp_table($conn, 'church_services')) {
+    $serviceColumns = mp_cols($conn, 'church_services');
+    $serviceWhere = in_array('status', $serviceColumns, true) ? " WHERE status <> 'Cancelled'" : '';
+    $serviceOrder = [];
+    foreach (['service_date', 'service_time', 'id'] as $column) if (in_array($column, $serviceColumns, true)) $serviceOrder[] = '`' . $column . '` DESC';
+    $rows = mp_rows($conn, 'SELECT * FROM church_services' . $serviceWhere . ($serviceOrder ? ' ORDER BY ' . implode(', ', $serviceOrder) : ''));
+}
 $stats = [
  ['label'=>'Total Services','value'=>count($rows),'icon'=>'fa-video'],
- ['label'=>'Live','value'=>count(array_filter($rows,fn($r)=>strtolower((string)$r['status'])==='live')),'icon'=>'fa-tower-broadcast'],
- ['label'=>'Upcoming','value'=>count(array_filter($rows,fn($r)=>strtolower((string)$r['status'])==='upcoming')),'icon'=>'fa-clock'],
+ ['label'=>'Live','value'=>count(array_filter($rows,fn($r)=>strtolower((string)($r['status']??''))==='live')),'icon'=>'fa-tower-broadcast'],
+ ['label'=>'Upcoming','value'=>count(array_filter($rows,fn($r)=>strtolower((string)($r['status']??''))==='upcoming')),'icon'=>'fa-clock'],
  ['label'=>'Recorded','value'=>count(array_filter($rows,fn($r)=>!empty($r['recording_link'])||!empty($r['recording_file']))),'icon'=>'fa-circle-play']
 ];
 

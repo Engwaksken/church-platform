@@ -5,16 +5,20 @@ require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/_helpers.php';
 require_permission('member.programs.view');
 
-$rows = mp_table($conn,'church_programs')
-    ? mp_rows($conn,"SELECT * FROM church_programs WHERE status <> 'Cancelled' ORDER BY program_date ASC,start_time ASC")
-    : [];
+$rows = [];
+if (mp_table($conn, 'church_programs')) {
+    $programColumns = mp_cols($conn, 'church_programs');
+    $programWhere = in_array('status', $programColumns, true) ? " WHERE status <> 'Cancelled'" : '';
+    $programOrder = array_values(array_filter(['program_date', 'start_time', 'id'], static fn($column) => in_array($column, $programColumns, true)));
+    $rows = mp_rows($conn, 'SELECT * FROM church_programs' . $programWhere . ($programOrder ? ' ORDER BY ' . implode(', ', $programOrder) : ''));
+}
 $today = date('Y-m-d');
 $thisMonth = date('Y-m');
 $stats = [
  ['label'=>'Total Programs','value'=>count($rows),'icon'=>'fa-calendar-days'],
- ['label'=>'Today','value'=>count(array_filter($rows,fn($r)=>(string)$r['program_date']===$today)),'icon'=>'fa-calendar-day'],
- ['label'=>'This Month','value'=>count(array_filter($rows,fn($r)=>str_starts_with((string)$r['program_date'],$thisMonth))),'icon'=>'fa-calendar'],
- ['label'=>'Scheduled','value'=>count(array_filter($rows,fn($r)=>strtolower((string)$r['status'])==='scheduled')),'icon'=>'fa-clock']
+ ['label'=>'Today','value'=>count(array_filter($rows,fn($r)=>(string)($r['program_date']??'')===$today)),'icon'=>'fa-calendar-day'],
+ ['label'=>'This Month','value'=>count(array_filter($rows,fn($r)=>str_starts_with((string)($r['program_date']??''),$thisMonth))),'icon'=>'fa-calendar'],
+ ['label'=>'Scheduled','value'=>count(array_filter($rows,fn($r)=>strtolower((string)($r['status']??''))==='scheduled')),'icon'=>'fa-clock']
 ];
 
 require_once __DIR__ . '/../includes/sidebar.php';

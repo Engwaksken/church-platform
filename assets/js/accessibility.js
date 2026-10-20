@@ -94,13 +94,26 @@
   const speechRate = document.getElementById('accessibilityRate');
   const voiceSelect = document.getElementById('accessibilityVoice');
   let voices = [];
+  const africanEnglishLocales = /^(en-(ZA|NG|KE|UG|GH|ZW|BW|NA|TZ|RW|SL|LR|ET|ZM|MW|LS|SZ))(?:-|$)/i;
+  const likelyFemaleVoice = (voice) => /\b(female|woman|tessa|nia|zuri|amara|maya|samantha|susan|zira|aria|jenny|ava|victoria|karen|moira|fiona|salli|joanna)\b/i.test(voice.name);
+  function preferredEnglishVoice() {
+    const africanWomen = voices.filter((voice) => africanEnglishLocales.test(voice.lang) && likelyFemaleVoice(voice));
+    return africanWomen[0]
+      || voices.find(likelyFemaleVoice)
+      || null;
+  }
   function loadVoices() {
     if (!('speechSynthesis' in window) || !voiceSelect) return;
     const selected = preferences.speechVoice;
-    voices = window.speechSynthesis.getVoices();
-    voiceSelect.replaceChildren(new Option('System default voice', ''));
-    voices.forEach((voice) => voiceSelect.add(new Option(voice.name + (voice.lang ? ' (' + voice.lang + ')' : ''), voice.voiceURI)));
-    voiceSelect.value = selected;
+    voices = window.speechSynthesis.getVoices().filter((voice) => /^en(?:-|$)/i.test(voice.lang));
+    const africanWomen = voices.filter((voice) => africanEnglishLocales.test(voice.lang) && likelyFemaleVoice(voice));
+    const englishWomen = voices.filter(likelyFemaleVoice);
+    const selectableVoices = africanWomen.length ? africanWomen : englishWomen;
+    voiceSelect.replaceChildren(new Option('Automatic English voice (African English preferred)', ''));
+    selectableVoices.forEach((voice) => voiceSelect.add(new Option(voice.name + (voice.lang ? ' (' + voice.lang + ')' : ''), voice.voiceURI)));
+    voiceSelect.value = selectableVoices.some((voice) => voice.voiceURI === selected) ? selected : '';
+    if (!voiceSelect.value) preferences.speechVoice = '';
+    if (speechStatus && !africanWomen.length) speechStatus.textContent = 'No African English woman voice was found on this device. An English female voice will be used when available.';
   }
   function stopSpeech() {
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
@@ -118,7 +131,8 @@
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text.slice(0, 12000));
     utterance.rate = Number(speechRate?.value || preferences.speechRate || 1);
-    utterance.voice = voices.find((voice) => voice.voiceURI === preferences.speechVoice) || null;
+    utterance.voice = voices.find((voice) => voice.voiceURI === preferences.speechVoice) || preferredEnglishVoice();
+    utterance.lang = utterance.voice?.lang || 'en-ZA';
     utterance.onstart = () => { if (speechStatus) speechStatus.textContent = selection ? 'Reading selected text.' : 'Reading page content.'; };
     utterance.onend = () => { if (speechStatus) speechStatus.textContent = 'Finished reading.'; };
     utterance.onerror = () => { if (speechStatus) speechStatus.textContent = 'Unable to read this text aloud.'; };
