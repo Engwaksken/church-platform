@@ -1,0 +1,6 @@
+<?php
+declare(strict_types=1);$pageTitle='My Attendance';require_once __DIR__.'/../includes/header.php';require_once __DIR__.'/_helpers.php';require_once __DIR__.'/_listing.php';require_permission('member.attendance.view');$mid=current_member_id();
+$rows=mp_table($conn,'attendance')?mp_rows($conn,"SELECT service_date,service_type,status,notes FROM attendance WHERE member_id=? ORDER BY service_date DESC",'i',[$mid]):[];
+$present=count(array_filter($rows,fn($r)=>strtolower((string)($r['status']??''))==='present'));$absent=count(array_filter($rows,fn($r)=>strtolower((string)($r['status']??''))==='absent'));
+$stats=[['label'=>'Attendance Records','value'=>count($rows),'icon'=>'fa-clipboard-check'],['label'=>'Present','value'=>$present,'icon'=>'fa-circle-check'],['label'=>'Absent','value'=>$absent,'icon'=>'fa-circle-xmark']];
+include __DIR__.'/../includes/sidebar.php';?><div class="main-content"><?php include __DIR__.'/../includes/topbar.php';?><div class="content-wrapper"><div class="card"><div class="card-header"><h3>My Attendance</h3></div><div class="card-body"><?php mp_render_listing_page('My Attendance','Only your attendance history is displayed.',$rows,$stats);?></div></div></div></div><?php mp_standard_styles();require_once __DIR__.'/../includes/footer.php';?>

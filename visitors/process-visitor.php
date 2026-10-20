@@ -1,0 +1,17 @@
+<?php
+declare(strict_types=1);
+require_once '../config/config.php';require_once '../includes/church-book-functions.php';requireLogin();cb_require_permission('visitors.manage');
+if(!isset($conn)||!($conn instanceof mysqli))die('Database connection not found.');$conn->set_charset('utf8mb4');
+if($_SERVER['REQUEST_METHOD']!=='POST'){header('Location: ./');exit;}cb_verify_csrf();$action=cb_clean($_POST['action']??'');
+if($action==='delete'){$id=cb_int($_POST['id']??0);if($id<=0){cb_flash('Invalid visitor record.','error');header('Location: ./');exit;}$stmt=$conn->prepare("DELETE FROM church_visitors WHERE id=?");$stmt->bind_param('i',$id);$stmt->execute();$ok=$stmt->affected_rows>0;$stmt->close();cb_flash($ok?'Visitor record deleted.':'Visitor record was not found.',$ok?'success':'error');header('Location: ./');exit;}
+if($action!=='save'){cb_flash('Invalid action.','error');header('Location: ./');exit;}
+$id=cb_int($_POST['id']??0);$visit=cb_clean($_POST['visit_date']??'');$member=cb_nullable_int($_POST['member_id']??'');$name=cb_clean($_POST['full_name']??'');$gender=cb_clean($_POST['gender']??'');$phone=cb_clean($_POST['phone']??'');$email=cb_clean($_POST['email']??'');$address=cb_clean($_POST['address']??'');$vtype=cb_clean($_POST['visitor_type']??'First Time');$service=cb_clean($_POST['service_attended']??'');$invited=cb_clean($_POST['invited_by']??'');$reason=cb_clean($_POST['reason_for_visit']??'');$prayer=cb_clean($_POST['prayer_request']??'');$required=cb_int($_POST['follow_up_required']??0)===1?1:0;$status=cb_clean($_POST['follow_up_status']??'Not Required');$assigned=cb_clean($_POST['assigned_to']??'');$notes=cb_clean($_POST['notes']??'');
+if($name===''||$visit===''||!cb_valid_date($visit)){cb_flash('Full name and a valid visit date are required.','error');header('Location: ./');exit;}
+if(!in_array($vtype,['First Time','Returning'],true))$vtype='First Time';if(!in_array($status,['Not Required','Pending','Contacted','Completed'],true))$status=$required?'Pending':'Not Required';if(!$required&&$status==='Pending')$status='Not Required';if(!in_array($gender,['Male','Female','Other','Prefer not to say'],true))$gender=null;
+if($email!==''&&!filter_var($email,FILTER_VALIDATE_EMAIL)){cb_flash('Please enter a valid email address.','error');header('Location: ./');exit;}
+try{
+ if($id>0){$sql="UPDATE church_visitors SET visit_date=?,member_id=?,full_name=?,gender=?,phone=?,email=?,address=?,visitor_type=?,service_attended=?,invited_by=?,reason_for_visit=?,prayer_request=?,follow_up_required=?,follow_up_status=?,assigned_to=?,notes=? WHERE id=?";$p=[$visit,$member,$name,$gender,$phone,$email,$address,$vtype,$service,$invited,$reason,$prayer,$required,$status,$assigned,$notes,$id];$t='sissssssssssisssi';}
+ else{$sql="INSERT INTO church_visitors(visit_date,member_id,full_name,gender,phone,email,address,visitor_type,service_attended,invited_by,reason_for_visit,prayer_request,follow_up_required,follow_up_status,assigned_to,notes,created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";$p=[$visit,$member,$name,$gender,$phone,$email,$address,$vtype,$service,$invited,$reason,$prayer,$required,$status,$assigned,$notes,cb_current_user_id()];$t='sissssssssssisssi';}
+ $stmt=$conn->prepare($sql);cb_bind($stmt,$t,$p);$stmt->execute();$stmt->close();cb_flash($id>0?'Visitor record updated successfully.':'Visitor added successfully.');
+}catch(Throwable $e){cb_flash('Could not save visitor record: '.$e->getMessage(),'error');}
+header('Location: ./');exit;

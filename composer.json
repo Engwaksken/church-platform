@@ -1,0 +1,12 @@
+{
+    "name": "rongoro-cou/church-cms",
+    "description": "Rongoro Church of Uganda - Church Management System",
+    "type": "project",
+    "require": {
+        "php": ">=7.4",
+        "dompdf/dompdf": "^2.0"
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

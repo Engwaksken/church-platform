@@ -1,0 +1,20 @@
+# Local secrets and configuration
+.env
+.env.*
+!.env.example
+
+# Dependencies are restored from Composer manifests
+/vendor/
+
+# Runtime logs and user data
+error_log
+**/error_log
+/uploads/
+/assets/uploads/
+/assets/img/uploads/
+
+# Local editor / operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

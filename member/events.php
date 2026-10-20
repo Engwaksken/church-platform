@@ -1,0 +1,5 @@
+<?php
+declare(strict_types=1);$pageTitle='Church Events';require_once __DIR__.'/../includes/header.php';require_once __DIR__.'/_helpers.php';require_once __DIR__.'/_listing.php';require_permission('events.view');
+$rows=mp_table($conn,'events')?mp_rows($conn,"SELECT event_name,event_type,event_date,event_time,venue,status,description FROM events WHERE event_date>=CURDATE() ORDER BY event_date,event_time"):[];
+$stats=mp_stats_from_rows($rows,[['label'=>'Upcoming Events','icon'=>'fa-calendar-days'],['label'=>'Event Types','type'=>'unique','key'=>'event_type','icon'=>'fa-layer-group'],['label'=>'Venues','type'=>'unique','key'=>'venue','icon'=>'fa-location-dot']]);
+include __DIR__.'/../includes/sidebar.php';?><div class="main-content"><?php include __DIR__.'/../includes/topbar.php';?><div class="content-wrapper"><div class="card"><div class="card-header"><h3>Upcoming Church Events</h3></div><div class="card-body"><?php mp_render_listing_page('Upcoming Church Events','Events are view-only.',$rows,$stats);?></div></div></div></div><?php mp_standard_styles();require_once __DIR__.'/../includes/footer.php';?>

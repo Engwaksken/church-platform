@@ -1,0 +1,739 @@
+/* =========================================================
+   ANNOUNCEMENTS MODULE
+   File: assets/css/announcements.css
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   Page layout
+   --------------------------------------------------------- */
+.announcements-page {
+    min-width: 0;
+}
+
+.announcements-page,
+.announcements-page *,
+.announcements-page *::before,
+.announcements-page *::after {
+    box-sizing: border-box;
+}
+
+.announcements-register-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.announcements-stats {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+/* ---------------------------------------------------------
+   Statistics filters
+   --------------------------------------------------------- */
+.announcement-stat-filter {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    appearance: none;
+    -webkit-appearance: none;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.announcement-stat-filter:hover {
+    transform: translateY(-2px);
+}
+
+.announcement-stat-filter:active {
+    transform: translateY(0);
+}
+
+.announcement-stat-filter:focus-visible {
+    outline: 3px solid var(--accent, #d7df21);
+    outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------
+   Toolbar and filters
+   --------------------------------------------------------- */
+.announcements-toolbar {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) 180px 180px auto;
+    gap: 10px;
+    align-items: center;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    background: var(--surface, #ffffff);
+}
+
+.announcements-toolbar .form-control,
+.announcements-toolbar select,
+.announcements-toolbar input {
+    width: 100%;
+    min-width: 0;
+}
+
+.announcements-search {
+    position: relative;
+    min-width: 0;
+}
+
+.announcements-search i {
+    position: absolute;
+    top: 50%;
+    left: 13px;
+    z-index: 1;
+    color: var(--text-muted, #64748b);
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+
+.announcements-search input {
+    padding-left: 40px;
+}
+
+.announcements-toolbar .btn {
+    white-space: nowrap;
+}
+
+/* ---------------------------------------------------------
+   Announcements table
+   --------------------------------------------------------- */
+.announcements-table {
+    width: 100%;
+    min-width: 1050px;
+    table-layout: auto;
+}
+
+.announcements-table th,
+.announcements-table td {
+    vertical-align: middle;
+}
+
+.announcements-table th:last-child,
+.announcements-table td:last-child {
+    text-align: right;
+}
+
+.announcement-title {
+    display: block;
+    color: var(--text, #111827);
+    font-size: 13.5px;
+    font-weight: 800;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.announcement-excerpt {
+    max-width: 420px;
+    margin: 5px 0 0;
+    color: var(--text-muted, #64748b);
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.announcement-schedule {
+    display: grid;
+    gap: 3px;
+    min-width: 150px;
+}
+
+.announcement-schedule span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text, #111827);
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.announcement-schedule span i {
+    flex: 0 0 auto;
+    color: var(--primary, #05645b);
+}
+
+.announcement-schedule small {
+    color: var(--text-muted, #64748b);
+    line-height: 1.35;
+}
+
+.announcement-live-indicator {
+    display: block;
+    margin-top: 5px;
+    color: var(--success, #16a34a);
+    font-size: 10.5px;
+    font-weight: 800;
+    line-height: 1.3;
+}
+
+.announcement-live-indicator::before {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 5px;
+    border-radius: 50%;
+    background: var(--success, #16a34a);
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+    content: "";
+    animation: announcementPulse 1.8s infinite;
+}
+
+@keyframes announcementPulse {
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.55;
+        transform: scale(0.85);
+    }
+}
+
+.announcements-result-count {
+    padding: 12px 18px;
+    border-top: 1px solid var(--border, #e5e7eb);
+    color: var(--text-muted, #64748b);
+    background: #faf9fd;
+    font-size: 12px;
+}
+
+.announcements-result-count strong {
+    color: var(--text, #111827);
+}
+
+/* ---------------------------------------------------------
+   Audience targeting
+   --------------------------------------------------------- */
+.announcement-departments-field {
+    padding: 14px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 12px;
+    background: #faf9fd;
+}
+
+.announcement-departments-field[hidden] {
+    display: none !important;
+}
+
+.announcement-department-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.announcement-department-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border, #cbd5e1) transparent;
+}
+
+.announcement-department-list::-webkit-scrollbar {
+    width: 7px;
+}
+
+.announcement-department-list::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: var(--border, #cbd5e1);
+}
+
+.announcement-department-option {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    margin: 0 !important;
+    padding: 9px 10px;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    transition:
+        border-color 0.2s ease,
+        background 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.announcement-department-option:hover {
+    border-color: var(--primary, #05645b);
+    background: var(--primary-fade, rgba(5, 100, 91, 0.08));
+}
+
+.announcement-department-option:has(input:checked) {
+    border-color: var(--primary, #05645b);
+    background: var(--primary-fade, rgba(5, 100, 91, 0.08));
+    box-shadow: 0 0 0 2px rgba(5, 100, 91, 0.08);
+}
+
+.announcement-department-option input {
+    flex: 0 0 auto;
+    width: 16px !important;
+    height: 16px;
+    margin: 0 !important;
+    accent-color: var(--primary, #05645b);
+}
+
+.announcement-department-option span {
+    min-width: 0;
+    color: var(--text, #111827);
+    font-size: 12.5px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.announcement-audience-list {
+    max-width: 240px;
+    margin-top: 5px;
+    color: var(--text-muted, #64748b);
+    font-size: 11.5px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.announcement-no-departments {
+    margin: 0;
+}
+
+/* ---------------------------------------------------------
+   View modal content
+   --------------------------------------------------------- */
+.announcement-view-head {
+    margin-bottom: 18px;
+}
+
+.announcement-view-head > div:first-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.announcement-view-head h3 {
+    margin: 12px 0 8px;
+    color: var(--primary, #05645b);
+    font-size: 21px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+.announcement-view-head p {
+    margin: 0;
+    color: var(--text, #111827);
+    line-height: 1.7;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.announcement-detail-grid {
+    margin-top: 18px;
+}
+
+.announcement-delete-warning {
+    margin: 0;
+}
+
+/* ---------------------------------------------------------
+   Modal display and positioning
+   --------------------------------------------------------- */
+body.cms-modal-open {
+    overflow: hidden !important;
+}
+
+.church-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    display: none;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.65);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    transition:
+        opacity 0.2s ease,
+        visibility 0.2s ease;
+}
+
+.church-modal-backdrop.show,
+.church-modal-backdrop.is-open {
+    display: block !important;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.church-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 32px 16px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+        opacity 0.2s ease,
+        visibility 0.2s ease;
+}
+
+.church-modal.show,
+.church-modal.is-open {
+    display: flex !important;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.church-modal-dialog {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 680px);
+    margin: auto;
+    overflow: hidden;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.3);
+    transform: translateY(-14px) scale(0.98);
+    transition: transform 0.2s ease;
+}
+
+.church-modal.show .church-modal-dialog,
+.church-modal.is-open .church-modal-dialog {
+    transform: translateY(0) scale(1);
+}
+
+.church-modal-dialog-sm {
+    width: min(100%, 480px);
+}
+
+.church-modal-dialog-lg {
+    width: min(100%, 920px);
+}
+
+.church-modal-header,
+.church-modal-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 22px;
+    background: #fff;
+}
+
+.church-modal-header {
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+}
+
+.church-modal-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    margin: 0;
+    color: var(--text, #111827);
+    font-size: 18px;
+    line-height: 1.3;
+}
+
+.church-modal-header h3 i {
+    flex: 0 0 auto;
+    color: var(--primary, #05645b);
+}
+
+.church-modal-body {
+    max-height: calc(100vh - 190px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 22px;
+    background: #fff;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border, #cbd5e1) transparent;
+}
+
+.church-modal-body::-webkit-scrollbar {
+    width: 7px;
+}
+
+.church-modal-body::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: var(--border, #cbd5e1);
+}
+
+.church-modal-footer {
+    justify-content: flex-end;
+    border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.church-modal-close {
+    display: inline-grid;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    flex: 0 0 38px;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    color: #475569;
+    background: #f1f5f9;
+    font: inherit;
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    transition:
+        color 0.2s ease,
+        background 0.2s ease,
+        transform 0.2s ease;
+}
+
+.church-modal-close:hover {
+    color: #0f172a;
+    background: #e2e8f0;
+    transform: rotate(3deg);
+}
+
+.church-modal-close:focus-visible {
+    outline: 3px solid var(--accent, #d7df21);
+    outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------
+   Form refinements inside announcement modals
+   --------------------------------------------------------- */
+.church-modal .church-form {
+    display: grid;
+    gap: 16px;
+}
+
+.church-modal .church-form-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.church-modal .church-form-group {
+    min-width: 0;
+}
+
+.church-modal .church-form-group label {
+    display: block;
+    margin-bottom: 7px;
+    color: var(--text, #111827);
+    font-size: 12.5px;
+    font-weight: 800;
+}
+
+.church-modal .church-form-group input,
+.church-modal .church-form-group select,
+.church-modal .church-form-group textarea {
+    width: 100%;
+    max-width: 100%;
+}
+
+.church-modal .church-form-group textarea {
+    min-height: 150px;
+    resize: vertical;
+}
+
+.church-modal .church-form-group small {
+    display: block;
+    margin-top: 6px;
+    color: var(--text-muted, #64748b);
+    font-size: 11.5px;
+    line-height: 1.45;
+}
+
+.church-modal .required {
+    color: var(--danger, #dc2626);
+}
+
+/* ---------------------------------------------------------
+   Empty state
+   --------------------------------------------------------- */
+#announcementEmptyRow[hidden] {
+    display: none !important;
+}
+
+#announcementEmptyRow .church-empty {
+    min-height: 220px;
+}
+
+/* ---------------------------------------------------------
+   Responsive styles
+   --------------------------------------------------------- */
+@media (max-width: 1200px) {
+    .announcements-stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .announcements-toolbar {
+        grid-template-columns: minmax(240px, 1fr) repeat(2, 170px);
+    }
+
+    .announcements-toolbar .btn {
+        grid-column: 1 / -1;
+        justify-self: end;
+    }
+}
+
+@media (max-width: 900px) {
+    .announcement-department-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .church-modal-dialog-lg {
+        width: min(100%, 760px);
+    }
+}
+
+@media (max-width: 767px) {
+    .announcements-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .announcements-toolbar {
+        grid-template-columns: 1fr;
+        padding: 14px;
+    }
+
+    .announcements-toolbar .btn {
+        grid-column: auto;
+        width: 100%;
+        justify-self: stretch;
+        justify-content: center;
+    }
+
+    .announcements-result-count {
+        padding: 12px 14px;
+    }
+
+    .church-modal {
+        padding: 14px;
+    }
+
+    .church-modal-dialog,
+    .church-modal-dialog-sm,
+    .church-modal-dialog-lg {
+        width: 100%;
+        margin: auto 0;
+        border-radius: 14px;
+    }
+
+    .church-modal-header,
+    .church-modal-body,
+    .church-modal-footer {
+        padding: 16px;
+    }
+
+    .church-modal-body {
+        max-height: calc(100vh - 150px);
+    }
+
+    .church-modal-footer {
+        flex-wrap: wrap;
+    }
+
+    .church-modal-footer .btn {
+        flex: 1 1 150px;
+        justify-content: center;
+    }
+
+    .church-modal .church-form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 575px) {
+    .announcement-department-list {
+        grid-template-columns: 1fr;
+    }
+
+    .announcement-department-tools .btn {
+        flex: 1 1 140px;
+        justify-content: center;
+    }
+
+    .announcement-view-head h3 {
+        font-size: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .announcements-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .church-modal {
+        align-items: stretch;
+        padding: 0;
+    }
+
+    .church-modal-dialog,
+    .church-modal-dialog-sm,
+    .church-modal-dialog-lg {
+        min-height: 100%;
+        margin: 0;
+        border: 0;
+        border-radius: 0;
+    }
+
+    .church-modal-body {
+        max-height: none;
+        flex: 1 1 auto;
+    }
+
+    .church-modal-dialog {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .church-modal-footer {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+    }
+
+    .church-modal-footer .btn {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+}
+
+/* ---------------------------------------------------------
+   Reduced motion accessibility
+   --------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    .announcement-stat-filter,
+    .announcement-live-indicator::before,
+    .church-modal-backdrop,
+    .church-modal,
+    .church-modal-dialog,
+    .church-modal-close,
+    .announcement-department-option {
+        animation: none !important;
+        transition: none !important;
+    }
+}

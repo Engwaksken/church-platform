@@ -1,0 +1,104 @@
+<?php
+$pageTitle = 'Dashboard';
+require_once 'config/config.php';
+requireLogin();
+
+$isMember = function_exists('is_member_user') && is_member_user();
+
+if ($isMember) {
+    $memberId = current_member_id();
+    $member = null;
+    $activeGateways = [];
+
+    if ($memberId > 0) {
+        $stmt = $conn->prepare("SELECT m.*, CONCAT(m.first_name,' ',m.last_name) AS full_name FROM members m WHERE m.id=? LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param('i', $memberId);
+            $stmt->execute();
+            $member = $stmt->get_result()->fetch_assoc() ?: null;
+            $stmt->close();
+        }
+    }
+
+    if (function_exists('access_table_exists') && access_table_exists($conn, 'payment_gateways')) {
+        $result = $conn->query("SELECT gateway_type,gateway_name,provider_name,account_number,phone_number,merchant_code,currency FROM payment_gateways WHERE is_active=1 ORDER BY sort_order,gateway_name LIMIT 3");
+        if ($result) while ($row = $result->fetch_assoc()) $activeGateways[] = $row;
+    }
+
+    include 'includes/header.php';
+    include 'includes/sidebar.php';
+    ?>
+    <div class="main-content">
+        <?php include 'includes/topbar.php'; ?>
+        <div class="content-area">
+            <?= showFlash(); ?>
+            <div class="member-welcome">
+                <div>
+                    <h3>Welcome, <?= h((string) ($member['first_name'] ?? ($_SESSION['full_name'] ?? 'Member'))) ?></h3>
+                    <p>Member No: <strong><?= h((string) ($member['member_no'] ?? '-')) ?></strong></p>
+                </div>
+                <i class="fas fa-church"></i>
+            </div>
+
+            <div class="member-quick-grid">
+                <a href="<?= h(BASE_URL.'member/giving.php') ?>"><i class="fas fa-hand-holding-heart"></i><span>My Giving</span></a>
+                <a href="<?= h(BASE_URL.'member/children.php') ?>"><i class="fas fa-child"></i><span>My Children</span></a>
+                <a href="<?= h(BASE_URL.'member/attendance.php') ?>"><i class="fas fa-calendar-check"></i><span>My Attendance</span></a>
+                <a href="<?= h(BASE_URL.'member/events.php') ?>"><i class="fas fa-calendar-alt"></i><span>Church Events</span></a>
+                <a href="<?= h(BASE_URL.'member/projects.php') ?>"><i class="fas fa-project-diagram"></i><span>Projects</span></a>
+                <a href="<?= h(BASE_URL.'member/profile.php') ?>"><i class="fas fa-user-circle"></i><span>My Profile</span></a>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-credit-card"></i> Payment Gateways</span>
+                    <a class="btn btn-sm btn-primary" href="<?= h(BASE_URL.'member/payment-gateways.php') ?>">View All</a>
+                </div>
+                <div class="card-body">
+                    <?php if (!$activeGateways): ?>
+                        <div class="alert alert-info mb-0">Payment gateways have not yet been published.</div>
+                    <?php else: ?>
+                        <div class="dashboard-gateway-grid">
+                            <?php foreach ($activeGateways as $g):
+                                $value = $g['gateway_type']==='bank' ? $g['account_number'] : ($g['gateway_type']==='mobile_money' ? $g['phone_number'] : $g['merchant_code']);
+                                $label = $g['gateway_type']==='bank' ? 'Account' : ($g['gateway_type']==='mobile_money' ? 'Mobile Money' : 'Merchant Code');
+                            ?>
+                                <div class="dashboard-gateway">
+                                    <small><?= h((string)$g['provider_name']) ?></small>
+                                    <strong><?= h((string)$g['gateway_name']) ?></strong>
+                                    <span><?= h($label) ?>: <b><?= h((string)$value) ?></b></span>
+                                    <em><?= h((string)$g['currency']) ?></em>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+    <style>
+    .member-welcome{display:flex;justify-content:space-between;align-items:center;padding:22px 24px;border-radius:14px;background:linear-gradient(135deg,#4a1e8f,#7b3fcf);color:#fff;margin-bottom:20px}.member-welcome h3{margin:0 0 5px}.member-welcome p{margin:0}.member-welcome i{font-size:48px;opacity:.28}.member-quick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.member-quick-grid a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;min-height:105px;border:1px solid #e1e4e8;border-radius:12px;background:#fff;text-decoration:none;color:#222;box-shadow:0 4px 12px rgba(20,30,40,.04)}.member-quick-grid a:hover{border-color:#4a1e8f;color:#4a1e8f}.member-quick-grid i{font-size:24px}.dashboard-gateway-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.dashboard-gateway{position:relative;padding:15px;border:1px solid #e1e4e8;border-radius:10px;background:#fafafa}.dashboard-gateway small,.dashboard-gateway span{display:block;color:#68707d}.dashboard-gateway strong{display:block;margin:4px 0 8px}.dashboard-gateway em{position:absolute;right:12px;top:12px;font-style:normal;font-weight:700;color:#4a1e8f}
+    </style>
+    <?php require_once 'includes/footer.php';
+    exit;
+}
+
+$total_members   = numRows("SELECT id FROM members WHERE status='Active'");
+$total_youth     = numRows("SELECT id FROM youth WHERE status='Active'");
+$total_baptisms  = numRows("SELECT id FROM baptisms");
+$total_ss        = numRows("SELECT id FROM sunday_school_pupils WHERE status='Active'");
+$fu_count        = numRows("SELECT id FROM fathers_union WHERE status='Active'");
+$mu_count        = numRows("SELECT id FROM mothers_union WHERE status='Active'");
+$recent_members = mysqli_query($conn,"SELECT *,CONCAT(first_name,' ',last_name) AS full_name FROM members ORDER BY created_at DESC LIMIT 6");
+include 'includes/header.php';
+include 'includes/sidebar.php';
+?>
+<div class="main-content"><?php include 'includes/topbar.php'; ?><div class="content-area"><?= showFlash(); ?>
+<div style="background:linear-gradient(135deg,#4a1e8f,#7b3fcf);border-radius:12px;color:#fff;padding:18px 24px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;"><div><h4 style="margin:0;font-weight:700;">Welcome back, <?= h(explode(' ', $_SESSION['full_name'] ?? 'Admin')[0]) ?></h4><small><?= date('l, d F Y') ?></small></div><i class="fas fa-church" style="font-size:42px;opacity:.25;"></i></div>
+<div class="row mb-4">
+<?php foreach ([[$total_members,'Members','fa-users','#4a1e8f'],[$total_youth,'Youth','fa-user-friends','#6f42c1'],[$total_baptisms,'Baptisms','fa-water','#007bff'],[$total_ss,'Pupils','fa-child','#17a2b8'],[$fu_count,'Fathers','fa-male','#20c997'],[$mu_count,'Mothers','fa-female','#e83e8c']] as $stat): ?>
+<div class="col-md-2 col-6 mb-2"><div class="stat-card text-white" style="background:<?= h($stat[3]) ?>"><div class="stat-number"><?= (int)$stat[0] ?></div><div class="stat-label"><i class="fas <?= h($stat[2]) ?>"></i> <?= h($stat[1]) ?></div></div></div>
+<?php endforeach; ?></div>
+<div class="card"><div class="card-header d-flex justify-content-between align-items-center"><span><i class="fas fa-users"></i> Recent Members</span><a href="<?= BASE_URL ?>members/index.php" class="btn btn-sm btn-primary"><i class="fas fa-user-plus"></i> Add</a></div><div class="card-body p-0"><table class="table table-sm mb-0"><tbody><?php while($m=mysqli_fetch_assoc($recent_members)): ?><tr><td style="width:50px"><span class="avatar-sm"><?= h(strtoupper(substr((string)$m['first_name'],0,1))) ?></span></td><td><strong><?= h((string)$m['full_name']) ?></strong><br><small class="text-muted"><?= h((string)$m['member_no']) ?></small></td><td><small class="text-muted"><?= h((string)($m['department']??'')) ?></small></td></tr><?php endwhile; ?></tbody></table></div><div class="card-footer"><a href="<?= BASE_URL ?>members/">View all members <i class="fas fa-arrow-right"></i></a></div></div>
+<div class="card mt-3"><div class="card-header"><i class="fas fa-bolt"></i> Quick Actions</div><div class="card-body"><div class="row"><?php foreach ([['members/index.php','fa-user-plus','Add Member','#4a1e8f'],['baptism/index.php','fa-water','Baptism','#007bff'],['sunday_school/index.php','fa-child','Enrol Pupil','#17a2b8'],['attendance/index.php','fa-clipboard-check','Attendance','#d4a017']] as $q): ?><div class="col-md-3 col-6 mb-2"><a href="<?= BASE_URL.h($q[0]) ?>" class="btn btn-block text-white" style="background:<?= h($q[3]) ?>"><i class="fas <?= h($q[1]) ?>"></i> <?= h($q[2]) ?></a></div><?php endforeach; ?></div></div></div>
+</div></div><?php require_once 'includes/footer.php'; ?>

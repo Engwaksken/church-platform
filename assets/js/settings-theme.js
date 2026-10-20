@@ -1,0 +1,1 @@
+document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('.settings-color-picker').forEach(p=>{const code=p.parentElement.querySelector('.settings-color-code');const sync=()=>{if(code)code.value=p.value.toUpperCase();};p.addEventListener('input',sync);sync();});});

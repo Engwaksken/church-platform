@@ -1,0 +1,1 @@
+<?php declare(strict_types=1); $_GET['section']='theme'; require __DIR__.'/index.php';

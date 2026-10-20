@@ -1,0 +1,336 @@
+/* Church Programs module */
+.church-program-stats {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.church-program-list-card {
+    padding: 0;
+}
+
+.church-program-list-head {
+    margin: 0;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.church-program-toolbar {
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) minmax(170px, 220px) minmax(140px, 170px) minmax(145px, 175px) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: #faf9fd;
+}
+
+.church-program-search {
+    position: relative;
+}
+
+.church-program-search i {
+    position: absolute;
+    top: 50%;
+    left: 13px;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.church-program-search input {
+    padding-left: 38px;
+}
+
+.church-program-table {
+    min-width: 920px;
+}
+
+.church-program-filter-empty {
+    border-top: 1px solid var(--border);
+}
+
+.church-form-row-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.church-current-attachment {
+    margin-top: 8px;
+    font-size: 12px;
+}
+
+.church-current-attachment a {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.church-program-delete-warning {
+    margin: 0;
+}
+
+.church-calendar-card,
+.church-calendar-agenda {
+    margin-bottom: 18px;
+}
+
+.church-calendar-toolbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.church-calendar-title {
+    text-align: center;
+}
+
+.church-calendar-title h3 {
+    justify-content: center;
+    margin-bottom: 3px;
+    font-size: 20px;
+}
+
+.church-calendar-title span {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.church-calendar-jump {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.church-calendar-jump label {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.church-calendar-jump input {
+    width: auto;
+    min-width: 165px;
+}
+
+.church-calendar-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.church-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(130px, 1fr));
+    min-width: 910px;
+}
+
+.church-calendar-weekdays {
+    color: var(--primary);
+    background: #f5f1ff;
+    font-size: 11px;
+    font-weight: 800;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.church-calendar-weekdays > div {
+    padding: 10px 8px;
+    border-right: 1px solid var(--border);
+}
+
+.church-calendar-days {
+    background: #fff;
+}
+
+.church-calendar-day {
+    min-height: 145px;
+    padding: 8px;
+    border-top: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    background: #fff;
+}
+
+.church-calendar-day:nth-child(7n) {
+    border-right: 0;
+}
+
+.church-calendar-day-empty {
+    background: #f8fafc;
+}
+
+.church-calendar-day.is-today {
+    background: var(--primary-fade);
+    box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.church-calendar-day-number {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 7px;
+    color: var(--text);
+    font-weight: 800;
+}
+
+.church-calendar-day-number small {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 999px;
+    color: #fff;
+    background: var(--primary);
+    font-size: 10px;
+}
+
+.church-calendar-events {
+    display: grid;
+    gap: 5px;
+}
+
+.church-calendar-event {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 5px;
+    padding: 5px 6px;
+    border-left: 3px solid var(--primary);
+    border-radius: 5px;
+    color: var(--text);
+    background: var(--primary-fade);
+    font-size: 10.5px;
+    line-height: 1.25;
+}
+
+.church-calendar-event time {
+    color: var(--primary);
+    font-weight: 800;
+}
+
+.church-calendar-event span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.church-calendar-event.is-draft {
+    border-left-color: var(--warning);
+    background: rgba(255, 193, 7, .12);
+}
+
+.church-calendar-event.is-cancelled {
+    border-left-color: var(--danger);
+    background: rgba(220, 53, 69, .10);
+    text-decoration: line-through;
+}
+
+.church-calendar-agenda-item {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+}
+
+.church-calendar-agenda-date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 58px;
+    height: 58px;
+    border-radius: 12px;
+    color: #fff;
+    background: var(--primary);
+}
+
+.church-calendar-agenda-date strong {
+    font-size: 20px;
+    line-height: 1;
+}
+
+.church-calendar-agenda-date span {
+    margin-top: 3px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+@media (max-width: 1200px) {
+    .church-program-stats {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .church-program-toolbar {
+        grid-template-columns: minmax(240px, 1fr) repeat(2, minmax(150px, 190px));
+    }
+
+    .church-program-toolbar input[type="month"],
+    .church-program-toolbar .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 767px) {
+    .church-program-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .church-program-toolbar {
+        grid-template-columns: 1fr;
+    }
+
+    .church-form-row-3 {
+        grid-template-columns: 1fr;
+    }
+
+    .church-calendar-jump {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .church-calendar-jump input,
+    .church-calendar-jump .btn {
+        width: 100%;
+    }
+
+    .church-calendar-agenda-item {
+        grid-template-columns: 50px minmax(0, 1fr);
+    }
+
+    .church-calendar-agenda-item > .btn {
+        grid-column: 1 / -1;
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .church-program-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .church-calendar-toolbar {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .church-calendar-title {
+        grid-column: 1 / -1;
+        grid-row: 1;
+    }
+}
+
+
+/* Department audience targeting */
+.program-departments-field{padding:14px;border:1px solid var(--border);border-radius:12px;background:#faf9fd}
+.program-department-tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.program-department-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:220px;overflow-y:auto;padding:4px}
+.program-department-option{display:flex!important;align-items:center;gap:8px;margin:0!important;padding:9px 10px;border:1px solid var(--border);border-radius:9px;background:#fff;cursor:pointer}
+.program-department-option:hover{border-color:var(--primary);background:var(--primary-fade)}
+.program-department-option input{width:auto!important;margin:0!important;accent-color:var(--primary)}
+.program-department-option span{font-size:12.5px;font-weight:600}
+@media(max-width:767px){.program-department-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.program-department-list{grid-template-columns:1fr}}
