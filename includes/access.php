@@ -45,7 +45,7 @@ function enforce_member_read_only():void{
     $method=strtoupper($_SERVER['REQUEST_METHOD']??'GET');
     if(in_array($method,['GET','HEAD'],true))return;
     $path=strtolower(str_replace('\\','/',parse_url($_SERVER['REQUEST_URI']??'',PHP_URL_PATH)?:''));
-    $allowed=['/member/profile.php','/member/notebook.php','/member/appointments.php'];
+    $allowed=['/member/profile.php','/member/notebook.php','/member/appointments'];
     foreach($allowed as $needle)if(str_contains($path,$needle))return;
     http_response_code(403);header('Content-Type: application/json; charset=utf-8');echo json_encode(['success'=>false,'message'=>'Member accounts have view-only access.']);exit;
 }
