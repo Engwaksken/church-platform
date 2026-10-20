@@ -104,8 +104,6 @@
   function loadVoices() {
     if (!('speechSynthesis' in window)) return;
     voices = window.speechSynthesis.getVoices().filter((voice) => /^en(?:-|$)/i.test(voice.lang));
-    const africanWomen = voices.filter((voice) => africanEnglishLocales.test(voice.lang) && likelyFemaleVoice(voice));
-    if (speechStatus && voices.length && !africanWomen.length) speechStatus.textContent = 'No African English woman voice is installed on this device; using its best available English female voice.';
   }
   function stopSpeech() {
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
