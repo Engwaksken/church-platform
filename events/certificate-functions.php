@@ -54,6 +54,31 @@ function event_certificate_brand(mysqli $conn): array
     return $brand;
 }
 
+function event_certificate_setting(mysqli $conn, string $key, string $default = ''): string
+{
+    if (!event_certificate_table_exists($conn, 'site_settings')) return $default;
+    $stmt = $conn->prepare('SELECT setting_value FROM site_settings WHERE setting_key=? LIMIT 1');
+    if (!$stmt) return $default;
+    $stmt->bind_param('s',$key);$stmt->execute();$row=$stmt->get_result()->fetch_assoc();$stmt->close();
+    $value = trim((string)($row['setting_value'] ?? ''));
+    return $value !== '' ? $value : $default;
+}
+
+function event_certificate_save_setting(mysqli $conn, string $key, string $value): void
+{
+    if (!event_certificate_table_exists($conn, 'site_settings')) {
+        $conn->query("CREATE TABLE site_settings (id INT AUTO_INCREMENT PRIMARY KEY, setting_key VARCHAR(100) NOT NULL UNIQUE, setting_value TEXT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    }
+    $stmt = $conn->prepare('INSERT INTO site_settings(setting_key,setting_value) VALUES(?,?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),updated_at=CURRENT_TIMESTAMP');
+    $stmt->bind_param('ss',$key,$value);$stmt->execute();$stmt->close();
+}
+
+function event_certificate_table_exists(mysqli $conn, string $table): bool
+{
+    $stmt=$conn->prepare('SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? LIMIT 1');
+    if(!$stmt)return false;$stmt->bind_param('s',$table);$stmt->execute();$found=(bool)$stmt->get_result()->fetch_row();$stmt->close();return $found;
+}
+
 function event_certificate_logo_src(string $path): string
 {
     if ($path === '') return '';

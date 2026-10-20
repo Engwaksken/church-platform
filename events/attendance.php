@@ -12,13 +12,43 @@ $stmt = $conn->prepare('SELECT id,title,event_type,event_date,event_time,venue,o
 $stmt->bind_param('i', $eventId); $stmt->execute(); $event = $stmt->get_result()->fetch_assoc(); $stmt->close();
 if (!$event) { http_response_code(404); exit('Event not found.'); }
 $brand = event_certificate_brand($conn);
+$templatePath = event_certificate_setting($conn,'event_certificate_template','');
+$nameTop = (float)event_certificate_setting($conn,'event_certificate_name_top','52');
+$detailsTop = (float)event_certificate_setting($conn,'event_certificate_details_top','70');
 $csrf = (string)($_SESSION['event_certificate_csrf'] ??= bin2hex(random_bytes(32)));
 $flash = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if (!hash_equals($csrf, (string)($_POST['csrf_token'] ?? ''))) throw new RuntimeException('Your form session expired. Reload and try again.');
         $action = (string)($_POST['action'] ?? '');
-        if ($action === 'save_attendance') {
+        if ($action === 'upload_template') {
+            $file = $_FILES['certificate_template'] ?? null;
+            if (!$file || (int)$file['error'] !== UPLOAD_ERR_OK || !is_uploaded_file((string)$file['tmp_name'])) throw new RuntimeException('Choose a PNG or JPG certificate design to upload.');
+            if ((int)$file['size'] > 12 * 1024 * 1024) throw new RuntimeException('Certificate design must be 12 MB or smaller.');
+            $image = @getimagesize((string)$file['tmp_name']);
+            $mime = (string)($image['mime'] ?? '');
+            $extensions = ['image/png'=>'png','image/jpeg'=>'jpg'];
+            if (!isset($extensions[$mime])) throw new RuntimeException('Only PNG and JPG certificate designs are supported.');
+            $directory = __DIR__ . '/../assets/uploads/event-certificates';
+            if (!is_dir($directory) && !mkdir($directory,0775,true)) throw new RuntimeException('Could not create the certificate uploads directory.');
+            $filename = 'event-certificate-template-' . date('YmdHis') . '-' . bin2hex(random_bytes(4)) . '.' . $extensions[$mime];
+            if (!move_uploaded_file((string)$file['tmp_name'],$directory.'/'.$filename)) throw new RuntimeException('Could not save the certificate design.');
+            $templatePath = 'assets/uploads/event-certificates/' . $filename;
+            event_certificate_save_setting($conn,'event_certificate_template',$templatePath);
+            $flash = ['type'=>'success','message'=>'Certificate design uploaded and set as the active event certificate template.'];
+        } elseif ($action === 'use_builtin_template') {
+            event_certificate_save_setting($conn,'event_certificate_template','');
+            $templatePath = '';
+            $flash = ['type'=>'success','message'=>'The built-in event certificate design is active again.'];
+        } elseif ($action === 'save_template_layout') {
+            $nameTop = (float)($_POST['name_top'] ?? 52);
+            $detailsTop = (float)($_POST['details_top'] ?? 70);
+            if ($nameTop < 10 || $nameTop > 90 || $detailsTop < 10 || $detailsTop > 90) throw new RuntimeException('Template text positions must be between 10% and 90%.');
+            $nameTop = round($nameTop,1); $detailsTop = round($detailsTop,1);
+            event_certificate_save_setting($conn,'event_certificate_name_top',(string)$nameTop);
+            event_certificate_save_setting($conn,'event_certificate_details_top',(string)$detailsTop);
+            $flash = ['type'=>'success','message'=>'Certificate template text positions saved.'];
+        } elseif ($action === 'save_attendance') {
             $selected = array_values(array_unique(array_filter(array_map('intval', (array)($_POST['member_ids'] ?? [])), static fn($id) => $id > 0)));
             $conn->begin_transaction();
             $stmt = $conn->prepare('UPDATE event_attendance SET attended=0,marked_by=? WHERE event_id=?');
@@ -71,6 +101,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 <div class="main-content"><?php include __DIR__ . '/../includes/topbar.php'; ?><div class="content-area">
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3"><div><h2>Attendance and Certificates</h2><p class="text-muted mb-0"><?=htmlspecialchars((string)$event['title'],ENT_QUOTES,'UTF-8')?> - <?=htmlspecialchars(date('d M Y',strtotime((string)$event['event_date'])),ENT_QUOTES,'UTF-8')?></p></div><a class="btn btn-outline-secondary" href="index.php">Back to Events</a></div>
 <?php if($flash):?><div class="alert alert-<?=htmlspecialchars($flash['type'],ENT_QUOTES,'UTF-8')?>"><?=htmlspecialchars($flash['message'],ENT_QUOTES,'UTF-8')?></div><?php endif;?>
+<div class="card mb-3"><div class="card-header"><strong>Certificate Design Template</strong></div><div class="card-body"><p>Upload a landscape A4 PNG or JPG design. It becomes the active background for event certificates; the member and event details are overlaid automatically.</p><?php if($templatePath!==''):?><img src="<?=htmlspecialchars(event_certificate_logo_src($templatePath),ENT_QUOTES,'UTF-8')?>" alt="Current certificate template" style="display:block;max-width:480px;max-height:220px;object-fit:contain;margin:0 0 14px;border:1px solid #ddd"><?php else:?><div class="alert alert-info">No custom design is active. Certificates use the built-in design.</div><?php endif;?><form method="post" enctype="multipart/form-data" class="d-flex flex-wrap align-items-end gap-2"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($csrf,ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="event_id" value="<?=$eventId?>"><input type="hidden" name="action" value="upload_template"><label class="form-label">PNG or JPG (up to 12 MB)<input class="form-control" type="file" name="certificate_template" accept="image/png,image/jpeg" required></label><button class="btn btn-primary">Upload and Set Template</button></form><?php if($templatePath!==''):?><form method="post" class="mt-3 d-flex flex-wrap align-items-end gap-2"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($csrf,ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="event_id" value="<?=$eventId?>"><input type="hidden" name="action" value="save_template_layout"><label class="form-label">Member name position, from top (%)<input class="form-control" type="number" min="10" max="90" step=".5" name="name_top" value="<?=htmlspecialchars((string)$nameTop,ENT_QUOTES,'UTF-8')?>"></label><label class="form-label">Event details position, from top (%)<input class="form-control" type="number" min="10" max="90" step=".5" name="details_top" value="<?=htmlspecialchars((string)$detailsTop,ENT_QUOTES,'UTF-8')?>"></label><button class="btn btn-outline-primary">Save Template Layout</button></form><form method="post" class="mt-2"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($csrf,ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="event_id" value="<?=$eventId?>"><input type="hidden" name="action" value="use_builtin_template"><button class="btn btn-outline-secondary btn-sm">Use Built-in Design</button></form><?php endif;?></div></div>
 <form method="post"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($csrf,ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="event_id" value="<?=$eventId?>"><input type="hidden" name="action" value="save_attendance"><div class="card"><div class="card-header d-flex justify-content-between align-items-center"><strong>Mark attendees</strong><button class="btn btn-primary btn-sm">Save Attendance</button></div><div class="table-responsive"><table class="table"><thead><tr><th>Present</th><th>Member No.</th><th>Member</th><th>Email</th><th>Certificate</th></tr></thead><tbody><?php foreach($members as $m):?><tr><td><input type="checkbox" name="member_ids[]" value="<?=(int)$m['id']?>" <?=((int)$m['attended']===1?'checked':'')?> aria-label="Mark present"></td><td><?=htmlspecialchars((string)($m['member_no']??''),ENT_QUOTES,'UTF-8')?></td><td><?=htmlspecialchars(trim((string)$m['first_name'].' '.(string)$m['last_name']),ENT_QUOTES,'UTF-8')?></td><td><?=htmlspecialchars((string)($m['email']??''),ENT_QUOTES,'UTF-8')?></td><td><?php if((int)$m['attended']!==1):?><span class="text-muted">Mark present first</span><?php elseif(!empty($m['certificate_id'])):?><span class="badge badge-success">Issued: <?=htmlspecialchars((string)$m['certificate_no'],ENT_QUOTES,'UTF-8')?></span><?php else:?><span class="text-muted">Ready to issue</span><?php endif;?></td></tr><?php endforeach;?><?php if(!$members):?><tr><td colspan="5" class="text-center text-muted">No active members found.</td></tr><?php endif;?></tbody></table></div></div></form>
 <div class="card mt-3"><div class="card-header"><strong>Issue Certificates</strong></div><div class="card-body"><p>Certificates are available only for members marked present above. Save attendance before issuing.</p><div class="table-responsive"><table class="table"><thead><tr><th>Attendee</th><th>Issue certificate</th></tr></thead><tbody><?php foreach($members as $m):if((int)$m['attended']!==1)continue;?><tr><td><?=htmlspecialchars(trim((string)$m['first_name'].' '.(string)$m['last_name']),ENT_QUOTES,'UTF-8')?></td><td><form method="post" class="d-flex gap-2 align-items-center"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($csrf,ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="event_id" value="<?=$eventId?>"><input type="hidden" name="member_id" value="<?=(int)$m['id']?>"><input type="hidden" name="action" value="issue_certificate"><input class="form-control form-control-sm" name="certificate_name" value="<?=htmlspecialchars($brand['name'],ENT_QUOTES,'UTF-8')?>" maxlength="180" required><button class="btn btn-success btn-sm">Issue / Update</button></form></td></tr><?php endforeach;?></tbody></table></div></div></div>
 </div></div><?php require_once __DIR__ . '/../includes/footer.php'; ?>
