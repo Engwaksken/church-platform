@@ -332,6 +332,12 @@ h1{
 }
 
 body.certificate-pdf .cert{
+    page-break-before:avoid;
+    page-break-after:avoid;
+    page-break-inside:auto;
+    break-before:avoid;
+    break-after:avoid;
+    break-inside:auto;
     width:190mm;
     height:279mm;
     min-height:0;
