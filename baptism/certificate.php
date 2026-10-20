@@ -109,7 +109,7 @@ ob_start();
 <?php include '../includes/topbar.php'; ?>
 <div class="content-area">
 <?php else: ?>
-<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Baptism Certificate</title></head><body style="background:#fff">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Baptism Certificate</title></head><body class="certificate-pdf" style="background:#fff">
 <?php endif; ?>
 
 
@@ -330,6 +330,30 @@ h1{
         box-shadow:none;
     }
 }
+
+body.certificate-pdf .cert{
+    width:190mm;
+    height:279mm;
+    min-height:0;
+    margin:0 auto;
+    padding:7mm;
+    overflow:hidden;
+}
+body.certificate-pdf .cert-inner{
+    height:100%;
+    min-height:0;
+    padding:7mm;
+}
+body.certificate-pdf h1{font-size:26px;margin:4px 0}
+body.certificate-pdf .diocese{margin-bottom:6px}
+body.certificate-pdf .subtitle{font-size:15px;margin-bottom:8px}
+body.certificate-pdf .candidate{font-size:28px;margin-bottom:8px}
+body.certificate-pdf .cert-body{font-size:18px;line-height:1.35;margin-bottom:8px}
+body.certificate-pdf .details{margin-top:4px;margin-bottom:8px}
+body.certificate-pdf .details td{padding:4px}
+body.certificate-pdf .signatures{margin-top:10px}
+body.certificate-pdf .signature-image,body.certificate-pdf .signature-space{height:48px}
+body.certificate-pdf .footer-note{bottom:4mm}
 </style>
 
 
