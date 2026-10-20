@@ -23,8 +23,7 @@
       <button type="button" data-accessibility="ruler" aria-pressed="false">Reading guide</button>
       <button type="button" data-accessibility="motion" aria-pressed="false">Reduce motion</button>
       <div class="accessibility-speech">
-        <label class="accessibility-select-label" for="accessibilityVoice">Read aloud voice (English only; African woman preferred)</label>
-        <select id="accessibilityVoice" aria-label="Select a read aloud voice"><option value="">System default voice</option></select>
+        <p class="accessibility-voice-note">Read aloud uses an African English woman’s voice when available on this device.</p>
         <label class="accessibility-select-label" for="accessibilityRate">Speech speed <output id="accessibilityRateValue">1×</output></label>
         <input id="accessibilityRate" type="range" min="0.7" max="1.5" step="0.1" value="1">
         <div class="accessibility-speech-actions"><button type="button" id="speakSelection"><i class="fas fa-play" aria-hidden="true"></i> Read selection / page</button><button type="button" id="pauseSpeech"><i class="fas fa-pause" aria-hidden="true"></i> Pause / resume</button><button type="button" id="stopSpeech"><i class="fas fa-stop" aria-hidden="true"></i> Stop</button></div>
@@ -37,7 +36,7 @@
   </section>
 </div>
 <script src="<?= BASE_URL ?>assets/js/main.js"></script>
-<script src="<?= BASE_URL ?>assets/js/accessibility.js?v=2"></script>
+<script src="<?= BASE_URL ?>assets/js/accessibility.js?v=3"></script>
 <script src="<?= BASE_URL ?>assets/js/bulk-delete.js?v=1"></script>
 </body>
 </html>

@@ -10,7 +10,7 @@
   const defaults = {
     fontScale: 1, contrast: 'normal', grayscale: false, links: false,
     readable: false, lineSpacing: false, highlightHeadings: false,
-    largeCursor: false, ruler: false, motion: false, speechRate: 1, speechVoice: ''
+    largeCursor: false, ruler: false, motion: false, speechRate: 1
   };
   let preferences = { ...defaults };
   try { preferences = { ...defaults, ...JSON.parse(localStorage.getItem('churchA11yPrefs') || '{}') }; } catch (e) {}
@@ -92,10 +92,9 @@
 
   const speechStatus = document.getElementById('accessibilitySpeechStatus');
   const speechRate = document.getElementById('accessibilityRate');
-  const voiceSelect = document.getElementById('accessibilityVoice');
   let voices = [];
   const africanEnglishLocales = /^(en-(ZA|NG|KE|UG|GH|ZW|BW|NA|TZ|RW|SL|LR|ET|ZM|MW|LS|SZ))(?:-|$)/i;
-  const likelyFemaleVoice = (voice) => /\b(female|woman|tessa|nia|zuri|amara|maya|samantha|susan|zira|aria|jenny|ava|victoria|karen|moira|fiona|salli|joanna)\b/i.test(voice.name);
+  const likelyFemaleVoice = (voice) => /\b(female|woman|tessa|nia|zuri|amara|maya|samantha|susan|zira|aria|jenny|ava|victoria|karen|moira|fiona|salli|joanna|lerato|zola|nomsa|thandi|lindiwe|naledi|akosua|ama|aisha|chiamaka)\b/i.test(voice.name);
   function preferredEnglishVoice() {
     const africanWomen = voices.filter((voice) => africanEnglishLocales.test(voice.lang) && likelyFemaleVoice(voice));
     return africanWomen[0]
@@ -103,17 +102,10 @@
       || null;
   }
   function loadVoices() {
-    if (!('speechSynthesis' in window) || !voiceSelect) return;
-    const selected = preferences.speechVoice;
+    if (!('speechSynthesis' in window)) return;
     voices = window.speechSynthesis.getVoices().filter((voice) => /^en(?:-|$)/i.test(voice.lang));
     const africanWomen = voices.filter((voice) => africanEnglishLocales.test(voice.lang) && likelyFemaleVoice(voice));
-    const englishWomen = voices.filter(likelyFemaleVoice);
-    const selectableVoices = africanWomen.length ? africanWomen : englishWomen;
-    voiceSelect.replaceChildren(new Option('Automatic English voice (African English preferred)', ''));
-    selectableVoices.forEach((voice) => voiceSelect.add(new Option(voice.name + (voice.lang ? ' (' + voice.lang + ')' : ''), voice.voiceURI)));
-    voiceSelect.value = selectableVoices.some((voice) => voice.voiceURI === selected) ? selected : '';
-    if (!voiceSelect.value) preferences.speechVoice = '';
-    if (speechStatus && !africanWomen.length) speechStatus.textContent = 'No African English woman voice was found on this device. An English female voice will be used when available.';
+    if (speechStatus && voices.length && !africanWomen.length) speechStatus.textContent = 'No African English woman voice is installed on this device; using its best available English female voice.';
   }
   function stopSpeech() {
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
@@ -131,7 +123,7 @@
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text.slice(0, 12000));
     utterance.rate = Number(speechRate?.value || preferences.speechRate || 1);
-    utterance.voice = voices.find((voice) => voice.voiceURI === preferences.speechVoice) || preferredEnglishVoice();
+    utterance.voice = preferredEnglishVoice();
     utterance.lang = utterance.voice?.lang || 'en-ZA';
     utterance.onstart = () => { if (speechStatus) speechStatus.textContent = selection ? 'Reading selected text.' : 'Reading page content.'; };
     utterance.onend = () => { if (speechStatus) speechStatus.textContent = 'Finished reading.'; };
@@ -142,7 +134,6 @@
     loadVoices();
     window.speechSynthesis.addEventListener?.('voiceschanged', loadVoices);
   } else if (speechStatus) speechStatus.textContent = 'Read aloud is not supported by this browser.';
-  voiceSelect?.addEventListener('change', () => { preferences.speechVoice = voiceSelect.value; apply(); });
   speechRate?.addEventListener('input', () => { preferences.speechRate = Number(speechRate.value); apply(); });
   document.getElementById('speakSelection')?.addEventListener('click', readAloud);
   document.getElementById('pauseSpeech')?.addEventListener('click', () => {

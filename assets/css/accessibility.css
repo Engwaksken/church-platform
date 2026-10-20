@@ -37,6 +37,7 @@ html.a11y-reduce-motion *,html.a11y-reduce-motion *::before,html.a11y-reduce-mot
 .accessibility-speech-actions button{min-height:38px;padding:7px;border:1px solid #d9deea;border-radius:8px;background:#fff;color:#172033;font:600 12px Arial,sans-serif;cursor:pointer}
 .accessibility-speech-actions button:first-child{grid-column:1/-1;background:#4a1e8f;border-color:#4a1e8f;color:#fff}
 .accessibility-speech-status{min-height:16px;margin:0;color:#475467;font-size:11px}
+.accessibility-voice-note{margin:0;color:#475467;font-size:11px;line-height:1.45}
 html.a11y-dark{filter:invert(1) hue-rotate(180deg)}
 html.a11y-dark img,html.a11y-dark video,html.a11y-dark canvas{filter:invert(1) hue-rotate(180deg)}
 html.a11y-yellow{filter:grayscale(1) contrast(1.25)}
