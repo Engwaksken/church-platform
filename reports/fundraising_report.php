@@ -241,9 +241,12 @@ include '../includes/sidebar.php';
 <div class="page-header">
 <h2>Fundraising Report</h2>
 
+<div>
+<a href="index.php" class="btn btn-secondary mr-1"><i class="fas fa-arrow-left"></i> Back to Reports</a>
 <a href="?from=<?= e($from) ?>&to=<?= e($to) ?>&pdf=1" class="btn btn-danger">
 PDF
 </a>
+</div>
 </div>
 
 <div class="card">

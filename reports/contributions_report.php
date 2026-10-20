@@ -182,11 +182,10 @@ include '../includes/sidebar.php';
 
 <div class="content-area">
 
-<h2>Contributions Report</h2>
-
-<a href="?from=<?= e($from) ?>&to=<?= e($to) ?>&pdf=1" class="btn btn-danger">
-PDF
-</a>
+<div class="page-header"><h2>Contributions Report</h2><div>
+<a href="index.php" class="btn btn-secondary mr-1"><i class="fas fa-arrow-left"></i> Back to Reports</a>
+<a href="?from=<?= e($from) ?>&to=<?= e($to) ?>&pdf=1" class="btn btn-danger"><i class="fas fa-file-pdf"></i> PDF</a>
+</div></div>
 
 <div class="card">
 <div class="card-body p-0">

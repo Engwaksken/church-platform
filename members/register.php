@@ -28,6 +28,20 @@ function sr_site_asset(mysqli $conn, string $column): string {
     $allowed = ['site_logo', 'site_favicon'];
     if (!in_array($column, $allowed, true)) return '';
 
+    // Site Settings stores branding as key/value pairs in site_settings.
+    if (sr_table_exists($conn, 'site_settings')) {
+        $stmt = $conn->prepare('SELECT setting_value FROM site_settings WHERE setting_key=? LIMIT 1');
+        if ($stmt) {
+            $stmt->bind_param('s', $column);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+            $value = trim((string)($row['setting_value'] ?? ''));
+            if ($value !== '') return $value;
+        }
+    }
+
+    // Keep compatibility with older deployments using site_system columns.
     if (!sr_table_exists($conn, 'site_system') || !sr_column_exists($conn, 'site_system', $column)) {
         return '';
     }
@@ -139,6 +153,11 @@ function sr_sync_department(mysqli $conn,int $memberId,?int $deptId,string $join
 
 try { sr_ensure_links_table($conn); } catch(Throwable $e) { http_response_code(500); exit('Registration service is unavailable.'); }
 
+$siteName = APP_NAME;
+if (sr_table_exists($conn, 'site_settings')) {
+    $siteNameStmt = $conn->prepare("SELECT setting_value FROM site_settings WHERE setting_key='site_name' LIMIT 1");
+    if ($siteNameStmt) { $siteNameStmt->execute(); $siteName = trim((string)($siteNameStmt->get_result()->fetch_assoc()['setting_value'] ?? '')) ?: APP_NAME; $siteNameStmt->close(); }
+}
 $siteLogo = sr_site_asset($conn, 'site_logo');
 $siteFavicon = sr_site_asset($conn, 'site_favicon');
 $siteLogoUrl = sr_site_asset_url($siteLogo);
@@ -265,7 +284,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && !$invalidInvite){
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Member Self-Registration</title>
+<title>Member Self-Registration | <?= sr_h($siteName) ?></title>
 <?php if($siteFaviconUrl !== ''): ?>
 <link rel="icon" href="<?= sr_h($siteFaviconUrl) ?>">
 <link rel="shortcut icon" href="<?= sr_h($siteFaviconUrl) ?>">
@@ -290,7 +309,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && !$invalidInvite){
             <?php if($siteLogoUrl !== ''): ?>
                 <img
                     src="<?= sr_h($siteLogoUrl) ?>"
-                    alt="Site logo"
+                    alt="<?= sr_h($siteName) ?> logo"
                     class="site-logo"
                     onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"
                 >
@@ -299,8 +318,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && !$invalidInvite){
                 <div class="icon"><i class="fas fa-church"></i></div>
             <?php endif; ?>
         </div>
-        <h1>Church Member Registration</h1>
-        <p>Complete this form to create your church member account.</p>
+        <h1><?= sr_h($siteName) ?></h1>
+        <p>Church Member Registration · Complete this form to create your account.</p>
     </div>
     <div class="reg-card">
     <?php if($invalidInvite): ?>

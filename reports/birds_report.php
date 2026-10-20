@@ -77,6 +77,7 @@ td{padding:4px;border-bottom:1px solid #eee}
 </head>
 
 <body>
+<?php if (!isset($_GET['pdf'])): ?><div class="no-print" style="margin:0 0 16px;display:flex;gap:8px"><a class="btn btn-secondary" href="index.php"><i class="fas fa-arrow-left"></i> Back to Reports</a><a class="btn btn-danger" href="?pdf=1"><i class="fas fa-file-pdf"></i> PDF</a></div><?php endif; ?>
 <div class="main-content">
 <?php include '../includes/topbar.php'; ?>
 

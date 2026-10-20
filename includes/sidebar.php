@@ -1719,6 +1719,17 @@ $memberId =
             'contributions.view'
         );
 
+        navLink(
+            $sidebarBaseUrl .
+            'expenses/',
+            'fa-receipt',
+            'Expenses',
+            $dir,
+            $cur,
+            'expenses',
+            'expenses.view'
+        );
+
         ?>
 
 

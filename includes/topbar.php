@@ -499,7 +499,9 @@ if (
  */
 
 if ($pageTitleResolved === '') {
-    $pageTitleResolved = 'Rongoro COU';
+    $pageTitleResolved = isset($siteName) && trim((string)$siteName) !== ''
+        ? (string)$siteName
+        : (defined('APP_NAME') ? APP_NAME : 'Church Management System');
 }
 
 

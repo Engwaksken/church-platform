@@ -341,6 +341,9 @@ include '../includes/sidebar.php';
 <div class="content-area">
 <?php if (!isset($_GET['pdf'])): ?>
     <div class="no-print">
+        <a class="download-button" href="index.php" style="margin-right:8px">
+            <i class="fas fa-arrow-left"></i> Back to Reports
+        </a>
         <a class="download-button" href="?pdf=1">
             Download PDF
         </a>
