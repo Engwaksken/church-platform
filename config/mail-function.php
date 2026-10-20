@@ -72,7 +72,8 @@ if (!function_exists('createMailer')) {
         }
 
         $fromEmail = trim((string)($settings['from_email'] ?? $settings['smtp_user'] ?? ''));
-        $fromName  = trim((string)($settings['from_name'] ?? 'System Notification'));
+        $branding = system_mail_branding($conn);
+        $fromName  = $branding['name'] !== '' ? $branding['name'] : trim((string)($settings['from_name'] ?? 'System Notification'));
 
         if (!filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
             throw new RuntimeException('Invalid sender email in email settings.');
@@ -108,7 +109,7 @@ if (!function_exists('sendSystemEmail')) {
 
             $mail->addAddress($toEmail, $toName ?: $toEmail);
             $mail->Subject = $subject;
-            $mail->Body = $htmlBody;
+            $mail->Body = brand_system_email($conn, $htmlBody);
 
             $mail->AltBody = $textBody !== ''
                 ? $textBody
@@ -235,5 +236,39 @@ if (!function_exists('sendSimpleNotificationEmail')) {
         $textBody = "Dear {$toName},\n\n{$message}\n\n{$siteName}";
 
         return sendSystemEmail($conn, $toEmail, $toName, $subject, $htmlBody, $textBody);
+    }
+}
+
+if (!function_exists('system_mail_branding')) {
+    function system_mail_branding(mysqli $conn): array
+    {
+        $brand = ['name' => (defined('APP_NAME') ? APP_NAME : 'Church'), 'logo' => ''];
+        try {
+            $stmt = $conn->prepare("SELECT setting_key, setting_value FROM site_settings WHERE setting_key IN ('site_name','site_logo')");
+            if ($stmt) {
+                $stmt->execute();
+                $result = $stmt->get_result();
+                while ($row = $result->fetch_assoc()) {
+                    if ($row['setting_key'] === 'site_name' && trim((string)$row['setting_value']) !== '') $brand['name'] = trim((string)$row['setting_value']);
+                    if ($row['setting_key'] === 'site_logo') $brand['logo'] = trim((string)$row['setting_value']);
+                }
+                $stmt->close();
+            }
+        } catch (Throwable $e) { /* Branding is optional; email delivery should continue. */ }
+        if ($brand['logo'] !== '' && !preg_match('~^https?://~i', $brand['logo'])) {
+            $base = defined('BASE_URL') ? BASE_URL : ('https://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/');
+            $brand['logo'] = rtrim($base, '/') . '/' . ltrim($brand['logo'], '/');
+        }
+        return $brand;
+    }
+}
+
+if (!function_exists('brand_system_email')) {
+    function brand_system_email(mysqli $conn, string $html): string
+    {
+        $brand = system_mail_branding($conn);
+        $name = mail_h($brand['name']);
+        $logo = $brand['logo'] !== '' ? '<img src="' . mail_h($brand['logo']) . '" alt="' . $name . '" style="display:block;max-width:160px;max-height:64px;margin:0 auto 12px">' : '';
+        return '<div style="font-family:Arial,sans-serif;background:#f4f5f8;padding:24px"><div style="max-width:680px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden"><div style="padding:20px 24px;text-align:center;background:#4a1e8f;color:#fff">' . $logo . '<strong style="font-size:20px">' . $name . '</strong></div><div style="padding:24px;color:#172033;line-height:1.6">' . $html . '</div><div style="padding:14px 24px;background:#f8fafc;color:#64748b;text-align:center;font-size:12px">Sent by ' . $name . '</div></div></div>';
     }
 }

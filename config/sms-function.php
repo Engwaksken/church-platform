@@ -21,6 +21,17 @@ function sendSms(mysqli $conn, string $phone, string $message): bool
         if ($phone === '') return false;
 
         $settings = getSmsSettings($conn);
+        $siteName = defined('APP_NAME') ? APP_NAME : 'Church';
+        try {
+            $brandResult = $conn->query("SELECT setting_value FROM site_settings WHERE setting_key='site_name' LIMIT 1");
+            if ($brandResult && ($brandRow = $brandResult->fetch_assoc()) && trim((string)$brandRow['setting_value']) !== '') {
+                $siteName = trim((string)$brandRow['setting_value']);
+            }
+        } catch (Throwable $e) { /* Keep the application default. */ }
+        $siteName = trim(preg_replace('/[\r\n]+/', ' ', $siteName));
+        if ($siteName !== '' && stripos($message, '[' . $siteName . ']') !== 0) {
+            $message = '[' . $siteName . '] ' . $message;
+        }
         $apiUrl = trim((string)($settings['api_url'] ?? ''));
         if ($apiUrl === '') return false;
 
