@@ -44,9 +44,9 @@ function appointment_targets(mysqli $conn): array
             if (!isset($roleLabels[$role])) continue;
             $name = trim((string)$row['full_name']) ?: $roleLabels[$role];
             $targets['user:' . (int)$row['id']] = [
-                'key'=>'user:' . (int)$row['id'], 'label'=>$roleLabels[$role] . ' — ' . $name,
+                'key'=>'user:' . (int)$row['id'], 'label'=>$roleLabels[$role] . ': ' . $name,
                 'recipient_user_id'=>(int)$row['id'], 'recipient_member_id'=>null, 'department_id'=>null,
-                'recipient_label'=>$roleLabels[$role] . ' — ' . $name, 'email'=>(string)$row['email']
+                'recipient_label'=>$roleLabels[$role] . ': ' . $name, 'email'=>(string)$row['email']
             ];
         }
     }
@@ -56,7 +56,7 @@ function appointment_targets(mysqli $conn): array
         foreach ($rows as $row) {
             $key = 'department:' . (int)$row['department_id'];
             $name = trim((string)$row['full_name']) ?: 'Department Leader';
-            $label = 'Department Leader — ' . (string)$row['department_name'] . ' (' . $name . ')';
+            $label = 'Department Leader, ' . (string)$row['department_name'] . ' (' . $name . ')';
             $targets[$key] = [
                 'key'=>$key, 'label'=>$label, 'recipient_user_id'=>(int)$row['user_id'],
                 'recipient_member_id'=>(int)$row['member_id'], 'department_id'=>(int)$row['department_id'],
@@ -76,6 +76,11 @@ function appointment_table_exists(mysqli $conn, string $table): bool
     $exists = (bool)$stmt->get_result()->fetch_row();
     $stmt->close();
     return $exists;
+}
+
+function appointment_official_label(string $label): string
+{
+    return str_replace([' — ', ' – ', ' - '], ': ', $label);
 }
 
 function appointment_rows(mysqli $conn, string $sql, string $types = '', array $params = []): array
