@@ -1,0 +1,19 @@
+Options -MultiViews
+RewriteEngine On
+
+# Root entry point canonicalizes to the site root.
+RewriteCond %{REQUEST_METHOD} ^(?:GET|HEAD)$
+RewriteCond %{THE_REQUEST} \s/+index\.php(?:[?\s]) [NC]
+RewriteRule ^index\.php$ / [R=301,L]
+
+# Keep PHP handlers and downloads addressable as-is. Only canonicalize browser
+# page requests, and never redirect a POST/other non-navigation request.
+RewriteCond %{REQUEST_METHOD} ^(?:GET|HEAD)$
+RewriteCond %{THE_REQUEST} \s/+(.+?)\.php(?:[?\s]) [NC]
+RewriteCond %1 !^(?:.*\/)?(?:process(?:[-_].*)?|download(?:[-_].*)?|export(?:[-_].*)?|.*(?:receipt|pdf|certificate|checkin|token|delete|remove|add|edit|collect|registration-links|report-data|cron|verify-otp).*)$ [NC]
+RewriteRule ^(.+?)\.php$ $1 [R=301,L,NE]
+
+# Resolve extensionless page paths to their existing PHP files.
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.php -f
+RewriteRule ^(.+?)/?$ $1.php [END]
