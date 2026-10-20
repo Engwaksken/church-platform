@@ -3,89 +3,62 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/config.php';
 requireLogin();
 require_permission('events.view');
-
-$eventId = (int)($_POST['event_id'] ?? $_GET['id'] ?? 0);
-$stmt = $conn->prepare('SELECT id,title,event_type,event_date,event_time,venue,organizer FROM events WHERE id=? LIMIT 1');
-if (!$stmt) { http_response_code(500); exit('Unable to load the event.'); }
-$stmt->bind_param('i', $eventId);
-$stmt->execute();
-$event = $stmt->get_result()->fetch_assoc();
-$stmt->close();
-if (!$event) { http_response_code(404); exit('Event not found.'); }
-
-$participant = trim((string)($_POST['participant_name'] ?? ''));
-$errors = [];
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if ($participant === '' || mb_strlen($participant) > 180) $errors[] = 'Enter the participant name (up to 180 characters).';
-    if (!hash_equals((string)($_SESSION['event_certificate_csrf'] ?? ''), (string)($_POST['csrf_token'] ?? ''))) $errors[] = 'The form expired. Reload the page and try again.';
+require_once __DIR__ . '/certificate-functions.php';
+if (!event_certificate_tables_ready($conn)) { http_response_code(404); exit('Certificate not found.'); }
+$certificateId = (int)($_GET['certificate_id'] ?? 0);
+$stmt = $conn->prepare('SELECT ec.*,e.title event_title,e.event_type,e.event_date,e.venue,e.organizer,m.id member_id,m.first_name,m.last_name,m.member_no FROM event_certificates ec JOIN events e ON e.id=ec.event_id JOIN members m ON m.id=ec.member_id JOIN event_attendance ea ON ea.event_id=ec.event_id AND ea.member_id=ec.member_id AND ea.attended=1 WHERE ec.id=? LIMIT 1');
+if (!$stmt) { http_response_code(500); exit('Unable to load the certificate.'); }
+$stmt->bind_param('i',$certificateId);$stmt->execute();$certificate=$stmt->get_result()->fetch_assoc();$stmt->close();
+if (!$certificate) { http_response_code(404); exit('Certificate not found.'); }
+$isAdmin = event_certificate_is_admin();
+$memberId = function_exists('current_member_id') ? current_member_id() : 0;
+if (!$isAdmin && ($memberId <= 0 || $memberId !== (int)$certificate['member_id'])) { http_response_code(403); exit('This certificate is not available to your account.'); }
+$brand = event_certificate_brand($conn);
+$logoSrc = event_certificate_logo_src((string)$brand['logo']);
+$certificateName = trim((string)$certificate['certificate_name']) ?: $brand['name'];
+$participant = trim((string)$certificate['first_name'].' '.(string)$certificate['last_name']);
+$eventDate = date('d F Y',strtotime((string)$certificate['event_date']));
+$e = static fn($v): string => htmlspecialchars((string)$v,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
+$isPdf = isset($_GET['pdf']) && $_GET['pdf'] === '1';
+if ($isPdf) require_permission('events.view');
+$pageTitle = 'Event Participation Certificate';
+ob_start();
+if (!$isPdf) {
+    require_once __DIR__ . '/../includes/header.php';
+    require_once __DIR__ . '/../includes/sidebar.php';
+    echo '<div class="main-content">';
+    require_once __DIR__ . '/../includes/topbar.php';
+    echo '<div class="content-area event-certificate-page">';
+} else {
+    echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Event Participation Certificate</title></head><body class="event-certificate-pdf">';
 }
-if (empty($_SESSION['event_certificate_csrf'])) $_SESSION['event_certificate_csrf'] = bin2hex(random_bytes(32));
-$csrf = (string)$_SESSION['event_certificate_csrf'];
-
-$brand = ['name' => defined('APP_NAME') ? APP_NAME : 'Church', 'subtitle' => '', 'logo' => ''];
-try {
-    $result = $conn->query("SELECT setting_key,setting_value FROM site_settings WHERE setting_key IN ('site_name','site_subtitle','site_logo')");
-    if ($result) {
-        while ($row = $result->fetch_assoc()) {
-            $value = trim((string)$row['setting_value']);
-            if ($row['setting_key'] === 'site_name' && $value !== '') $brand['name'] = $value;
-            elseif ($row['setting_key'] === 'site_subtitle') $brand['subtitle'] = $value;
-            elseif ($row['setting_key'] === 'site_logo') $brand['logo'] = $value;
-        }
-        $result->close();
-    }
-} catch (Throwable $e) { error_log('[event certificate branding] ' . $e->getMessage()); }
-
-$logoSrc = '';
-if ($brand['logo'] !== '') {
-    if (preg_match('~^https?://~i', $brand['logo'])) $logoSrc = $brand['logo'];
-    else {
-        $relative = ltrim($brand['logo'], '/');
-        $absolute = __DIR__ . '/../' . $relative;
-        if (is_file($absolute)) {
-            $data = @file_get_contents($absolute);
-            if ($data !== false) $logoSrc = 'data:' . (function_exists('mime_content_type') ? (mime_content_type($absolute) ?: 'image/png') : 'image/png') . ';base64,' . base64_encode($data);
-        } else $logoSrc = rtrim(BASE_URL, '/') . '/' . $relative;
-    }
-}
-$e = static fn($value): string => htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-$eventDate = date('d F Y', strtotime((string)$event['event_date']));
-$certificateNo = 'EVT-' . str_pad((string)$event['id'], 5, '0', STR_PAD_LEFT) . '-' . date('Y', strtotime((string)$event['event_date']));
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Event Participation Certificate | <?= $e($brand['name']) ?></title>
 <style>
-*{box-sizing:border-box}body{margin:0;padding:24px;background:#f1f2f5;color:#172033;font-family:Georgia,'Times New Roman',serif}.toolbar{max-width:1100px;margin:0 auto 18px;padding:16px;background:#fff;border-radius:12px;box-shadow:0 5px 20px #10182812;font:14px Arial,sans-serif}.toolbar form{display:flex;align-items:end;gap:12px;flex-wrap:wrap}.toolbar label{display:grid;gap:6px;font-weight:700;flex:1;min-width:230px}.toolbar input{height:40px;padding:8px 10px;border:1px solid #cbd2de;border-radius:6px;font:inherit}.toolbar button,.toolbar a{display:inline-block;padding:10px 16px;border:0;border-radius:6px;background:#4a1e8f;color:#fff;text-decoration:none;font-weight:700;cursor:pointer}.toolbar a{background:#667085}.error{margin:0 0 12px;padding:10px;background:#feeceb;color:#b42318;border-radius:6px}.certificate{position:relative;display:flex;flex-direction:column;justify-content:center;width:min(1100px,100%);min-height:720px;margin:auto;padding:54px 72px;text-align:center;background:#fff;border:10px double #4a1e8f;outline:2px solid #d4a017;outline-offset:-24px;box-shadow:0 15px 42px #10182822}.brand-logo{display:block;max-width:150px;max-height:85px;width:auto;height:auto;object-fit:contain;margin:0 auto 8px}.brand-name{font:700 22px Arial,sans-serif;color:#4a1e8f;letter-spacing:.5px}.brand-subtitle{margin-top:5px;font:14px Arial,sans-serif;color:#667085}.eyebrow{margin:38px 0 10px;color:#a47a0a;font:700 13px Arial,sans-serif;letter-spacing:4px;text-transform:uppercase}h1{margin:0;color:#4a1e8f;font-size:42px;letter-spacing:2px;text-transform:uppercase}.intro{margin:22px 0 8px;font-size:21px}.participant{display:inline-block;margin:4px auto 20px;padding:0 30px 8px;border-bottom:2px solid #d4a017;color:#4a1e8f;font-size:38px;font-weight:700}.statement{max-width:800px;margin:0 auto;font-size:20px;line-height:1.65}.event-name{color:#172033;font-weight:700}.event-meta{margin:25px auto 0;color:#475467;font:14px Arial,sans-serif}.signatures{display:flex;justify-content:space-around;gap:60px;margin:65px auto 0;max-width:780px}.signature{width:270px;padding-top:9px;border-top:1px solid #4a1e8f;font:14px Arial,sans-serif}.cert-number{position:absolute;right:58px;bottom:42px;color:#667085;font:11px Arial,sans-serif}@media(max-width:700px){body{padding:12px}.certificate{min-height:600px;padding:42px 30px}.certificate h1{font-size:30px}.participant{font-size:30px}.statement{font-size:17px}.signatures{gap:28px;margin-top:45px}.signature{width:46%}}@media print{@page{size:A4 landscape;margin:10mm}body{padding:0;background:#fff}.toolbar{display:none}.certificate{width:100%;height:185mm;min-height:0;margin:0;padding:35px 55px;box-shadow:none;break-inside:avoid}.eyebrow{margin-top:22px}.signatures{margin-top:42px}}
+*{box-sizing:border-box}.event-certificate-page{padding:0 0 24px;color:#172033}.certificate-toolbar{display:flex;justify-content:flex-end;gap:10px;max-width:1100px;margin:0 auto 18px;padding:14px;background:#fff;border-radius:10px}.certificate-toolbar a,.certificate-toolbar button{padding:9px 14px;border:0;border-radius:6px;background:#4a1e8f;color:#fff;text-decoration:none;font:700 13px Arial,sans-serif;cursor:pointer}.certificate-toolbar a.secondary{background:#667085}.event-certificate{position:relative;isolation:isolate;display:flex;flex-direction:column;justify-content:center;width:min(1100px,100%);height:720px;margin:0 auto;padding:54px 72px;text-align:center;background:#fff;border:10px double #4a1e8f;outline:2px solid #d4a017;outline-offset:-24px;box-shadow:0 15px 42px #10182822;font-family:Georgia,'Times New Roman',serif}.event-certificate-watermark{position:absolute;z-index:0;inset:15% 20%;width:60%;height:70%;object-fit:contain;opacity:.06;pointer-events:none}.event-certificate>*:not(.event-certificate-watermark){position:relative;z-index:1}.event-certificate>.event-cert-number{position:absolute;z-index:2}.event-cert-logo{display:block;max-width:150px;max-height:85px;width:auto;height:auto;object-fit:contain;margin:0 auto 8px}.event-cert-name{font:700 22px Arial,sans-serif;color:#4a1e8f;letter-spacing:.5px}.event-cert-subtitle{margin-top:5px;font:14px Arial,sans-serif;color:#667085}.event-cert-eyebrow{margin:38px 0 10px;color:#a47a0a;font:700 13px Arial,sans-serif;letter-spacing:4px;text-transform:uppercase}.event-certificate h1{margin:0;color:#4a1e8f;font-size:42px;letter-spacing:2px;text-transform:uppercase}.event-cert-intro{margin:22px 0 8px;font-size:21px}.event-cert-person{display:inline-block;margin:4px auto 20px;padding:0 30px 8px;border-bottom:2px solid #d4a017;color:#4a1e8f;font-size:38px;font-weight:700}.event-cert-statement{max-width:800px;margin:0 auto;font-size:20px;line-height:1.65}.event-cert-event{font-weight:700}.event-cert-signatures{display:flex;justify-content:space-around;gap:60px;margin:65px auto 0;max-width:780px}.event-cert-signature{width:270px;padding-top:9px;border-top:1px solid #4a1e8f;font:14px Arial,sans-serif}.event-cert-number{right:58px;bottom:42px;color:#667085;font:11px Arial,sans-serif}@media print{@page{size:A4 landscape;margin:10mm}body *{visibility:hidden!important}.event-certificate,.event-certificate *{visibility:visible!important}.event-certificate{position:fixed;left:0;top:0;width:100vw;height:185mm;margin:0;padding:35px 55px;box-shadow:none;break-inside:avoid}}body.event-certificate-pdf{margin:0;padding:0;background:#fff}.event-certificate-pdf .event-certificate{width:277mm;height:190mm;margin:0;padding:35px 55px;box-shadow:none}.event-certificate-pdf .event-cert-eyebrow{margin-top:22px}.event-certificate-pdf .event-cert-signatures{margin-top:42px}
 </style>
-<style>
-.certificate{isolation:isolate}
-.certificate-watermark{position:absolute;z-index:0;inset:15% 20%;width:60%;height:70%;object-fit:contain;opacity:.06;pointer-events:none}
-.certificate>*:not(.certificate-watermark){position:relative;z-index:1}
-.certificate>.cert-number{position:absolute;z-index:2}
-</style>
-</head>
-<body>
-<?php if ($participant === '' || $errors): ?>
-<div class="toolbar">
-<?php foreach ($errors as $error): ?><p class="error"><?= $e($error) ?></p><?php endforeach; ?>
-<form method="post"><input type="hidden" name="event_id" value="<?= (int)$event['id'] ?>"><input type="hidden" name="csrf_token" value="<?= $e($csrf) ?>"><label>Participant full name<input name="participant_name" value="<?= $e($participant) ?>" maxlength="180" required autofocus></label><button type="submit">Prepare Certificate</button><a href="index.php">Back to Events</a></form>
-</div>
-<?php else: ?>
-<div class="toolbar"><form onsubmit="return false"><label>Participant<input value="<?= $e($participant) ?>" readonly></label><button type="button" onclick="window.print()">Print Certificate</button><a href="certificate.php?id=<?= (int)$event['id'] ?>">Create Another</a><a href="index.php">Back to Events</a></form></div>
-<main class="certificate">
-<?php if ($logoSrc !== ''): ?><img class="certificate-watermark" src="<?= $e($logoSrc) ?>" alt="" aria-hidden="true"><?php endif; ?>
-<?php if ($logoSrc !== ''): ?><img class="brand-logo" src="<?= $e($logoSrc) ?>" alt="<?= $e($brand['name']) ?> logo"><?php endif; ?>
-<div class="brand-name"><?= $e($brand['name']) ?></div>
-<?php if ($brand['subtitle'] !== ''): ?><div class="brand-subtitle"><?= $e($brand['subtitle']) ?></div><?php endif; ?>
-<div class="eyebrow">Certificate of Participation</div>
-<h1>Event Certificate</h1>
-<p class="intro">This certificate is proudly presented to</p>
-<div class="participant"><?= $e($participant) ?></div>
-<p class="statement">In recognition of participation in <span class="event-name"><?= $e($event['title']) ?></span><?= !empty($event['event_type']) ? ' (' . $e($event['event_type']) . ')' : '' ?>, held on <strong><?= $e($eventDate) ?></strong><?= !empty($event['venue']) ? ' at <strong>' . $e($event['venue']) . '</strong>' : '' ?>.</p>
-<div class="signatures"><div class="signature"><?= $e($event['organizer'] ?: 'Event Organizer') ?><br>Organizer</div><div class="signature">Authorized Church Representative</div></div>
-<div class="cert-number">Certificate No: <?= $e($certificateNo) ?></div>
+<?php if (!$isPdf): ?><div class="certificate-toolbar"><button type="button" onclick="window.print()">Print</button><?php if (is_file(__DIR__.'/../vendor/autoload.php')): ?><a href="?certificate_id=<?=(int)$certificate['id']?>&pdf=1">Download PDF</a><?php endif; ?><a class="secondary" href="<?= $isAdmin ? 'attendance.php?id='.(int)$certificate['event_id'] : '../member/event-certificates.php' ?>">Back</a></div><?php endif; ?>
+<main class="event-certificate">
+<?php if($logoSrc!==''):?><img class="event-certificate-watermark" src="<?=$e($logoSrc)?>" alt="" aria-hidden="true"><?php endif;?>
+<?php if($logoSrc!==''):?><img class="event-cert-logo" src="<?=$e($logoSrc)?>" alt="<?=$e($certificateName)?> logo"><?php endif;?>
+<div class="event-cert-name"><?=$e($certificateName)?></div>
+<?php if($brand['subtitle']!==''):?><div class="event-cert-subtitle"><?=$e($brand['subtitle'])?></div><?php endif;?>
+<div class="event-cert-eyebrow">Certificate of Participation</div><h1>Event Certificate</h1>
+<p class="event-cert-intro">This certificate is proudly presented to</p><div class="event-cert-person"><?=$e($participant)?></div>
+<p class="event-cert-statement">In recognition of participation in <span class="event-cert-event"><?=$e($certificate['event_title'])?></span><?=!empty($certificate['event_type'])?' ('.$e($certificate['event_type']).')':''?>, held on <strong><?=$e($eventDate)?></strong><?=!empty($certificate['venue'])?' at <strong>'.$e($certificate['venue']).'</strong>':''?>.</p>
+<div class="event-cert-signatures"><div class="event-cert-signature"><?=$e($certificate['organizer']?:'Event Organizer')?><br>Organizer</div><div class="event-cert-signature">Authorized Church Representative</div></div>
+<div class="event-cert-number">Certificate No: <?=$e($certificate['certificate_no'])?></div>
 </main>
-<?php endif; ?>
-</body></html>
+<?php
+if ($isPdf) {
+    echo '</body></html>';
+    $html = ob_get_clean();
+    $autoload = __DIR__ . '/../vendor/autoload.php';
+    if (!is_file($autoload)) { http_response_code(503); exit('PDF download is not available. Please use Print and choose Save as PDF.'); }
+    require_once $autoload;
+    $options = new \Dompdf\Options(); $options->set('isRemoteEnabled',true); $options->set('isHtml5ParserEnabled',true); $options->set('defaultFont','Times-Roman');
+    $pdf = new \Dompdf\Dompdf($options);$pdf->loadHtml($html,'UTF-8');$pdf->setPaper('A4','landscape');$pdf->render();
+    $pdf->stream('Event_Certificate_'.$certificate['certificate_no'].'.pdf',['Attachment'=>true]);exit;
+}
+echo '</div></div>';
+require_once __DIR__ . '/../includes/footer.php';
+?>

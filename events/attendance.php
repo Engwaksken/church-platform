@@ -1,0 +1,76 @@
+<?php
+declare(strict_types=1);
+$pageTitle = 'Event Attendance and Certificates';
+require_once __DIR__ . '/../config/config.php';
+requireLogin();
+require_permission('events.view');
+require_once __DIR__ . '/certificate-functions.php';
+if (!event_certificate_is_admin()) { http_response_code(403); exit('Only administrators can manage event attendance and certificates.'); }
+event_certificate_ensure_tables($conn);
+$eventId = (int)($_GET['id'] ?? $_POST['event_id'] ?? 0);
+$stmt = $conn->prepare('SELECT id,title,event_type,event_date,event_time,venue,organizer FROM events WHERE id=? LIMIT 1');
+$stmt->bind_param('i', $eventId); $stmt->execute(); $event = $stmt->get_result()->fetch_assoc(); $stmt->close();
+if (!$event) { http_response_code(404); exit('Event not found.'); }
+$brand = event_certificate_brand($conn);
+$csrf = (string)($_SESSION['event_certificate_csrf'] ??= bin2hex(random_bytes(32)));
+$flash = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        if (!hash_equals($csrf, (string)($_POST['csrf_token'] ?? ''))) throw new RuntimeException('Your form session expired. Reload and try again.');
+        $action = (string)($_POST['action'] ?? '');
+        if ($action === 'save_attendance') {
+            $selected = array_values(array_unique(array_filter(array_map('intval', (array)($_POST['member_ids'] ?? [])), static fn($id) => $id > 0)));
+            $conn->begin_transaction();
+            $stmt = $conn->prepare('UPDATE event_attendance SET attended=0,marked_by=? WHERE event_id=?');
+            $uid = (int)$_SESSION['user_id']; $stmt->bind_param('ii', $uid, $eventId); $stmt->execute(); $stmt->close();
+            $stmt = $conn->prepare('INSERT INTO event_attendance(event_id,member_id,attended,marked_by) SELECT ?,id,1,? FROM members WHERE id=? AND COALESCE(status,\'Active\')=\'Active\' ON DUPLICATE KEY UPDATE attended=1,marked_by=VALUES(marked_by),marked_at=CURRENT_TIMESTAMP');
+            foreach ($selected as $memberId) { $stmt->bind_param('iii', $eventId, $uid, $memberId); $stmt->execute(); }
+            $stmt->close(); $conn->commit();
+            $flash = ['type'=>'success','message'=>'Attendance saved. Certificates can now be issued only to members marked present.'];
+        } elseif ($action === 'issue_certificate') {
+            $memberId = (int)($_POST['member_id'] ?? 0);
+            $certificateName = trim((string)($_POST['certificate_name'] ?? $brand['name']));
+            if ($memberId <= 0 || $certificateName === '' || mb_strlen($certificateName) > 180) throw new RuntimeException('Enter a valid certificate name.');
+            $stmt = $conn->prepare('SELECT m.first_name,m.last_name,m.email,u.email user_email FROM event_attendance ea JOIN members m ON m.id=ea.member_id LEFT JOIN users u ON u.id=m.user_id WHERE ea.event_id=? AND ea.member_id=? AND ea.attended=1 LIMIT 1');
+            $stmt->bind_param('ii', $eventId, $memberId); $stmt->execute(); $attendee = $stmt->get_result()->fetch_assoc(); $stmt->close();
+            if (!$attendee) throw new RuntimeException('A certificate can only be issued to a member marked present.');
+            $exists = false;
+            $stmt = $conn->prepare('SELECT id FROM event_certificates WHERE event_id=? AND member_id=? LIMIT 1');
+            $stmt->bind_param('ii', $eventId, $memberId); $stmt->execute(); $exists = (bool)$stmt->get_result()->fetch_row(); $stmt->close();
+            $certNo = 'EVT-' . str_pad((string)$eventId, 5, '0', STR_PAD_LEFT) . '-' . str_pad((string)$memberId, 5, '0', STR_PAD_LEFT) . '-' . date('Y', strtotime((string)$event['event_date']));
+            $uid = (int)$_SESSION['user_id'];
+            $stmt = $conn->prepare('INSERT INTO event_certificates(event_id,member_id,certificate_no,certificate_name,issued_by) VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE certificate_name=VALUES(certificate_name),issued_by=VALUES(issued_by),issued_at=CURRENT_TIMESTAMP');
+            $stmt->bind_param('iissi', $eventId, $memberId, $certNo, $certificateName, $uid); $stmt->execute(); $certificateId = (int)($stmt->insert_id ?: 0); $stmt->close();
+            if ($certificateId <= 0) { $stmt = $conn->prepare('SELECT id FROM event_certificates WHERE event_id=? AND member_id=? LIMIT 1'); $stmt->bind_param('ii',$eventId,$memberId);$stmt->execute();$certificateId=(int)($stmt->get_result()->fetch_assoc()['id']??0);$stmt->close(); }
+            $email = trim((string)($attendee['email'] ?: ($attendee['user_email'] ?? '')));
+            if (!$exists && $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                require_once __DIR__ . '/../config/mail-function.php';
+                if (function_exists('sendSystemEmail')) {
+                    $memberName = trim((string)$attendee['first_name'] . ' ' . (string)$attendee['last_name']);
+                    $url = rtrim(BASE_URL,'/') . '/member/event-certificates.php';
+                    $subject = 'Your event participation certificate is ready';
+                    $text = 'Your participation certificate for ' . $event['title'] . ' is now available in your member dashboard.';
+                    $html = '<p>Hello ' . htmlspecialchars($memberName,ENT_QUOTES,'UTF-8') . ',</p><p>Your participation certificate for <strong>' . htmlspecialchars((string)$event['title'],ENT_QUOTES,'UTF-8') . '</strong> is ready.</p><p><a href="' . htmlspecialchars($url,ENT_QUOTES,'UTF-8') . '">Sign in to view and download your certificate.</a></p>';
+                    sendSystemEmail($conn,$email,$memberName,$subject,$html,$text);
+                }
+            }
+            $flash = ['type'=>'success','message'=>($exists?'Certificate updated.':'Certificate issued.') . ' It is available to the member on their dashboard.'];
+        } else throw new RuntimeException('Invalid action.');
+    } catch (Throwable $e) {
+        if ($conn->errno === 0) { /* no-op */ }
+        try { $conn->rollback(); } catch (Throwable $ignored) {}
+        $flash = ['type'=>'danger','message'=>$e->getMessage()];
+    }
+}
+$members = [];
+$stmt = $conn->prepare("SELECT m.id,m.member_no,m.first_name,m.last_name,m.email,COALESCE(ea.attended,0) attended,ec.id certificate_id,ec.certificate_no FROM members m LEFT JOIN event_attendance ea ON ea.member_id=m.id AND ea.event_id=? LEFT JOIN event_certificates ec ON ec.member_id=m.id AND ec.event_id=? WHERE COALESCE(m.status,'Active')='Active' ORDER BY m.first_name,m.last_name");
+$stmt->bind_param('ii',$eventId,$eventId);$stmt->execute();$res=$stmt->get_result();while($row=$res->fetch_assoc())$members[]=$row;$stmt->close();
+require_once __DIR__ . '/../includes/header.php';
+require_once __DIR__ . '/../includes/sidebar.php';
+?>
+<div class="main-content"><?php include __DIR__ . '/../includes/topbar.php'; ?><div class="content-area">
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3"><div><h2>Attendance and Certificates</h2><p class="text-muted mb-0"><?=htmlspecialchars((string)$event['title'],ENT_QUOTES,'UTF-8')?> - <?=htmlspecialchars(date('d M Y',strtotime((string)$event['event_date'])),ENT_QUOTES,'UTF-8')?></p></div><a class="btn btn-outline-secondary" href="index.php">Back to Events</a></div>
+<?php if($flash):?><div class="alert alert-<?=htmlspecialchars($flash['type'],ENT_QUOTES,'UTF-8')?>"><?=htmlspecialchars($flash['message'],ENT_QUOTES,'UTF-8')?></div><?php endif;?>
+<form method="post"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($csrf,ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="event_id" value="<?=$eventId?>"><input type="hidden" name="action" value="save_attendance"><div class="card"><div class="card-header d-flex justify-content-between align-items-center"><strong>Mark attendees</strong><button class="btn btn-primary btn-sm">Save Attendance</button></div><div class="table-responsive"><table class="table"><thead><tr><th>Present</th><th>Member No.</th><th>Member</th><th>Email</th><th>Certificate</th></tr></thead><tbody><?php foreach($members as $m):?><tr><td><input type="checkbox" name="member_ids[]" value="<?=(int)$m['id']?>" <?=((int)$m['attended']===1?'checked':'')?> aria-label="Mark present"></td><td><?=htmlspecialchars((string)($m['member_no']??''),ENT_QUOTES,'UTF-8')?></td><td><?=htmlspecialchars(trim((string)$m['first_name'].' '.(string)$m['last_name']),ENT_QUOTES,'UTF-8')?></td><td><?=htmlspecialchars((string)($m['email']??''),ENT_QUOTES,'UTF-8')?></td><td><?php if((int)$m['attended']!==1):?><span class="text-muted">Mark present first</span><?php elseif(!empty($m['certificate_id'])):?><span class="badge badge-success">Issued: <?=htmlspecialchars((string)$m['certificate_no'],ENT_QUOTES,'UTF-8')?></span><?php else:?><span class="text-muted">Ready to issue</span><?php endif;?></td></tr><?php endforeach;?><?php if(!$members):?><tr><td colspan="5" class="text-center text-muted">No active members found.</td></tr><?php endif;?></tbody></table></div></div></form>
+<div class="card mt-3"><div class="card-header"><strong>Issue Certificates</strong></div><div class="card-body"><p>Certificates are available only for members marked present above. Save attendance before issuing.</p><div class="table-responsive"><table class="table"><thead><tr><th>Attendee</th><th>Issue certificate</th></tr></thead><tbody><?php foreach($members as $m):if((int)$m['attended']!==1)continue;?><tr><td><?=htmlspecialchars(trim((string)$m['first_name'].' '.(string)$m['last_name']),ENT_QUOTES,'UTF-8')?></td><td><form method="post" class="d-flex gap-2 align-items-center"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($csrf,ENT_QUOTES,'UTF-8')?>"><input type="hidden" name="event_id" value="<?=$eventId?>"><input type="hidden" name="member_id" value="<?=(int)$m['id']?>"><input type="hidden" name="action" value="issue_certificate"><input class="form-control form-control-sm" name="certificate_name" value="<?=htmlspecialchars($brand['name'],ENT_QUOTES,'UTF-8')?>" maxlength="180" required><button class="btn btn-success btn-sm">Issue / Update</button></form></td></tr><?php endforeach;?></tbody></table></div></div></div>
+</div></div><?php require_once __DIR__ . '/../includes/footer.php'; ?>

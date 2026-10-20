@@ -12,6 +12,7 @@ if ($isMember) {
     $activeDepartmentCount = 0;
     $upcomingProgramCount = 0;
     $attendanceCount = 0;
+    $eventCertificateCount = 0;
 
     if ($memberId > 0) {
         $stmt = $conn->prepare("SELECT m.*, CONCAT(m.first_name,' ',m.last_name) AS full_name FROM members m WHERE m.id=? LIMIT 1");
@@ -40,6 +41,10 @@ if ($isMember) {
         $stmt = $conn->prepare('SELECT COUNT(*) total FROM attendance WHERE member_id=?');
         if ($stmt) { $stmt->bind_param('i', $memberId); $stmt->execute(); $attendanceCount = (int)($stmt->get_result()->fetch_assoc()['total'] ?? 0); $stmt->close(); }
     }
+    if ($memberId > 0 && access_table_exists($conn, 'event_certificates') && access_table_exists($conn, 'event_attendance')) {
+        $stmt = $conn->prepare('SELECT COUNT(*) total FROM event_certificates ec JOIN event_attendance ea ON ea.event_id=ec.event_id AND ea.member_id=ec.member_id AND ea.attended=1 WHERE ec.member_id=?');
+        if ($stmt) { $stmt->bind_param('i', $memberId); $stmt->execute(); $eventCertificateCount = (int)($stmt->get_result()->fetch_assoc()['total'] ?? 0); $stmt->close(); }
+    }
 
     include 'includes/header.php';
     include 'includes/sidebar.php';
@@ -67,6 +72,7 @@ if ($isMember) {
                 <a href="<?= h(BASE_URL.'member/children.php') ?>"><i class="fas fa-child"></i><span>My Children</span></a>
                 <a href="<?= h(BASE_URL.'member/attendance.php') ?>"><i class="fas fa-calendar-check"></i><span>My Attendance</span></a>
                 <a href="<?= h(BASE_URL.'member/events.php') ?>"><i class="fas fa-calendar-alt"></i><span>Church Events</span></a>
+                <a href="<?= h(BASE_URL.'member/event-certificates.php') ?>"><i class="fas fa-certificate"></i><span>Event Certificates (<?= number_format($eventCertificateCount) ?>)</span></a>
                 <a href="<?= h(BASE_URL.'member/projects.php') ?>"><i class="fas fa-project-diagram"></i><span>Projects</span></a>
                 <a href="<?= h(BASE_URL.'member/profile.php') ?>"><i class="fas fa-user-circle"></i><span>My Profile</span></a>
             </div>

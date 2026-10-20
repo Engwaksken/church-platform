@@ -339,26 +339,30 @@ body.certificate-pdf .cert{
     break-after:avoid;
     break-inside:auto;
     width:190mm;
-    height:279mm;
+    height:260mm;
     min-height:0;
-    margin:0 auto;
+    margin:10mm auto;
     padding:7mm;
     overflow:hidden;
 }
 body.certificate-pdf .cert-inner{
     height:100%;
     min-height:0;
-    padding:7mm;
+    padding:5mm;
 }
-body.certificate-pdf h1{font-size:26px;margin:4px 0}
-body.certificate-pdf .diocese{margin-bottom:6px}
-body.certificate-pdf .subtitle{font-size:15px;margin-bottom:8px}
-body.certificate-pdf .candidate{font-size:28px;margin-bottom:8px}
-body.certificate-pdf .cert-body{font-size:18px;line-height:1.35;margin-bottom:8px}
-body.certificate-pdf .details{margin-top:4px;margin-bottom:8px}
-body.certificate-pdf .details td{padding:4px}
-body.certificate-pdf .signatures{margin-top:10px}
-body.certificate-pdf .signature-image,body.certificate-pdf .signature-space{height:48px}
+body.certificate-pdf .certificate-logo{max-width:105px;max-height:55px;margin-bottom:4px}
+body.certificate-pdf .church-name{font-size:16px;letter-spacing:.5px}
+body.certificate-pdf h1{font-size:22px;margin:3px 0}
+body.certificate-pdf .diocese{font-size:11px;margin-bottom:4px}
+body.certificate-pdf .subtitle{font-size:13px;margin-bottom:5px}
+body.certificate-pdf .candidate{font-size:24px;margin-bottom:5px;padding-bottom:3px}
+body.certificate-pdf .cert-body{font-size:15px;line-height:1.25;margin-bottom:5px}
+body.certificate-pdf .details{margin-top:2px;margin-bottom:5px}
+body.certificate-pdf .details td{padding:3px}
+body.certificate-pdf .value{font-size:13px}
+body.certificate-pdf .signatures{margin-top:6px}
+body.certificate-pdf .signature-image,body.certificate-pdf .signature-space{height:38px}
+body.certificate-pdf .signatory-name,body.certificate-pdf .sig-line{font-size:11px}
 body.certificate-pdf .footer-note{bottom:4mm}
 </style>
 

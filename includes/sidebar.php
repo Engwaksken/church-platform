@@ -1331,6 +1331,17 @@ $memberId =
             'events.view'
         );
 
+        navLink(
+            $sidebarBaseUrl .
+            'member/event-certificates.php',
+            'fa-certificate',
+            'My Event Certificates',
+            $dir,
+            $cur,
+            'event-certificates.php',
+            'events.view'
+        );
+
         ?>
 
 
