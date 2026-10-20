@@ -25,7 +25,7 @@ function current_user_can(string $permission):bool{
     if($role==='admin')return true;
     /* Member portal permissions are deliberately read-only and fixed. */
     if($role==='member'){
-        $allowed=['dashboard.view','member.children.view','member.church.view','member.giving.view','member.projects.view','member.attendance.view','events.view','member.profile.view','member.payments.view','member.payment_gateways.view','member.programs.view','member.services.view','member.announcements.view','member.theme.view','member.harvests.view','member.notebook.manage','member.pledges.manage','member.contact.view'];
+        $allowed=['dashboard.view','member.children.view','member.church.view','member.giving.view','member.projects.view','member.attendance.view','events.view','member.profile.view','member.payments.view','member.payment_gateways.view','member.programs.view','member.services.view','member.announcements.view','member.theme.view','member.harvests.view','member.notebook.manage','member.pledges.manage','member.contact.view','member.appointments.view'];
         return in_array($permission,$allowed,true);
     }
     if(!isset($conn)||!($conn instanceof mysqli)||!access_table_exists($conn,'permissions'))return false;
@@ -45,17 +45,17 @@ function enforce_member_read_only():void{
     $method=strtoupper($_SERVER['REQUEST_METHOD']??'GET');
     if(in_array($method,['GET','HEAD'],true))return;
     $path=strtolower(str_replace('\\','/',parse_url($_SERVER['REQUEST_URI']??'',PHP_URL_PATH)?:''));
-    $allowed=['/member/profile.php','/member/notebook.php'];
+    $allowed=['/member/profile.php','/member/notebook.php','/member/appointments.php'];
     foreach($allowed as $needle)if(str_contains($path,$needle))return;
     http_response_code(403);header('Content-Type: application/json; charset=utf-8');echo json_encode(['success'=>false,'message'=>'Member accounts have view-only access.']);exit;
 }
 function permission_for_request():string{
     $path=strtolower(str_replace('\\','/',parse_url($_SERVER['REQUEST_URI']??'',PHP_URL_PATH)?:''));
     if(str_contains($path,'/member/')){
-        $map=['children'=>'member.children.view','church'=>'member.church.view','giving'=>'member.giving.view','projects'=>'member.projects.view','programs'=>'member.programs.view','services'=>'member.services.view','announcements'=>'member.announcements.view','annual-theme'=>'member.theme.view','harvests'=>'member.harvests.view','notebook'=>'member.profile.view','contact'=>'member.profile.view','attendance'=>'member.attendance.view','events'=>'events.view','profile'=>'member.profile.view','payment-gateways'=>'member.payment_gateways.view','payment'=>'member.payments.view'];
+        $map=['children'=>'member.children.view','church'=>'member.church.view','giving'=>'member.giving.view','projects'=>'member.projects.view','programs'=>'member.programs.view','services'=>'member.services.view','announcements'=>'member.announcements.view','annual-theme'=>'member.theme.view','harvests'=>'member.harvests.view','notebook'=>'member.profile.view','appointments'=>'member.appointments.view','contact'=>'member.profile.view','attendance'=>'member.attendance.view','events'=>'events.view','profile'=>'member.profile.view','payment-gateways'=>'member.payment_gateways.view','payment'=>'member.payments.view'];
         foreach($map as $n=>$p)if(str_contains($path,$n))return $p;
     }
-    $map=['/members/'=>'members.view','/baptism/'=>'baptism.view','/sunday_school/'=>'sunday_school.view','/youth/'=>'youth.view','/zones/'=>'zones.view','/departments/'=>'departments.view','/fathers_union/'=>'fathers_union.view','/mothers_union/'=>'mothers_union.view','/offertory/'=>'offertory.view','/tithe/'=>'tithe.view','/thanksgiving/'=>'thanksgiving.view','/pledges/'=>'pledges.view','/contributions/'=>'contributions.view','/projects/'=>'projects.view','/fundraising/'=>'fundraising.view','/birds/'=>'birds.view','/bulk_messages/'=>'bulk_messages.view','/attendance/'=>'attendance.view','/events/'=>'events.view','/reports/'=>'reports.view','/settings/'=>'settings.manage','/users/'=>'users.manage'];
+    $map=['/appointments/'=>'dashboard.view','/members/'=>'members.view','/baptism/'=>'baptism.view','/sunday_school/'=>'sunday_school.view','/youth/'=>'youth.view','/zones/'=>'zones.view','/departments/'=>'departments.view','/fathers_union/'=>'fathers_union.view','/mothers_union/'=>'mothers_union.view','/offertory/'=>'offertory.view','/tithe/'=>'tithe.view','/thanksgiving/'=>'thanksgiving.view','/pledges/'=>'pledges.view','/contributions/'=>'contributions.view','/projects/'=>'projects.view','/fundraising/'=>'fundraising.view','/birds/'=>'birds.view','/bulk_messages/'=>'bulk_messages.view','/attendance/'=>'attendance.view','/events/'=>'events.view','/reports/'=>'reports.view','/settings/'=>'settings.manage','/users/'=>'users.manage'];
     foreach($map as $n=>$p)if(str_contains($path,$n))return $p;return 'dashboard.view';
 }
 function enforce_current_page_permission():void{enforce_member_read_only();require_permission(permission_for_request());}

@@ -1138,6 +1138,17 @@ $memberId =
             'member.announcements.view'
         );
 
+        navLink(
+            $sidebarBaseUrl .
+            'member/appointments.php',
+            'fa-calendar-check',
+            'Appointment Requests',
+            $dir,
+            $cur,
+            'appointments.php',
+            'member.appointments.view'
+        );
+
 
         navLink(
             $sidebarBaseUrl .
@@ -1396,6 +1407,17 @@ $memberId =
             $dir,
             $cur,
             'dashboard.php',
+            'dashboard.view'
+        );
+
+        navLink(
+            $sidebarBaseUrl .
+            'appointments/',
+            'fa-calendar-check',
+            'Appointment Requests',
+            $dir,
+            $cur,
+            'appointments',
             'dashboard.view'
         );
 
