@@ -631,14 +631,24 @@ if (!function_exists(
     'sidebar_section'
 )) {
 
+    function sidebar_close_section(): void
+    {
+        global $sidebarSectionOpen;
+        if ($sidebarSectionOpen ?? false) echo '</div></section>';
+        $sidebarSectionOpen = false;
+    }
+
     function sidebar_section(
         string $title
     ): void {
-
-        echo
-            '<div class="nav-section">' .
-            h($title) .
-            '</div>';
+        global $sidebarSectionOpen;
+        if ($sidebarSectionOpen ?? false) echo '</div></section>';
+        $sidebarSectionOpen = true;
+        $id = 'sidebar-group-' . substr(hash('sha256', $title), 0, 10);
+        echo '<section class="sidebar-group is-open">'
+            . '<button type="button" class="nav-section" aria-expanded="true" aria-controls="' . $id . '">'
+            . '<span>' . h($title) . '</span><i class="fas fa-chevron-down" aria-hidden="true"></i>'
+            . '</button><div class="sidebar-group-links" id="' . $id . '">';
     }
 }
 
@@ -2000,7 +2010,35 @@ $memberId =
     <?php endif; ?>
 
 
+        <?php sidebar_close_section(); ?>
     </nav>
+
+    <script>
+    (function () {
+        const sidebar = document.getElementById('sidebar');
+        if (!sidebar) return;
+        const groups = Array.from(sidebar.querySelectorAll('.sidebar-group'));
+        const activeGroup = sidebar.querySelector('.sidebar-group a.active')?.closest('.sidebar-group');
+        let stored = {};
+        try { stored = JSON.parse(localStorage.getItem('couSidebarGroups') || '{}'); } catch (e) {}
+        groups.forEach((group, index) => {
+            const button = group.querySelector('.nav-section');
+            const title = button?.textContent.trim() || String(index);
+            const open = group === activeGroup || (Object.prototype.hasOwnProperty.call(stored, title) ? !!stored[title] : (!activeGroup && index === 0));
+            group.classList.toggle('is-open', open);
+            button?.setAttribute('aria-expanded', open ? 'true' : 'false');
+            button?.addEventListener('click', function () {
+                const nextOpen = !group.classList.contains('is-open');
+                group.classList.toggle('is-open', nextOpen);
+                button.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+                try {
+                    stored[title] = nextOpen;
+                    localStorage.setItem('couSidebarGroups', JSON.stringify(stored));
+                } catch (e) {}
+            });
+        });
+    })();
+    </script>
 
 
     <!-- ======================================================

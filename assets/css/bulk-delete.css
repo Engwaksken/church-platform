@@ -1,0 +1,7 @@
+.bulk-delete-tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 10px;padding:9px 12px;background:#f8fafc;border:1px solid #e7ebf1;border-radius:9px;font-size:12px;color:#475569}
+.bulk-delete-tools>label{display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:650;cursor:pointer}
+.bulk-delete-tools input[type=checkbox],.bulk-select-cell input[type=checkbox]{width:16px;height:16px;accent-color:var(--primary,#4a1e8f);cursor:pointer}
+.bulk-delete-count{margin-right:auto;color:#64748b}
+.bulk-delete-tools .bulk-delete-button{white-space:nowrap}
+.bulk-select-cell{width:38px;min-width:38px;text-align:center!important;vertical-align:middle!important;padding:7px!important}
+@media(max-width:600px){.bulk-delete-tools{gap:8px;padding:8px}.bulk-delete-count{margin-right:0}.bulk-delete-tools .bulk-delete-button{margin-left:auto}}
