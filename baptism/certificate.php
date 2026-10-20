@@ -20,6 +20,43 @@ if (!$r) {
 
 $isPdf = isset($_GET['pdf']);
 $generated = date('d M Y');
+$certificateBrand = [
+    'name' => defined('APP_NAME') ? APP_NAME : 'Church',
+    'subtitle' => '',
+    'logo' => ''
+];
+try {
+    $brandResult = $conn->query("SELECT setting_key, setting_value FROM site_settings WHERE setting_key IN ('site_name','site_subtitle','site_logo')");
+    if ($brandResult) {
+        while ($brandRow = $brandResult->fetch_assoc()) {
+            $brandValue = trim((string)$brandRow['setting_value']);
+            if ($brandRow['setting_key'] === 'site_name' && $brandValue !== '') $certificateBrand['name'] = $brandValue;
+            if ($brandRow['setting_key'] === 'site_subtitle') $certificateBrand['subtitle'] = $brandValue;
+            if ($brandRow['setting_key'] === 'site_logo') $certificateBrand['logo'] = $brandValue;
+        }
+        $brandResult->close();
+    }
+} catch (Throwable $e) {
+    error_log('[baptism certificate branding] ' . $e->getMessage());
+}
+$certificateLogoSrc = '';
+if ($certificateBrand['logo'] !== '') {
+    if (preg_match('~^https?://~i', $certificateBrand['logo'])) {
+        $certificateLogoSrc = $certificateBrand['logo'];
+    } else {
+        $logoRelative = ltrim($certificateBrand['logo'], '/');
+        $logoAbsolute = __DIR__ . '/../' . $logoRelative;
+        if (is_file($logoAbsolute)) {
+            $logoData = @file_get_contents($logoAbsolute);
+            if ($logoData !== false) {
+                $logoMime = function_exists('mime_content_type') ? (mime_content_type($logoAbsolute) ?: 'image/png') : 'image/png';
+                $certificateLogoSrc = 'data:' . $logoMime . ';base64,' . base64_encode($logoData);
+            }
+        } else {
+            $certificateLogoSrc = rtrim(BASE_URL, '/') . '/' . $logoRelative;
+        }
+    }
+}
 
 $signatories = [
     'vicar_name' => '',
@@ -128,11 +165,34 @@ html,body{
     position:relative;
 }
 
+.certificate-watermark{
+    position:absolute;
+    z-index:0;
+    top:50%;
+    left:50%;
+    width:65%;
+    height:55%;
+    object-fit:contain;
+    opacity:.055;
+    transform:translate(-50%,-50%);
+}
+.cert-inner > :not(.certificate-watermark){position:relative;z-index:1}
+
 .cross{
     font-size:34px;
     color:#4b27a8;
     line-height:1;
     margin-bottom:4px;
+}
+
+.certificate-logo{
+    display:block;
+    max-width:150px;
+    max-height:85px;
+    width:auto;
+    height:auto;
+    object-fit:contain;
+    margin:0 auto 10px;
 }
 
 .church-name{
@@ -249,6 +309,7 @@ h1{
     font-size:11px;
     color:#777;
 }
+.cert-inner > .footer-note{position:absolute;left:0;right:0;bottom:8mm}
 
 @media print{
     body{
@@ -282,10 +343,10 @@ h1{
 <div class="cert">
 <div class="cert-inner">
 
-<div class="cross">&#10013;</div>
-
-<div class="church-name">RONGORO CHURCH OF UGANDA</div>
-<div class="diocese">Church of Uganda - Diocese of Mbale</div>
+<?php if($certificateLogoSrc !== ''): ?><img class="certificate-watermark" src="<?= htmlspecialchars($certificateLogoSrc, ENT_QUOTES, 'UTF-8') ?>" alt="" aria-hidden="true"><?php endif; ?>
+<?php if($certificateLogoSrc !== ''): ?><img class="certificate-logo" src="<?= htmlspecialchars($certificateLogoSrc, ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($certificateBrand['name'], ENT_QUOTES, 'UTF-8') ?> logo"><?php endif; ?>
+<div class="church-name"><?= htmlspecialchars($certificateBrand['name'], ENT_QUOTES, 'UTF-8') ?></div>
+<?php if($certificateBrand['subtitle'] !== ''): ?><div class="diocese"><?= htmlspecialchars($certificateBrand['subtitle'], ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
 
 <h1>BAPTISM CERTIFICATE</h1>
 

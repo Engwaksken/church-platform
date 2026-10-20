@@ -159,6 +159,7 @@ $eventTypes = ['Sunday Service','Revival','Youth Event','Fundraising','AGM','Bur
       </div>
       <div class="ev-card-actions">
         <button type="button" class="btn btn-sm btn-info" data-action="view" data-id="${Number(e.id)}"><i class="fas fa-eye"></i></button>
+        <a class="btn btn-sm btn-success" target="_blank" href="certificate.php?id=${Number(e.id)}" title="Create participation certificate"><i class="fas fa-certificate"></i></a>
         <button type="button" class="btn btn-sm btn-warning" data-action="edit" data-id="${Number(e.id)}"><i class="fas fa-edit"></i></button>
         <button type="button" class="btn btn-sm btn-danger" data-action="delete" data-id="${Number(e.id)}" data-title="${esc(e.title)}"><i class="fas fa-trash"></i></button>
       </div>
