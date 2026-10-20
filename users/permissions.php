@@ -323,21 +323,23 @@ foreach ($permissions as $permission) {
 <div class="main-content">
     <?php include __DIR__ . '/../includes/topbar.php'; ?>
 
-    <div class="content-wrapper">
+    <div class="content-wrapper permissions-page">
         <?= showFlash() ?>
 
         <div class="card">
-            <div class="card-header">
-                <div>
-                    <h3 style="margin-bottom:4px;">Assign Role and User Permissions</h3>
-                    <small>Select multiple users, multiple roles, or both, then choose the permissions to assign.</small>
+                <div class="card-header permission-page-header">
+                <div class="permission-heading-icon"><i class="fas fa-shield-halved"></i></div>
+                <div class="permission-heading-copy">
+                    <h3>Access &amp; Permissions</h3>
+                    <small>Choose users or roles, review their current access, then save permission changes.</small>
                 </div>
+                <span class="permission-header-badge"><i class="fas fa-lock"></i> Administrator control</span>
             </div>
 
             <div class="card-body">
                 <form method="get" id="targetSelectionForm">
                     <div class="permission-target-grid">
-                        <div>
+                        <div class="permission-target-card">
                             <label for="user_ids"><strong>Users</strong></label>
                             <input
                                 type="search"
@@ -374,7 +376,7 @@ foreach ($permissions as $permission) {
                             <small>Hold Ctrl on Windows or Command on Mac to select several users.</small>
                         </div>
 
-                        <div>
+                        <div class="permission-target-card">
                             <label for="roles"><strong>Roles</strong></label>
                             <select
                                 name="roles[]"
@@ -663,6 +665,42 @@ foreach ($permissions as $permission) {
         flex-direction: column;
     }
 }
+
+.permissions-page{max-width:1500px;margin:0 auto;padding:22px 24px 34px}
+.permissions-page>.card{border:1px solid #e5eaf1;border-radius:16px;box-shadow:0 8px 26px rgba(15,23,42,.06);overflow:hidden}
+.permissions-page>.card>.card-body{padding:24px}
+.permission-page-header{display:flex;align-items:center;justify-content:flex-start;gap:14px;padding:20px 24px;background:linear-gradient(110deg,#fff 0%,#f7f5fc 100%);border-bottom:1px solid #e8eaf0}
+.permission-heading-icon{display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;border-radius:14px;background:#eee8f8;color:#4a1e8f;font-size:20px}
+.permission-heading-copy{min-width:0;flex:1}
+.permission-heading-copy h3{margin:0 0 4px;color:#172033;font-size:20px;font-weight:800}
+.permission-heading-copy small{color:#64748b;font-size:13px}
+.permission-header-badge{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border-radius:999px;background:#f0fdf4;color:#166534;font-size:11px;font-weight:750;white-space:nowrap}
+.permission-target-grid{gap:16px}
+.permission-target-card{padding:16px;background:#fbfcfe;border:1px solid #e6eaf0;border-radius:12px}
+.permission-target-card>label{display:block;margin:0 0 9px;color:#344054;font-size:13px}
+.permission-target-card>small{display:block;margin-top:8px;color:#667085;font-size:11px;line-height:1.5}
+.permission-target-card .form-control{border-color:#d7dde6;border-radius:9px}
+.permission-target-card .permission-multi-select{min-height:220px;background:#fff}
+.permission-target-actions{margin-top:14px}
+.permission-summary{padding:16px 18px;border:1px solid #d9d2ec;border-left:4px solid #4a1e8f;border-radius:11px;background:#faf8ff;color:#344054;line-height:1.55}
+.permission-summary small{display:inline-block;margin-top:5px;color:#667085}
+.permission-toolbar{padding:12px;background:#f8fafc;border:1px solid #e6eaf0;border-radius:11px}
+.permission-toolbar .form-control{margin-left:auto;max-width:340px;border-radius:9px}
+.permission-modules{grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:14px}
+.permission-module{border:1px solid #e3e8ef;border-radius:12px;box-shadow:0 2px 8px rgba(15,23,42,.035)}
+.permission-module-heading{padding:13px 15px;background:#f8fafc}
+.permission-module-heading h4{color:#25324a;font-size:14px;font-weight:750}
+.permission-module-heading label{display:flex;align-items:center;gap:7px;margin:0;color:#475467;font-size:11px;font-weight:650}
+.permission-grid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;padding:12px}
+.permission-item{min-height:68px;gap:10px;padding:10px;border-radius:9px;border-color:#e6eaf0;background:#fff}
+.permission-item input{width:16px;height:16px;accent-color:#4a1e8f;flex:0 0 auto}
+.permission-item strong{color:#25324a;font-size:12px;line-height:1.35}
+.permission-item small{font-size:10px;overflow-wrap:anywhere}
+.permission-partial{background:#fffcf0;border-color:#eadba7}
+.permission-save-bar{margin-top:18px;padding:13px 16px;border:1px solid #e1e5ed;border-radius:12px;background:rgba(255,255,255,.97);box-shadow:0 -4px 18px rgba(15,23,42,.06)}
+.permission-save-bar #selectedPermissionCount{color:#64748b;font-size:12px;font-weight:650}
+@media(max-width:700px){.permissions-page{padding:14px 10px 24px}.permissions-page>.card>.card-body{padding:14px}.permission-page-header{padding:16px;align-items:flex-start}.permission-header-badge{display:none}.permission-toolbar .form-control{margin-left:0;max-width:none;width:100%}.permission-modules{grid-template-columns:1fr}.permission-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:420px){.permission-grid{grid-template-columns:1fr}.permission-target-actions>.btn{width:100%}.permission-save-bar{align-items:stretch;flex-direction:column}.permission-save-bar>.btn{width:100%}}
 </style>
 
 <script>

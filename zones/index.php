@@ -56,7 +56,7 @@ include '../includes/sidebar.php';
 
     <div class="card">
       <div class="card-body">
-        <div class="module-toolbar">
+        <div class="module-toolbar zones-toolbar">
           <input type="text" id="zoneSearch" class="form-control" placeholder="Search zone, leader, location...">
           <select id="zoneStatusFilter" class="form-control" style="max-width:180px">
             <option value="">All Status</option>

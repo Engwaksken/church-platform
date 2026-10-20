@@ -15,10 +15,10 @@ $month = $_GET['month'] ?? date('Y-m');
   <h2><i class="fas fa-church"></i> Offertory Records</h2>
   <button type="button" class="btn btn-primary" id="btnAdd"><i class="fas fa-plus"></i> Record Offertory</button>
 </div>
-<div class="ajax-stats">
-  <div class="ajax-stat" style="background:#4a1e8f"><div class="num" id="stMonth">UGX 0</div><div class="lbl">Selected Month</div></div>
-  <div class="ajax-stat" style="background:#d4a017"><div class="num" id="stYear">UGX 0</div><div class="lbl">This Year</div></div>
-  <div class="ajax-stat" style="background:#28a745"><div class="num" id="stAll">UGX 0</div><div class="lbl">All Time Total</div></div>
+<div class="stats-grid module-stats-grid">
+  <div class="stat-card"><div class="stat-icon"><i class="fas fa-calendar-alt"></i></div><div><div class="stat-value" id="stMonth">UGX 0</div><div class="stat-label">Selected Month</div></div></div>
+  <div class="stat-card"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div><div class="stat-value" id="stYear">UGX 0</div><div class="stat-label">This Year</div></div></div>
+  <div class="stat-card"><div class="stat-icon"><i class="fas fa-coins"></i></div><div><div class="stat-value" id="stAll">UGX 0</div><div class="stat-label">All Time Total</div></div></div>
 </div>
 <div class="card"><div class="card-body">
  <div class="ajax-toolbar">

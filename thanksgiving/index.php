@@ -60,11 +60,11 @@ $recordsCount = $hasThanksgiving ? tgv_scalar($conn, "SELECT COUNT(*) FROM thank
 <div class="tgv-card"><div class="tgv-empty"><strong>Setup required:</strong> thanksgiving table was not found.</div></div>
 <?php else: ?>
 
-<div class="tgv-stats">
-  <div class="tgv-card tgv-stat"><div class="tgv-icon"><i class="fas fa-calendar-check"></i></div><div><div class="tgv-value" id="statPeriod">UGX <?= number_format($periodTotal) ?></div><div class="tgv-label">Selected Period</div></div></div>
-  <div class="tgv-card tgv-stat"><div class="tgv-icon"><i class="fas fa-calendar-alt"></i></div><div><div class="tgv-value" id="statMonth">UGX <?= number_format($monthTotal) ?></div><div class="tgv-label">This Month</div></div></div>
-  <div class="tgv-card tgv-stat"><div class="tgv-icon"><i class="fas fa-chart-line"></i></div><div><div class="tgv-value" id="statYear">UGX <?= number_format($yearTotal) ?></div><div class="tgv-label">This Year</div></div></div>
-  <div class="tgv-card tgv-stat"><div class="tgv-icon"><i class="fas fa-receipt"></i></div><div><div class="tgv-value" id="statRecords"><?= number_format($recordsCount) ?></div><div class="tgv-label">Period Records</div></div></div>
+<div class="stats-grid module-stats-grid">
+  <div class="stat-card"><div class="stat-icon"><i class="fas fa-calendar-check"></i></div><div><div class="stat-value" id="statPeriod">UGX <?= number_format($periodTotal) ?></div><div class="stat-label">Selected Period</div></div></div>
+  <div class="stat-card"><div class="stat-icon"><i class="fas fa-calendar-alt"></i></div><div><div class="stat-value" id="statMonth">UGX <?= number_format($monthTotal) ?></div><div class="stat-label">This Month</div></div></div>
+  <div class="stat-card"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div><div class="stat-value" id="statYear">UGX <?= number_format($yearTotal) ?></div><div class="stat-label">This Year</div></div></div>
+  <div class="stat-card"><div class="stat-icon"><i class="fas fa-receipt"></i></div><div><div class="stat-value" id="statRecords"><?= number_format($recordsCount) ?></div><div class="stat-label">Period Records</div></div></div>
 </div>
 
 <div class="tgv-card">

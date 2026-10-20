@@ -186,7 +186,7 @@ $pageTitle = 'Converts & Nurture';
     </div>
 <?php else: ?>
 
-<div class="cb-stats">
+<div class="stats-grid module-stats-grid">
 <?php foreach ([
     ['fa-users', $total, 'Total Converts'],
     ['fa-calendar', $thisMonth, 'This Month'],
@@ -195,9 +195,9 @@ $pageTitle = 'Converts & Nurture';
     ['fa-bell', $dueFollowups, 'Follow-ups Due'],
     ['fa-circle-check', $completed, 'Completed'],
 ] as [$icon,$number,$label]): ?>
-    <div class="cb-stat">
-        <div class="cb-stat-icon"><i class="fas <?= cb_h($icon) ?>"></i></div>
-        <div><div class="cb-stat-number"><?= number_format((int)$number) ?></div><div class="cb-stat-label"><?= cb_h($label) ?></div></div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas <?= cb_h($icon) ?>"></i></div>
+        <div><div class="stat-value"><?= number_format((int)$number) ?></div><div class="stat-label"><?= cb_h($label) ?></div></div>
     </div>
 <?php endforeach; ?>
 </div>

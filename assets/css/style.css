@@ -675,6 +675,17 @@ textarea.form-control { resize: vertical; min-height: 88px; }
   margin-bottom: 14px;
 }
 
+.zones-module .zones-toolbar { justify-content: stretch; flex-wrap: nowrap; }
+.zones-module .zones-toolbar #zoneSearch { flex: 1 1 auto; min-width: 180px; }
+.zones-module .zones-toolbar #zoneStatusFilter { flex: 0 0 190px; max-width: 190px; }
+.zones-module .zones-toolbar #btnRefreshZones { flex: 0 0 auto; white-space: nowrap; }
+@media (max-width: 620px) {
+  .zones-module .zones-toolbar { flex-wrap: wrap; }
+  .zones-module .zones-toolbar #zoneSearch { flex: 1 1 100%; }
+  .zones-module .zones-toolbar #zoneStatusFilter { flex: 1 1 0; max-width: none; }
+  .zones-module .zones-toolbar #btnRefreshZones { flex: 0 0 auto; }
+}
+
 .module-filter-form,
 .data-filter-form,
 .filter-form,

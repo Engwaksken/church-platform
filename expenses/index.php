@@ -70,6 +70,11 @@ $stmt = $conn->prepare('SELECT * FROM expenses WHERE expense_date BETWEEN ? AND 
 $stmt->bind_param('ss', $from, $to); $stmt->execute(); $expenses = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $totalStmt = $conn->prepare('SELECT COALESCE(SUM(amount),0) total FROM expenses WHERE expense_date BETWEEN ? AND ?');
 $totalStmt->bind_param('ss', $from, $to); $totalStmt->execute(); $total = (float)$totalStmt->get_result()->fetch_assoc()['total'];
+$yearStmt = $conn->prepare('SELECT COALESCE(SUM(amount),0) total FROM expenses WHERE expense_date BETWEEN ? AND ?');
+$yearFrom = date('Y-01-01'); $yearTo = date('Y-12-31');
+$yearStmt->bind_param('ss', $yearFrom, $yearTo); $yearStmt->execute(); $yearTotal = (float)$yearStmt->get_result()->fetch_assoc()['total'];
+$expenseCount = count($expenses);
+$averageExpense = $expenseCount > 0 ? $total / $expenseCount : 0;
 include '../includes/header.php';
 include '../includes/sidebar.php';
 ?>
@@ -78,7 +83,13 @@ include '../includes/sidebar.php';
 <div class="content-area">
     <?php showFlash(); ?>
     <div class="page-header"><h2><i class="fas fa-receipt"></i> Expenses</h2><div class="d-flex flex-wrap" style="gap:8px"><a class="btn btn-outline-primary" href="../reports/expenditure_report.php"><i class="fas fa-chart-bar"></i> Expense Report</a><button class="btn btn-primary" type="button" onclick="openExpenseModal()"><i class="fas fa-plus"></i> Add Expense</button></div></div>
-    <div class="card mb-3"><div class="card-body"><form class="expense-filter" method="get"><label>From <input class="form-control" type="date" name="from" value="<?=ex_h($from)?>"></label><label>To <input class="form-control" type="date" name="to" value="<?=ex_h($to)?>"></label><button class="btn btn-secondary"><i class="fas fa-filter"></i> Filter</button><strong class="expense-total">Period total <span>UGX <?=number_format($total, 2)?></span></strong></form></div></div>
+    <div class="stats-grid module-stats-grid">
+        <div class="stat-card"><div class="stat-icon"><i class="fas fa-wallet"></i></div><div><div class="stat-value">UGX <?=number_format($total, 0)?></div><div class="stat-label">Selected Period</div></div></div>
+        <div class="stat-card"><div class="stat-icon"><i class="fas fa-receipt"></i></div><div><div class="stat-value"><?=number_format($expenseCount)?></div><div class="stat-label">Expense Records</div></div></div>
+        <div class="stat-card"><div class="stat-icon"><i class="fas fa-divide"></i></div><div><div class="stat-value">UGX <?=number_format($averageExpense, 0)?></div><div class="stat-label">Average Expense</div></div></div>
+        <div class="stat-card"><div class="stat-icon"><i class="fas fa-calendar"></i></div><div><div class="stat-value">UGX <?=number_format($yearTotal, 0)?></div><div class="stat-label">This Year</div></div></div>
+    </div>
+    <div class="card mb-3"><div class="card-body"><form class="expense-filter" method="get"><label>From <input class="form-control" type="date" name="from" value="<?=ex_h($from)?>"></label><label>To <input class="form-control" type="date" name="to" value="<?=ex_h($to)?>"></label><button class="btn btn-secondary"><i class="fas fa-filter"></i> Filter</button></form></div></div>
     <div class="card"><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Paid to</th><th>Method</th><th>Reference</th><th class="text-right">Amount (UGX)</th><th class="text-right">Actions</th></tr></thead><tbody>
     <?php if (!$expenses): ?><tr><td colspan="8" class="text-center text-muted py-4">No expenses found for this date range.</td></tr><?php else: foreach ($expenses as $expense): ?><tr><td><?=ex_h($expense['expense_date'])?></td><td><span class="expense-category"><?=ex_h($expense['category'])?></span></td><td><?=ex_h($expense['description'])?></td><td><?=ex_h($expense['paid_to'] ?: '—')?></td><td><?=ex_h($expense['payment_method'] ?: '—')?></td><td><?=ex_h($expense['reference_no'] ?: '—')?></td><td class="text-right font-weight-bold"><?=number_format((float)$expense['amount'], 2)?></td><td class="text-right text-nowrap"><button type="button" class="btn btn-sm btn-outline-primary" data-edit-expense="<?=ex_h(json_encode($expense, JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_TAG|JSON_HEX_AMP))?>" aria-label="Edit expense"><i class="fas fa-pen"></i></button> <button type="button" class="btn btn-sm btn-outline-danger" data-delete-id="<?=(int)$expense['id']?>" data-delete-description="<?=ex_h($expense['description'])?>" aria-label="Delete expense"><i class="fas fa-trash"></i></button></td></tr><?php endforeach; endif; ?>
     </tbody></table></div></div>
