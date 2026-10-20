@@ -19,6 +19,7 @@ if (!$r) {
 }
 
 $isPdf = isset($_GET['pdf']);
+if ($isPdf) require_permission('baptism.view');
 $generated = date('d M Y');
 $certificateBrand = [
     'name' => defined('APP_NAME') ? APP_NAME : 'Church',
@@ -101,11 +102,15 @@ $secretarySignatureSrc = baptism_signature_src((string)$signatories['secretary_s
 
 ob_start();
 ?>
+<?php if (!$isPdf): ?>
 <?php include '../includes/header.php'; ?>
 <?php include '../includes/sidebar.php'; ?>
 <div class="main-content baptism-page">
 <?php include '../includes/topbar.php'; ?>
 <div class="content-area">
+<?php else: ?>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Baptism Certificate</title></head><body style="background:#fff">
+<?php endif; ?>
 
 
 <style>
@@ -450,8 +455,10 @@ Baptism No: <?= htmlspecialchars($r['baptism_no']) ?>
  | Printed: <?= $generated ?>
 </div>
 
+<?php if (!$isPdf): ?>
 </div>
 </div>
+<?php endif; ?>
 
 </body>
 </html>
