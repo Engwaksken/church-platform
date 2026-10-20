@@ -25,7 +25,7 @@ function current_user_can(string $permission):bool{
     if($role==='admin')return true;
     /* Member portal permissions are deliberately read-only and fixed. */
     if($role==='member'){
-        $allowed=['dashboard.view','member.children.view','member.church.view','member.giving.view','member.projects.view','member.attendance.view','events.view','member.profile.view','member.payments.view','member.payment_gateways.view'];
+        $allowed=['dashboard.view','member.children.view','member.church.view','member.giving.view','member.projects.view','member.attendance.view','events.view','member.profile.view','member.payments.view','member.payment_gateways.view','member.programs.view','member.services.view','member.announcements.view','member.theme.view','member.harvests.view','member.notebook.manage','member.pledges.manage','member.contact.view'];
         return in_array($permission,$allowed,true);
     }
     if(!isset($conn)||!($conn instanceof mysqli)||!access_table_exists($conn,'permissions'))return false;

@@ -760,7 +760,7 @@ include __DIR__ . '/../includes/sidebar.php';
 <div class="main-content">
     <?php include __DIR__ . '/../includes/topbar.php'; ?>
 
-    <div class="content-wrapper profile-page">
+    <div class="content-area profile-page">
         <?php if (is_array($flash)): ?>
             <div class="alert alert-<?= mp_h($flash['type'] ?? 'success') ?>">
                 <i class="fas fa-circle-info"></i>

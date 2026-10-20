@@ -1,0 +1,26 @@
+.accessibility-widget{position:fixed;right:18px;bottom:18px;z-index:12000;font-family:Arial,sans-serif;color:#172033}
+.accessibility-launcher{display:flex;align-items:center;gap:8px;padding:11px 15px;border:2px solid #fff;border-radius:999px;background:#4a1e8f;color:#fff;font:inherit;font-size:13px;font-weight:700;line-height:1.2;box-shadow:0 5px 20px #1114;cursor:pointer}
+.accessibility-launcher i{font-size:18px}
+.accessibility-panel{position:absolute;right:0;bottom:58px;width:min(330px,calc(100vw - 28px));padding:0;background:#fff;border:1px solid #d7dce5;border-radius:14px;box-shadow:0 16px 48px #10182830;overflow:hidden}
+.accessibility-panel[hidden]{display:none}
+.accessibility-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;background:#4a1e8f;color:#fff}
+.accessibility-panel-head h2{margin:0;font-size:16px;color:inherit}
+.accessibility-panel-head button{width:32px;height:32px;border:0;border-radius:7px;background:#ffffff22;color:#fff;font-size:24px;cursor:pointer}
+.accessibility-controls{display:grid;gap:7px;padding:12px}
+.accessibility-controls>button,.accessibility-control-row button{min-height:40px;padding:8px 10px;border:1px solid #d9deea;border-radius:8px;background:#fff;color:#172033;font:600 13px Arial,sans-serif;text-align:left;cursor:pointer}
+.accessibility-controls button:hover,.accessibility-controls button:focus-visible{outline:3px solid #c7b6e7;outline-offset:1px}
+.accessibility-controls button[aria-pressed="true"]{border-color:#4a1e8f;background:#f2ebfb;color:#37136c}
+.accessibility-control-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 0 7px;border-bottom:1px solid #e5e7eb;font-size:13px;font-weight:700}
+.accessibility-control-row>div{display:flex;gap:6px}
+.accessibility-control-row button{min-width:48px;text-align:center}
+.accessibility-controls .accessibility-reset{border-color:#b42318;color:#b42318}
+.accessibility-controls .accessibility-install{background:#4a1e8f;color:#fff;border-color:#4a1e8f;text-align:center}
+.accessibility-install-help{margin:2px 0 0;color:#475467;font-size:12px;line-height:1.5}
+html.a11y-high-contrast{filter:contrast(1.35)}
+html.a11y-grayscale{filter:grayscale(1)}
+html.a11y-high-contrast.a11y-grayscale{filter:grayscale(1) contrast(1.35)}
+html.a11y-underline-links a{text-decoration:underline!important;text-decoration-thickness:2px!important;text-underline-offset:2px}
+html.a11y-readable,html.a11y-readable body,html.a11y-readable button,html.a11y-readable input,html.a11y-readable select,html.a11y-readable textarea{font-family:Arial,Helvetica,sans-serif!important;letter-spacing:.025em}
+html.a11y-reduce-motion *,html.a11y-reduce-motion *::before,html.a11y-reduce-motion *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+@media(max-width:520px){.accessibility-widget{right:12px;bottom:12px}.accessibility-launcher{padding:10px 12px}.accessibility-panel{bottom:54px}}
+@media print{.accessibility-widget{display:none!important}}

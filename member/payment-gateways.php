@@ -38,7 +38,7 @@ include __DIR__ . '/../includes/sidebar.php';
 ?>
 <div class="main-content">
     <?php include __DIR__ . '/../includes/topbar.php'; ?>
-    <div class="content-wrapper">
+    <div class="content-area payment-gateways-page">
         <div class="gateway-hero">
             <div>
                 <h3>Official Church Payment Gateways</h3>

@@ -129,6 +129,12 @@ $pageTitleText = isset($pageTitle) && trim((string)$pageTitle) !== ''
 <?php endif; ?>
 
 <link rel="stylesheet" href="<?= h(BASE_URL . 'assets/css/style.css') ?>">
+<link rel="manifest" href="<?= h(BASE_URL . 'manifest.webmanifest') ?>">
+<meta name="theme-color" content="#4a1e8f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="<?= h(BASE_URL . 'assets/img/pwa-192.png') ?>">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 </head>

@@ -9,6 +9,9 @@ if ($isMember) {
     $memberId = current_member_id();
     $member = null;
     $activeGateways = [];
+    $activeDepartmentCount = 0;
+    $upcomingProgramCount = 0;
+    $attendanceCount = 0;
 
     if ($memberId > 0) {
         $stmt = $conn->prepare("SELECT m.*, CONCAT(m.first_name,' ',m.last_name) AS full_name FROM members m WHERE m.id=? LIMIT 1");
@@ -25,12 +28,25 @@ if ($isMember) {
         if ($result) while ($row = $result->fetch_assoc()) $activeGateways[] = $row;
     }
 
+    if ($memberId > 0 && access_table_exists($conn, 'department_members') && access_table_exists($conn, 'departments')) {
+        $stmt = $conn->prepare("SELECT COUNT(DISTINCT d.id) total FROM department_members dm JOIN departments d ON d.id=dm.dept_id JOIN members m ON m.id=dm.member_id WHERE dm.member_id=? AND COALESCE(m.status,'Active')='Active' AND COALESCE(d.status,'Active')='Active'");
+        if ($stmt) { $stmt->bind_param('i', $memberId); $stmt->execute(); $activeDepartmentCount = (int)($stmt->get_result()->fetch_assoc()['total'] ?? 0); $stmt->close(); }
+    }
+    if (access_table_exists($conn, 'church_programs')) {
+        $result = $conn->query("SELECT COUNT(*) total FROM church_programs WHERE program_date>=CURDATE() AND status='Scheduled'");
+        if ($result) $upcomingProgramCount = (int)($result->fetch_assoc()['total'] ?? 0);
+    }
+    if ($memberId > 0 && access_table_exists($conn, 'attendance')) {
+        $stmt = $conn->prepare('SELECT COUNT(*) total FROM attendance WHERE member_id=?');
+        if ($stmt) { $stmt->bind_param('i', $memberId); $stmt->execute(); $attendanceCount = (int)($stmt->get_result()->fetch_assoc()['total'] ?? 0); $stmt->close(); }
+    }
+
     include 'includes/header.php';
     include 'includes/sidebar.php';
     ?>
     <div class="main-content">
         <?php include 'includes/topbar.php'; ?>
-        <div class="content-area">
+        <div class="content-area member-dashboard">
             <?= showFlash(); ?>
             <div class="member-welcome">
                 <div>
@@ -38,6 +54,12 @@ if ($isMember) {
                     <p>Member No: <strong><?= h((string) ($member['member_no'] ?? '-')) ?></strong></p>
                 </div>
                 <i class="fas fa-church"></i>
+            </div>
+
+            <div class="stats-grid module-stats-grid">
+                <div class="stat-card"><span class="stat-icon"><i class="fas fa-sitemap"></i></span><div><strong class="stat-value"><?= number_format($activeDepartmentCount) ?></strong><span class="stat-label">Active Departments</span></div></div>
+                <div class="stat-card"><span class="stat-icon"><i class="fas fa-calendar-days"></i></span><div><strong class="stat-value"><?= number_format($upcomingProgramCount) ?></strong><span class="stat-label">Upcoming Programs</span></div></div>
+                <div class="stat-card"><span class="stat-icon"><i class="fas fa-clipboard-check"></i></span><div><strong class="stat-value"><?= number_format($attendanceCount) ?></strong><span class="stat-label">Attendance Records</span></div></div>
             </div>
 
             <div class="member-quick-grid">
