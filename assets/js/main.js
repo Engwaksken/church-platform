@@ -782,11 +782,76 @@
 
 
     /* -------------------------------------------------------------------------
+     * MONEY INPUTS — show thousands separators while typing (50,000)
+     * The field's .value and any submitted/FormData value stay plain (50000),
+     * so page scripts and the server keep working unchanged.
+     * ---------------------------------------------------------------------- */
+    const MONEY_FIELDS = /^(amount|target_amount|pledged_amount|amount_pledged|amount_collected|paid_amount|loose_total|envelope_total|budget|extra)$/;
+    const nativeValue  = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+
+    const plainMoney = v => String(v ?? '').replace(/,/g, '').trim();
+
+    function formatMoney(v) {
+        const raw = plainMoney(v).replace(/[^\d.\-]/g, '');
+        if (raw === '' || raw === '-') return raw;
+        const [whole, ...rest] = raw.split('.');
+        const sign = whole.startsWith('-') ? '-' : '';
+        const digits = whole.replace(/-/g, '').replace(/^0+(?=\d)/, '');
+        const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        return sign + grouped + (rest.length ? '.' + rest.join('').slice(0, 2) : '');
+    }
+
+    function enhanceMoneyInput(input) {
+        if (input.dataset.money || input.type !== 'number' || !MONEY_FIELDS.test(input.name)) return;
+        input.dataset.money = '1';
+        const initial = nativeValue.get.call(input).replace(/\.0+$/, '');
+        input.type = 'text';
+        input.inputMode = 'decimal';
+        input.autocomplete = 'off';
+
+        Object.defineProperty(input, 'value', {
+            configurable: true,
+            get() { return plainMoney(nativeValue.get.call(this)); },
+            set(v) { nativeValue.set.call(this, formatMoney(String(v ?? '').replace(/\.0+$/, ''))); }
+        });
+        input.value = initial;
+
+        input.addEventListener('input', function () {
+            const before = nativeValue.get.call(this);
+            const caret = this.selectionStart ?? before.length;
+            const digitsLeft = before.slice(0, caret).replace(/[^\d.]/g, '').length;
+            const after = formatMoney(before);
+            nativeValue.set.call(this, after);
+            let pos = 0, seen = 0;
+            while (pos < after.length && seen < digitsLeft) { if (/[\d.]/.test(after[pos])) seen++; pos++; }
+            try { this.setSelectionRange(pos, pos); } catch (e) { /* not focusable */ }
+        });
+    }
+
+    function initMoneyInputs() {
+        $$('input').forEach(enhanceMoneyInput);
+        new MutationObserver(records => records.forEach(r => r.addedNodes.forEach(node => {
+            if (node.nodeType !== 1) return;
+            if (node.matches('input')) enhanceMoneyInput(node);
+            $$('input', node).forEach(enhanceMoneyInput);
+        }))).observe(document.body, { childList: true, subtree: true });
+
+        // Strip separators from native submits and from `new FormData(form)`.
+        document.addEventListener('formdata', e => {
+            $$('input[data-money]', e.target).forEach(input => {
+                if (input.name && e.formData.has(input.name)) e.formData.set(input.name, input.value);
+            });
+        });
+    }
+
+
+    /* -------------------------------------------------------------------------
      * BOOT
      * ---------------------------------------------------------------------- */
     document.addEventListener('DOMContentLoaded', function () {
         initMobileSidebar();
         initSharedUI();
+        initMoneyInputs();
         initYouthRegistry();
         initTitheRegistry();
         initSettingsModule();
