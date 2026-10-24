@@ -18,7 +18,7 @@ $rec = null;
 
 if ($paymentId > 0 && table_exists($conn, 'mothers_union_payments')) {
     $stmt = $conn->prepare("SELECT p.id AS payment_id, p.receipt_no, p.amount, p.payment_date, p.payment_method, p.notes AS payment_notes,
-                                   mu.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS full_name,
+                                   mu.*, m.full_name AS full_name,
                                    m.member_no, m.phone, m.email
                             FROM mothers_union_payments p
                             JOIN mothers_union mu ON mu.id = p.mothers_union_id
@@ -29,7 +29,7 @@ if ($paymentId > 0 && table_exists($conn, 'mothers_union_payments')) {
     $rec = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 } elseif ($id > 0) {
-    $stmt = $conn->prepare("SELECT mu.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS full_name, m.member_no, m.phone, m.email
+    $stmt = $conn->prepare("SELECT mu.*, m.full_name AS full_name, m.member_no, m.phone, m.email
                             FROM mothers_union mu JOIN members m ON m.id = mu.member_id WHERE mu.id = ? LIMIT 1");
     $stmt->bind_param('i', $id);
     $stmt->execute();

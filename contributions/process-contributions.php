@@ -39,7 +39,7 @@ function receipt_no(mysqli $conn) {
     return $prefix . str_pad(((int)($row['c'] ?? 0)) + 1, 4, '0', STR_PAD_LEFT);
 }
 function contribution_select_sql() {
-    return "SELECT c.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS full_name, m.member_no, p.name AS project_name
+    return "SELECT c.*, m.full_name AS full_name, m.member_no, p.name AS project_name
             FROM contributions c
             LEFT JOIN members m ON m.id = c.member_id
             LEFT JOIN projects p ON p.id = c.project_id";

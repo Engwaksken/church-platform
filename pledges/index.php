@@ -5,7 +5,7 @@ $pageTitle = 'Pledges';
 if (!isset($conn) || !($conn instanceof mysqli)) { die('Database connection not found.'); }
 $conn->set_charset('utf8mb4');
 function ph($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
-$members = $conn->query("SELECT id, member_no, CONCAT(COALESCE(first_name,''),' ',COALESCE(last_name,'')) full_name FROM members ORDER BY first_name,last_name");
+$members = $conn->query("SELECT id, member_no, full_name FROM members ORDER BY full_name");
 $projects = $conn->query("SELECT id, name FROM projects WHERE COALESCE(status,'Active')='Active' ORDER BY name");
 include '../includes/header.php';
 include '../includes/sidebar.php';

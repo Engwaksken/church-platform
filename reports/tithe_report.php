@@ -33,7 +33,7 @@ $generated = date('d F Y, H:i');
 $stmt = $conn->prepare("
     SELECT 
         t.*,
-        CONCAT_WS(' ', m.first_name, m.last_name) AS full_name,
+        m.full_name AS full_name,
         m.member_no
     FROM tithe t
     LEFT JOIN members m ON m.id = t.member_id
@@ -59,14 +59,14 @@ $count = (int)($totalRow['total_count'] ?? 0);
 
 $memberStmt = $conn->prepare("
     SELECT 
-        CONCAT_WS(' ', m.first_name, m.last_name) AS full_name,
+        m.full_name AS full_name,
         m.member_no,
         COUNT(t.id) AS payment_count,
         COALESCE(SUM(t.amount), 0) AS total
     FROM tithe t
     LEFT JOIN members m ON m.id = t.member_id
     WHERE t.tithe_date BETWEEN ? AND ?
-    GROUP BY t.member_id, m.first_name, m.last_name, m.member_no
+    GROUP BY t.member_id, m.full_name, m.member_no
     ORDER BY total DESC
 ");
 $memberStmt->bind_param("ss", $from, $to);

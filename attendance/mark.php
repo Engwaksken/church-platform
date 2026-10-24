@@ -5,13 +5,12 @@ requireLogin();
 $members = mysqli_query($conn, "
     SELECT 
         id,
-        first_name,
-        last_name,
+        full_name,
         member_no,
         department
     FROM members
     WHERE status = 'Active'
-    ORDER BY first_name ASC, last_name ASC
+    ORDER BY full_name ASC
 ");
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -135,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div class="row" id="membersList">
 
 <?php while ($m = mysqli_fetch_assoc($members)): ?>
-    <?php $memberName = trim($m['first_name'] . ' ' . $m['last_name']); ?>
+    <?php $memberName = trim((string)$m['full_name']); ?>
 
     <div class="col-md-4 mb-2">
         <div class="attendance-card d-flex align-items-center p-2 border rounded">

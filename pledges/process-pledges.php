@@ -71,7 +71,7 @@ function send_pledge_receipt_email(int $paymentId): bool {
     global $conn;
     if (!function_exists('sendSystemEmail')) return false;
     $payment = one("SELECT pp.*, p.pledge_no, p.amount_pledged, p.amount_paid, p.pledge_reason, p.status, p.due_date,
-                    CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS full_name,
+                    m.full_name AS full_name,
                     m.email, m.member_no, pr.name AS project_name
                     FROM pledge_payments pp
                     JOIN pledges p ON p.id = pp.pledge_id
@@ -122,7 +122,7 @@ try {
 
     if ($action === 'options') {
         pj(true, '', [
-            'members' => many("SELECT id, member_no, CONCAT(COALESCE(first_name,''),' ',COALESCE(last_name,'')) full_name FROM members ORDER BY first_name,last_name"),
+            'members' => many("SELECT id, member_no, full_name FROM members ORDER BY full_name"),
             'projects' => table_exists('projects') ? many("SELECT id, name FROM projects WHERE COALESCE(status,'Active')='Active' ORDER BY name") : []
         ]);
     }
@@ -130,7 +130,7 @@ try {
     if ($action === 'list') {
         $status = clean($_GET['status'] ?? '');
         $where = $status !== '' ? "WHERE p.status='".hsql($status)."'" : '';
-        $rows = many("SELECT p.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS full_name, m.member_no, m.email, m.phone, pr.name AS project_name
+        $rows = many("SELECT p.*, m.full_name AS full_name, m.member_no, m.email, m.phone, pr.name AS project_name
             FROM pledges p
             LEFT JOIN members m ON m.id=p.member_id
             LEFT JOIN projects pr ON pr.id=p.project_id
@@ -148,7 +148,7 @@ try {
     if ($action === 'get') {
         $id = (int)($_GET['id'] ?? 0);
         if ($id <= 0) pj(false, 'Invalid pledge ID.');
-        $row = one("SELECT p.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS full_name, m.member_no, m.email, m.phone, pr.name AS project_name
+        $row = one("SELECT p.*, m.full_name AS full_name, m.member_no, m.email, m.phone, pr.name AS project_name
             FROM pledges p LEFT JOIN members m ON m.id=p.member_id LEFT JOIN projects pr ON pr.id=p.project_id WHERE p.id=$id LIMIT 1");
         if (!$row) pj(false, 'Pledge not found.');
         $payments = table_exists('pledge_payments') ? many("SELECT * FROM pledge_payments WHERE pledge_id=$id ORDER BY paid_on DESC,id DESC") : [];
@@ -217,7 +217,7 @@ try {
     }
 
     if ($action === 'send_reminders') {
-        $rows = many("SELECT p.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS full_name, m.email, m.phone, m.member_no, pr.name AS project_name
+        $rows = many("SELECT p.*, m.full_name AS full_name, m.email, m.phone, m.member_no, pr.name AS project_name
             FROM pledges p
             LEFT JOIN members m ON m.id=p.member_id
             LEFT JOIN projects pr ON pr.id=p.project_id

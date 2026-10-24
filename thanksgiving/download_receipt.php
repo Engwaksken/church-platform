@@ -54,7 +54,7 @@ function tr_img_data_uri(string $path): string {
 $id = (int)($_GET['id'] ?? 0);
 if ($id <= 0) die('Invalid thanksgiving receipt.');
 
-$sql = "SELECT t.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS member_name,
+$sql = "SELECT t.*, m.full_name AS member_name,
                m.member_no, m.phone, m.email
         FROM thanksgiving t
         LEFT JOIN members m ON m.id = t.member_id

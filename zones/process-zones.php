@@ -16,7 +16,7 @@ try{
 $action = $_REQUEST['action'] ?? 'list';
 
 if ($action === 'list') {
-    $sql = "SELECT z.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS leader_name, m.member_no AS leader_no
+    $sql = "SELECT z.*, m.full_name AS leader_name, m.member_no AS leader_no
             FROM church_zones z
             LEFT JOIN members m ON m.id=z.leader_member_id
             ORDER BY z.status ASC, z.zone_name ASC";
@@ -27,7 +27,7 @@ if ($action === 'list') {
 
 if ($action === 'get') {
     $id=(int)($_GET['id']??0); if($id<=0) out(['success'=>false,'message'=>'Invalid zone.']);
-    $st=$conn->prepare("SELECT z.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS leader_name, m.member_no AS leader_no
+    $st=$conn->prepare("SELECT z.*, m.full_name AS leader_name, m.member_no AS leader_no
                         FROM church_zones z LEFT JOIN members m ON m.id=z.leader_member_id WHERE z.id=? LIMIT 1");
     $st->bind_param('i',$id); $st->execute(); $row=$st->get_result()->fetch_assoc(); $st->close();
     out($row?['success'=>true,'item'=>$row]:['success'=>false,'message'=>'Zone not found.']);

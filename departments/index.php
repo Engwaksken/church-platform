@@ -35,7 +35,7 @@ $totalAssignments   = $hasDeptMembers ? d_scalar($conn, "SELECT COUNT(*) FROM de
 
 $leaders = [];
 if ($hasMembers) {
-    $res = $conn->query("SELECT id, member_no, first_name, last_name FROM members WHERE COALESCE(status,'Active')='Active' ORDER BY first_name,last_name");
+    $res = $conn->query("SELECT id, member_no, full_name FROM members WHERE COALESCE(status,'Active')='Active' ORDER BY full_name");
     while ($res && $row = $res->fetch_assoc()) $leaders[] = $row;
 }
 ?>
@@ -188,7 +188,7 @@ if ($hasMembers) {
                                     <option value="">- Select Leader -</option>
                                     <?php foreach ($leaders as $l): ?>
                                     <option value="<?= (int)$l['id'] ?>">
-                                        <?= dh(trim(($l['first_name'] ?? '') . ' ' . ($l['last_name'] ?? ''))) ?>
+                                        <?= dh(trim((string)($l['full_name'] ?? ''))) ?>
                                         <?= !empty($l['member_no']) ? ' (' . dh($l['member_no']) . ')' : '' ?>
                                     </option>
                                     <?php endforeach; ?>
@@ -515,7 +515,7 @@ if ($hasMembers) {
                         <tr>
                             <td>
                                 <div class="member-row">
-                                    <span class="avatar">${esc((m.first_name || 'M').substring(0, 1).toUpperCase())}</span>
+                                    <span class="avatar">${esc(((m.full_name || '').trim() || 'M').substring(0, 1).toUpperCase())}</span>
                                     <div>
                                         <strong>${esc(m.full_name || '')}</strong>
                                         ${m.member_no ? `<br><small class="text-muted">${esc(m.member_no)}</small>` : ''}

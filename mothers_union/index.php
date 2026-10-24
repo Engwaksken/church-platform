@@ -33,12 +33,12 @@ $subs     = $hasMU ? mu_scalar($conn, "SELECT COALESCE(SUM(subscription),0) FROM
 /* Female members not yet enrolled */
 $members = [];
 if ($hasMembers && $hasMU) {
-    $sql = "SELECT m.id, m.member_no, m.first_name, m.last_name, m.phone
+    $sql = "SELECT m.id, m.member_no, m.full_name, m.phone
             FROM members m
             WHERE LOWER(COALESCE(m.gender,'')) IN ('female','f')
               AND COALESCE(m.status,'Active')='Active'
               AND m.id NOT IN (SELECT member_id FROM mothers_union WHERE member_id IS NOT NULL)
-            ORDER BY m.first_name, m.last_name";
+            ORDER BY m.full_name";
     $res = $conn->query($sql);
     while ($res && $row = $res->fetch_assoc()) $members[] = $row;
 }
@@ -240,7 +240,7 @@ $positions = ['Member','Chairperson','Vice Chairperson','Secretary','Treasurer',
                                 </label>
 
                                 <?php if ($members): foreach ($members as $m):
-                                    $fullName = mu_h(trim(($m['first_name'] ?? '').' '.($m['last_name'] ?? '')));
+                                    $fullName = mu_h(trim((string)($m['full_name'] ?? '')));
                                     $phone    = $m['phone']     ? ' . '.mu_h($m['phone'])     : '';
                                     $memNo    = $m['member_no'] ? ' ('.mu_h($m['member_no']).')' : '';
                                 ?>

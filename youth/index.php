@@ -64,11 +64,11 @@ $memberOptions = [];
 if ($hasMembers && $hasYouth) {
     try {
         $res = $conn->query("
-            SELECT m.id, m.first_name, m.last_name, m.gender, m.phone
+            SELECT m.id, m.full_name, m.gender, m.phone
             FROM members m
             WHERE COALESCE(m.status,'Active')='Active'
               AND m.id NOT IN (SELECT member_id FROM youth WHERE member_id IS NOT NULL)
-            ORDER BY m.first_name, m.last_name
+            ORDER BY m.full_name
         ");
         while ($res && $row = $res->fetch_assoc()) $memberOptions[] = $row;
         if ($res) $res->close();
@@ -299,7 +299,7 @@ if ($hasBirds) {
 
                                     <!-- Member rows -->
                                     <?php if ($memberOptions): foreach ($memberOptions as $m):
-                                        $fullName = h(trim(($m['first_name'] ?? '').' '.($m['last_name'] ?? '')));
+                                        $fullName = h(trim((string)($m['full_name'] ?? '')));
                                         $gender   = $m['gender'] ? ' . '.h($m['gender']) : '';
                                         $phone    = $m['phone']  ? ' . '.h($m['phone'])  : '';
                                     ?>

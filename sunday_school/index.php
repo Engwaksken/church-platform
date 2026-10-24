@@ -28,7 +28,7 @@ try {
 
 $members = [];
 try {
-    $res = $conn->query("SELECT id, first_name, last_name FROM members WHERE COALESCE(status,'Active')='Active' ORDER BY first_name,last_name");
+    $res = $conn->query("SELECT id, full_name FROM members WHERE COALESCE(status,'Active')='Active' ORDER BY full_name");
     while ($res && $row = $res->fetch_assoc()) { $members[] = $row; }
 } catch (Throwable $e) {}
 ?>
@@ -184,7 +184,7 @@ try {
       <div class="ss-field"><label>Status</label><select name="status" id="status"><option>Active</option><option>Inactive</option></select></div>
       <div class="ss-field"><label>Parent / Guardian</label><input type="text" name="parent_guardian" id="parent_guardian"></div>
       <div class="ss-field"><label>Parent Phone</label><input type="text" name="parent_phone" id="parent_phone"></div>
-      <div class="ss-field"><label>Parent Member</label><select name="parent_member_id" id="parent_member_id"><option value="">-- None --</option><?php foreach($members as $m): ?><option value="<?= (int)($m['id'] ?? 0) ?>"><?= ss_h(trim(($m['first_name'] ?? '').' '.($m['last_name'] ?? ''))) ?></option><?php endforeach; ?></select></div>
+      <div class="ss-field"><label>Parent Member</label><select name="parent_member_id" id="parent_member_id"><option value="">-- None --</option><?php foreach($members as $m): ?><option value="<?= (int)($m['id'] ?? 0) ?>"><?= ss_h(trim((string)($m['full_name'] ?? ''))) ?></option><?php endforeach; ?></select></div>
       <div class="ss-field"><label>Baptised?</label><select name="baptised" id="baptised"><option value="0">No</option><option value="1">Yes</option></select></div>
       <div class="ss-field"><label>Date Enrolled</label><input type="date" name="date_enrolled" id="date_enrolled" value="<?= date('Y-m-d') ?>"></div>
       <div class="ss-field ss-full"><label>Notes</label><textarea name="notes" id="notes"></textarea></div>
@@ -273,7 +273,7 @@ try {
       <div class="ss-field ss-full"><label>Class Name *</label><input type="text" name="class_name" id="class_name" required></div>
       <div class="ss-field"><label>Age Range</label><input type="text" name="age_range" id="age_range" placeholder="e.g. 3-6 years"></div>
       <div class="ss-field"><label>Capacity</label><input type="number" name="capacity" id="capacity" min="0" value="0"></div>
-      <div class="ss-field ss-full"><label>Teacher</label><select name="teacher_id" id="teacher_id"><option value="">-- Select Teacher --</option><?php foreach($members as $m): ?><option value="<?= (int)($m['id'] ?? 0) ?>"><?= ss_h(trim(($m['first_name'] ?? '').' '.($m['last_name'] ?? ''))) ?></option><?php endforeach; ?></select></div>
+      <div class="ss-field ss-full"><label>Teacher</label><select name="teacher_id" id="teacher_id"><option value="">-- Select Teacher --</option><?php foreach($members as $m): ?><option value="<?= (int)($m['id'] ?? 0) ?>"><?= ss_h(trim((string)($m['full_name'] ?? ''))) ?></option><?php endforeach; ?></select></div>
       <div class="ss-field ss-full"><label>Notes</label><textarea name="notes" id="class_notes"></textarea></div>
     </div>
   </div>

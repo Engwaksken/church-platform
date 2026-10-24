@@ -4,19 +4,19 @@ require_once __DIR__.'/../config/config.php';
 requireLogin();
 if (!isAdmin()) { http_response_code(403); exit('Administrator access required.'); }
 $conn->set_charset('utf8mb4');
-function unique_username(mysqli $conn,string $first,string $last,string $memberNo):string{
-    $base=strtolower((string)preg_replace('/[^a-z0-9]+/i','.',trim($first.'.'.$last,'.')));
+function unique_username(mysqli $conn,string $fullName,string $memberNo):string{
+    $base=strtolower((string)preg_replace('/[^a-z0-9]+/i','.',trim($fullName)));
     $base=trim($base,'.') ?: strtolower((string)preg_replace('/[^a-z0-9]+/i','',$memberNo));
     $base=$base ?: 'member'; $candidate=$base; $n=1;
     while(true){$s=$conn->prepare('SELECT id FROM users WHERE username=? LIMIT 1');$s->bind_param('s',$candidate);$s->execute();$exists=(bool)$s->get_result()->fetch_row();$s->close();if(!$exists)return $candidate;$candidate=$base.(++$n);}
 }
-$res=$conn->query("SELECT id,member_no,first_name,last_name,email,phone,status FROM members WHERE user_id IS NULL ORDER BY id");
+$res=$conn->query("SELECT id,member_no,full_name,email,phone,status FROM members WHERE user_id IS NULL ORDER BY id");
 $created=[];$conn->begin_transaction();
 try{
  while($m=$res->fetch_assoc()){
-  $username=unique_username($conn,(string)$m['first_name'],(string)$m['last_name'],(string)$m['member_no']);
+  $username=unique_username($conn,(string)$m['full_name'],(string)$m['member_no']);
   $plain='Change@'.preg_replace('/\D+/','',(string)$m['member_no']); if(strlen($plain)<8)$plain.='1234';
-  $hash=password_hash($plain,PASSWORD_DEFAULT);$full=trim($m['first_name'].' '.$m['last_name']);$role='member';$status=$m['status']==='Active'?'Active':'Inactive';
+  $hash=password_hash($plain,PASSWORD_DEFAULT);$full=trim((string)$m['full_name']);$role='member';$status=$m['status']==='Active'?'Active':'Inactive';
   $s=$conn->prepare('INSERT INTO users(username,password,full_name,role,email,phone,status) VALUES(?,?,?,?,?,?,?)');
   $s->bind_param('sssssss',$username,$hash,$full,$role,$m['email'],$m['phone'],$status);$s->execute();$uid=(int)$conn->insert_id;$s->close();
   $s=$conn->prepare('UPDATE members SET user_id=? WHERE id=?');$mid=(int)$m['id'];$s->bind_param('ii',$uid,$mid);$s->execute();$s->close();

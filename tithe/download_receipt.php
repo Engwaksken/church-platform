@@ -5,7 +5,7 @@ if (!isset($conn) || !($conn instanceof mysqli)) { die('Database connection not 
 $id = (int)($_GET['tithe_id'] ?? $_GET['id'] ?? 0);
 if ($id <= 0) { die('Invalid tithe receipt.'); }
 $row = null;
-$st = $conn->prepare("SELECT t.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) full_name, m.member_no, m.phone FROM tithe t LEFT JOIN members m ON m.id=t.member_id WHERE t.id=? LIMIT 1");
+$st = $conn->prepare("SELECT t.*, m.full_name, m.member_no, m.phone FROM tithe t LEFT JOIN members m ON m.id=t.member_id WHERE t.id=? LIMIT 1");
 $st->bind_param('i',$id); $st->execute(); $row=$st->get_result()->fetch_assoc(); $st->close();
 if(!$row){ die('Receipt not found.'); }
 $autoloads = [__DIR__.'/../vendor/autoload.php', __DIR__.'/../../vendor/autoload.php', dirname(__DIR__).'/vendor/autoload.php'];

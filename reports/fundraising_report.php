@@ -135,7 +135,7 @@ while ($camp = mysqli_fetch_assoc($campList)) {
     $stmt2 = $conn->prepare("
         SELECT 
             fc.*,
-            CONCAT_WS(' ', m.first_name, m.last_name) AS full_name
+            m.full_name AS full_name
         FROM fundraising_collections fc
         LEFT JOIN members m ON m.id = fc.member_id
         WHERE fc.campaign_id = ?

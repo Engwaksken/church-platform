@@ -28,7 +28,7 @@ $generated = date('d M Y H:i');
 $stmt = $conn->prepare("
     SELECT 
         c.*,
-        CONCAT_WS(' ', m.first_name, m.last_name) AS full_name,
+        m.full_name AS full_name,
         m.member_no,
         p.name AS project_name
     FROM contributions c

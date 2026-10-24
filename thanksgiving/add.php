@@ -2,7 +2,7 @@
 require_once '../config/config.php'; requireLogin();
 $id = intval($_GET['id']??0);
 $rec = $id ? fetchOne("SELECT * FROM thanksgiving WHERE id=$id") : null;
-$members = mysqli_query($conn,"SELECT id, CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) AS full_name,member_no FROM members ORDER BY first_name");
+$members = mysqli_query($conn,"SELECT id, full_name,member_no FROM members ORDER BY full_name");
 if($_SERVER['REQUEST_METHOD']==='POST'){
     $no     = $id ? san($_POST['receipt_no']) : genNo('TGV');
     $mid    = intval($_POST['member_id'])||'NULL';

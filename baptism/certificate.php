@@ -7,7 +7,7 @@ $id = intval($_GET['id'] ?? 0);
 $r = fetchOne("
     SELECT 
         b.*,
-        CONCAT(m.first_name,' ',m.last_name) AS member_name
+        m.full_name AS member_name
     FROM baptisms b
     LEFT JOIN members m ON m.id = b.member_id
     WHERE b.id = $id

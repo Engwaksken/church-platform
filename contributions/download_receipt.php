@@ -49,7 +49,7 @@ function cr_amount_words($number) {
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if ($id <= 0) die('Invalid contribution ID.');
 
-$sql = "SELECT c.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS member_name,
+$sql = "SELECT c.*, m.full_name AS member_name,
                m.member_no, m.phone, m.email, p.name AS project_name
         FROM contributions c
         LEFT JOIN members m ON m.id = c.member_id

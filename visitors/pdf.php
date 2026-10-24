@@ -17,7 +17,7 @@ if(in_array($type,['First Time','Returning'],true)){$where[]='v.visitor_type=?';
 if(in_array($follow,['Not Required','Pending','Contacted','Completed'],true)){$where[]='v.follow_up_status=?';$params[]=$follow;$types.='s';}
 if($from!==''&&cb_valid_date($from)){$where[]='v.visit_date>=?';$params[]=$from;$types.='s';}
 if($to!==''&&cb_valid_date($to)){$where[]='v.visit_date<=?';$params[]=$to;$types.='s';}
-$rows=cb_fetch_all($conn,"SELECT v.*,m.member_no,CONCAT_WS(' ',m.first_name,m.last_name) member_name FROM church_visitors v LEFT JOIN members m ON m.id=v.member_id WHERE ".implode(' AND ',$where)." ORDER BY v.visit_date ASC,v.id ASC",$types,$params);
+$rows=cb_fetch_all($conn,"SELECT v.*,m.member_no,m.full_name member_name FROM church_visitors v LEFT JOIN members m ON m.id=v.member_id WHERE ".implode(' AND ',$where)." ORDER BY v.visit_date ASC,v.id ASC",$types,$params);
 $site=cb_site_setting($conn,'site_name','Church Management System');
 $filter=[];if($q!=='')$filter[]='Search: '.$q;if($type!=='')$filter[]='Type: '.$type;if($follow!=='')$filter[]='Follow-up: '.$follow;if($from!=='')$filter[]='From: '.$from;if($to!=='')$filter[]='To: '.$to;
 $e=fn($v)=>htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');

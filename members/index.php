@@ -81,9 +81,9 @@ if($dateFrom!=='' && $dateTo!=='' && $dateFrom>$dateTo){[$dateFrom,$dateTo]=[$da
 
 $baseWhere='WHERE 1=1'; $baseParams=[]; $baseTypes='';
 if($search!==''){
-    $baseWhere.=" AND (m.first_name LIKE ? OR m.last_name LIKE ? OR CONCAT_WS(' ',m.first_name,m.last_name) LIKE ? OR m.member_no LIKE ? OR m.phone LIKE ? OR m.email LIKE ? OR m.occupation LIKE ? OR m.department LIKE ? OR d.name LIKE ?";
+    $baseWhere.=" AND (m.full_name LIKE ? OR m.member_no LIKE ? OR m.phone LIKE ? OR m.email LIKE ? OR m.occupation LIKE ? OR m.department LIKE ? OR d.name LIKE ?";
     $like='%'.$search.'%';
-    for($i=0;$i<9;$i++){$baseParams[]=$like;$baseTypes.='s';}
+    for($i=0;$i<7;$i++){$baseParams[]=$like;$baseTypes.='s';}
     if($hasExtraCols){$baseWhere.=" OR m.pledge_no LIKE ? OR m.service_attended LIKE ?";$baseParams[]=$like;$baseParams[]=$like;$baseTypes.='ss';}
     if($hasZoneCol&&$zoneTable){$baseWhere.=" OR z.`$zoneNameCol` LIKE ?";$baseParams[]=$like;$baseTypes.='s';}
     $baseWhere.=")";
@@ -106,7 +106,7 @@ if($page>$totalPages) $page=$totalPages;
 $offset=($page-1)*$perPage;
 
 $listSql="
-    SELECT m.id,m.member_no,m.first_name,m.last_name,m.gender,m.date_of_birth,
+    SELECT m.id,m.member_no,m.full_name,m.gender,m.date_of_birth,
            m.phone,m.email,m.address,m.marital_status,m.occupation,m.department,
            m.dept_id,m.joined_date,m.baptism_date,m.status,m.photo,m.notes,m.created_at,
            COALESCE(d.name,m.department,'') AS dept_name
@@ -328,12 +328,12 @@ $exportQuery = http_build_query(array_filter(['search'=>$search,'status'=>$statu
                     </tr>
                 </thead>
                 <tbody>
-                <?php if($members&&$members->num_rows): $i=$offset+1; while($m=$members->fetch_assoc()): $id=(int)$m['id']; $full=trim(($m['first_name']??'').' '.($m['last_name']??'')); ?>
+                <?php if($members&&$members->num_rows): $i=$offset+1; while($m=$members->fetch_assoc()): $id=(int)$m['id']; $full=trim((string)($m['full_name']??'')); ?>
                     <tr id="memberRow<?= $id ?>">
                         <td class="text-muted"><?= number_format($i++) ?></td>
                         <td>
                             <div class="record-info">
-                                <div class="record-avatar"><?= h(strtoupper(substr($m['first_name']??'M',0,1))) ?></div>
+                                <div class="record-avatar"><?= h(strtoupper(substr($full!==''?$full:'M',0,1))) ?></div>
                                 <div>
                                     <div class="record-name"><?= h($full?:'Unknown Member') ?></div>
                                     <div class="record-sub">
@@ -439,7 +439,7 @@ $exportQuery = http_build_query(array_filter(['search'=>$search,'status'=>$statu
                         <input type="file" name="csv_file" id="csvFileInput"
                                accept=".csv,text/csv" class="form-control" required>
                         <small class="text-muted">
-                            Required columns: <code>first_name</code>, <code>last_name</code>, <code>gender</code>.
+                            Required columns: <code>full_name</code>, <code>gender</code>.
                             Optional: <code>phone</code>, <code>email</code>, <code>occupation</code>,
                             <code>marital_status</code>, <code>date_of_birth</code>,
                             <code>joined_date</code>, <code>baptism_date</code>,
@@ -552,7 +552,7 @@ $exportQuery = http_build_query(array_filter(['search'=>$search,'status'=>$statu
                     <!-- Column headers -->
                     <div id="memberRowsHeader" style="
                         display:grid;
-                        grid-template-columns:24px 1fr 1fr 90px 100px 110px 110px 110px 120px 90px 36px;
+                        grid-template-columns:24px 1.6fr 90px 100px 110px 110px 110px 120px 90px 36px;
                         gap:6px;align-items:center;
                         padding:8px 20px;
                         background:#f5f1ff;
@@ -560,8 +560,7 @@ $exportQuery = http_build_query(array_filter(['search'=>$search,'status'=>$statu
                         font-size:10.5px;font-weight:700;color:var(--primary);
                         text-transform:uppercase;letter-spacing:.5px">
                         <div></div>
-                        <div><i class="fas fa-user"></i> First Name *</div>
-                        <div><i class="fas fa-user"></i> Last Name *</div>
+                        <div><i class="fas fa-user"></i> Full Name *</div>
                         <div><i class="fas fa-venus-mars"></i> Gender *</div>
                         <div><i class="fas fa-hand-holding-heart"></i> Pledge No</div>
                         <div><i class="fas fa-phone"></i> Phone</div>
@@ -625,8 +624,7 @@ $exportQuery = http_build_query(array_filter(['search'=>$search,'status'=>$statu
                     <div class="member-form-grid">
                         <div class="form-group"><label>Member No</label><input class="form-control" name="member_no" placeholder="Auto-generated if blank"></div>
                         <div class="form-group"><label>Pledge No</label><input class="form-control" name="pledge_no" maxlength="50" placeholder="e.g. P-001"></div>
-                        <div class="form-group"><label>First Name <span class="req">*</span></label><input class="form-control" name="first_name" required></div>
-                        <div class="form-group"><label>Last Name <span class="req">*</span></label><input class="form-control" name="last_name" required></div>
+                        <div class="form-group full-span"><label>Full Name <span class="req">*</span></label><input class="form-control" name="full_name" required></div>
                         <div class="form-group"><label>Gender <span class="req">*</span></label><select class="form-control" name="gender" required><option value="">Select</option><option>Male</option><option>Female</option></select></div>
                         <div class="form-group"><label>Date of Birth</label><input type="date" class="form-control" name="date_of_birth"></div>
                         <div class="form-group"><label>Marital Status</label><select class="form-control" name="marital_status"><option>Single</option><option>Married</option><option>Widowed</option><option>Divorced</option></select></div>
@@ -984,7 +982,7 @@ window.MEMBER_MODULE = {
         row.dataset.idx = idx;
         row.style.cssText = `
             display:grid;
-            grid-template-columns:24px 1fr 1fr 90px 100px 110px 110px 110px 120px 90px 36px;
+            grid-template-columns:24px 1.6fr 90px 100px 110px 110px 110px 120px 90px 36px;
             gap:6px;align-items:start;
             padding:8px 0;
             border-bottom:1px solid #f0ecfa;
@@ -992,12 +990,8 @@ window.MEMBER_MODULE = {
         row.innerHTML = `
             <div style="padding-top:8px;color:var(--text-muted);font-size:11px;text-align:center;font-weight:700">${n}</div>
             <div class="form-group" style="margin:0">
-                <input type="text" name="members[${idx}][first_name]"
-                       class="form-control form-control-sm" placeholder="First name" required>
-            </div>
-            <div class="form-group" style="margin:0">
-                <input type="text" name="members[${idx}][last_name]"
-                       class="form-control form-control-sm" placeholder="Last name" required>
+                <input type="text" name="members[${idx}][full_name]"
+                       class="form-control form-control-sm" placeholder="Full name" required>
             </div>
             <div class="form-group" style="margin:0">
                 <select name="members[${idx}][gender]" class="form-control form-control-sm" required>
@@ -1124,17 +1118,16 @@ window.MEMBER_MODULE = {
 
         let valid = true;
         rows.forEach((row, i) => {
-            const fn = row.querySelector('[name$="[first_name]"]')?.value.trim();
-            const ln = row.querySelector('[name$="[last_name]"]')?.value.trim();
+            const fn = row.querySelector('[name$="[full_name]"]')?.value.trim();
             const gn = row.querySelector('[name$="[gender]"]')?.value;
-            if (!fn || !ln || !gn) {
+            if (!fn || !gn) {
                 row.style.outline = '2px solid var(--danger)';
                 valid = false;
             } else {
                 row.style.outline = '';
             }
         });
-        if (!valid) { showBulkAlert('Please fill in First Name, Last Name and Gender for every row.','error'); return; }
+        if (!valid) { showBulkAlert('Please fill in Full Name and Gender for every row.','error'); return; }
 
         const sharedJoined = document.getElementById('bulkJoinedDate')?.value || cfg.today;
         const sharedDept   = document.getElementById('bulkDeptId')?.value     || '';
@@ -1147,8 +1140,7 @@ window.MEMBER_MODULE = {
 
         rows.forEach((row, i) => {
             const g = name => row.querySelector(`[name$="[${name}]"]`)?.value.trim() || '';
-            fd.append(`members[${i}][first_name]`,  g('first_name'));
-            fd.append(`members[${i}][last_name]`,   g('last_name'));
+            fd.append(`members[${i}][full_name]`,   g('full_name'));
             fd.append(`members[${i}][gender]`,      g('gender'));
             fd.append(`members[${i}][pledge_no]`,   g('pledge_no'));
             fd.append(`members[${i}][service_attended]`, g('service_attended') || sharedService);
@@ -1199,7 +1191,7 @@ window.MEMBER_MODULE = {
             const res = await post('get', {id});
             if (!res.success) throw new Error(res.message || 'Failed to load member.');
             const m = res.member || {};
-            ['member_no','pledge_no','service_attended','first_name','last_name','gender','date_of_birth','phone','email','address',
+            ['member_no','pledge_no','service_attended','full_name','gender','date_of_birth','phone','email','address',
              'marital_status','occupation','dept_id','dept_role','joined_date','baptism_date',
              'church_zone_id','status','notes'].forEach(k => setVal(k, m[k]));
             setVal('action','update'); setVal('id', m.id || id);
@@ -1250,8 +1242,8 @@ window.MEMBER_MODULE = {
             const res = await post('view', {id});
             if (!res.success) throw new Error(res.message || 'Failed to load member.');
             const m    = res.member || {};
-            const full = (((m.first_name||'')+' '+(m.last_name||'')).trim()) || 'Unknown Member';
-            const init = (m.first_name||'M').substring(0,1).toUpperCase();
+            const full = (m.full_name||'').trim() || 'Unknown Member';
+            const init = (m.full_name||'M').trim().substring(0,1).toUpperCase() || 'M';
             b.innerHTML = `
             <div class="member-view-profile">
                 <div class="member-view-card text-center">

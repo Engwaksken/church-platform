@@ -105,7 +105,7 @@ if (!function_exists('bird_nf_allocation')) {
         $sql = "SELECT ba.*, ba.`$dueCol` AS due_date, $actualExpr AS actual_return_date,
                        b.bird_no, b.breed, b.gender AS bird_gender, b.color AS bird_color,
                        y.id AS youth_id, y.youth_no, y.member_id,
-                       m.first_name, m.last_name, m.email, m.phone
+                       m.full_name, m.email, m.phone
                 FROM bird_allocations ba
                 JOIN birds b ON b.id = ba.bird_id
                 JOIN youth y ON y.id = ba.youth_id
@@ -237,7 +237,7 @@ if (!function_exists('bird_notify_allocation')) {
     {
         $a = bird_nf_allocation($conn, $allocationId);
         if (!$a) return ['email' => false, 'sms' => false];
-        $name = trim((string)($a['first_name'] ?? '') . ' ' . (string)($a['last_name'] ?? ''));
+        $name = trim((string)($a['full_name'] ?? ''));
         $subject = 'Bird Allocation Confirmation';
         $rows = [
             'Bird No' => $a['bird_no'] ?? '',
@@ -261,7 +261,7 @@ if (!function_exists('bird_notify_return')) {
     {
         $a = bird_nf_allocation($conn, $allocationId);
         if (!$a) return ['email' => false, 'sms' => false];
-        $name = trim((string)($a['first_name'] ?? '') . ' ' . (string)($a['last_name'] ?? ''));
+        $name = trim((string)($a['full_name'] ?? ''));
         $subject = 'Bird Return Confirmation';
         $returnDate = (string)($a['actual_return_date'] ?? date('Y-m-d'));
         $rows = [
@@ -290,7 +290,7 @@ if (!function_exists('bird_send_due_reminder')) {
             $smsRecent = bird_nf_sent_recently($conn, $allocationId, 'return_due_reminder', 'sms', 6);
             if ($emailRecent && $smsRecent) return ['email' => false, 'sms' => false, 'skipped' => true];
         }
-        $name = trim((string)($a['first_name'] ?? '') . ' ' . (string)($a['last_name'] ?? ''));
+        $name = trim((string)($a['full_name'] ?? ''));
         $due = (string)($a['due_date'] ?? '');
         $days = $due ? (int)floor((strtotime($due) - strtotime(date('Y-m-d'))) / 86400) : 0;
         $subject = 'Bird Return Reminder';

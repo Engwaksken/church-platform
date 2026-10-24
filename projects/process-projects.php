@@ -53,7 +53,7 @@ try {
         $contribs=[];
         if (pj_table_exists('contributions') && pj_col_exists('contributions','project_id')) {
           $nameSql = pj_table_exists('members')
-    ? "COALESCE(NULLIF(TRIM(CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,''))), ''), 'Member')"
+    ? "COALESCE(NULLIF(TRIM(m.full_name), ''), 'Member')"
     : "'Member'";
 
 $join = pj_table_exists('members') && pj_col_exists('contributions','member_id')

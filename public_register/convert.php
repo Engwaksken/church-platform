@@ -30,7 +30,7 @@ if ($invite) {
     if (!empty($invite['linked_member_id']) && cb_table_exists($conn, 'members')) {
         $prefillMember = cb_fetch_one(
             $conn,
-            "SELECT id, member_no, first_name, last_name, gender, phone, email, address
+            "SELECT id, member_no, full_name, gender, phone, email, address
              FROM members WHERE id=? LIMIT 1",
             'i',
             [(int)$invite['linked_member_id']]
@@ -50,7 +50,7 @@ if ($invite) {
     if (!empty($invite['assigned_member_id']) && cb_table_exists($conn, 'members')) {
         $assignedMember = cb_fetch_one(
             $conn,
-            "SELECT id, member_no, first_name, last_name, phone
+            "SELECT id, member_no, full_name, phone
              FROM members WHERE id=? LIMIT 1",
             'i',
             [(int)$invite['assigned_member_id']]
@@ -123,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $invite) {
                 if (!$memberId && $memberNo !== '' && cb_table_exists($conn, 'members')) {
                     $member = cb_fetch_one(
                         $conn,
-                        "SELECT id, first_name, last_name, gender, phone, email, address
+                        "SELECT id, full_name, gender, phone, email, address
                          FROM members WHERE member_no=? LIMIT 1 FOR UPDATE",
                         's',
                         [$memberNo]
@@ -227,7 +227,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $invite) {
                 if ($assignedMemberId) {
                     $assigned = cb_fetch_one(
                         $conn,
-                        "SELECT CONCAT_WS(' ',first_name,last_name) full_name FROM members WHERE id=? LIMIT 1",
+                        "SELECT full_name FROM members WHERE id=? LIMIT 1",
                         'i',
                         [$assignedMemberId]
                     );
@@ -255,7 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $invite) {
                 'weeks' => $weeks,
                 'end_date' => $nurtureEnd,
                 'assigned_name' => $assignedMember
-                    ? trim((string)$assignedMember['first_name'] . ' ' . (string)$assignedMember['last_name'])
+                    ? trim((string)$assignedMember['full_name'])
                     : '',
             ];
             $success = true;
@@ -277,7 +277,7 @@ $defaultGender = (string)($_POST['gender'] ?? '');
 $defaultMemberNo = (string)($_POST['member_no'] ?? '');
 
 if ($prefillMember) {
-    if ($defaultName === '') $defaultName = trim((string)$prefillMember['first_name'] . ' ' . (string)$prefillMember['last_name']);
+    if ($defaultName === '') $defaultName = trim((string)$prefillMember['full_name']);
     if ($defaultPhone === '') $defaultPhone = (string)($prefillMember['phone'] ?? '');
     if ($defaultEmail === '') $defaultEmail = (string)($prefillMember['email'] ?? '');
     if ($defaultAddress === '') $defaultAddress = (string)($prefillMember['address'] ?? '');
@@ -345,7 +345,7 @@ if ($prefillVisitor) {
                 <?php if ($assignedMember): ?>
                     <div class="pr-plan">
                         <strong>Your nurture plan:</strong>
-                        You will be assigned to <?= cb_h(trim((string)$assignedMember['first_name'] . ' ' . (string)$assignedMember['last_name'])) ?>
+                        You will be assigned to <?= cb_h(trim((string)$assignedMember['full_name'])) ?>
                         for <?= (int)($invite['nurture_period_weeks'] ?? 12) ?> weeks after registration.
                     </div>
                 <?php else: ?>

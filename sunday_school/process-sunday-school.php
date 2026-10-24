@@ -534,7 +534,7 @@ try {
 
         if ($type === 'classes') {
             $sql = "SELECT c.id, c.class_name, c.age_range, c.teacher_id, c.capacity, c.notes, c.created_at,
-                           TRIM(CONCAT(COALESCE(m.first_name,''), ' ', COALESCE(m.last_name,''))) AS teacher_name,
+                           m.full_name AS teacher_name,
                            (SELECT COUNT(*) FROM sunday_school_pupils p WHERE p.class_id = c.id AND COALESCE(p.status,'Active')='Active') AS pupil_count
                     FROM sunday_school_classes c
                     LEFT JOIN members m ON m.id = c.teacher_id

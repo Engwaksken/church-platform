@@ -243,13 +243,16 @@ function bap_prepare_member_id(mysqli $conn, $raw): ?int
     return $memberId;
 }
 
+function bap_full_name(array $data): string
+{
+    return (string)preg_replace('/\s+/', ' ', bap_clean($data['full_name'] ?? ''));
+}
+
 function bap_insert_one(mysqli $conn, array $data): int
 {
     $memberId = bap_prepare_member_id($conn, $data['member_id'] ?? '');
 
-    $firstName = bap_clean($data['first_name'] ?? '');
-    $lastName  = bap_clean($data['last_name'] ?? '');
-    $fullName  = trim($firstName . ' ' . $lastName);
+    $fullName = bap_full_name($data);
 
     $baptismNo   = bap_clean($data['baptism_no'] ?? '');
     $baptismType = bap_clean($data['baptism_type'] ?? '');
@@ -540,7 +543,7 @@ try {
             ];
 
             if ($hasMembers) {
-                $searchConditions[] = "TRIM(CONCAT(COALESCE(m.first_name, ''), ' ', COALESCE(m.last_name, ''))) LIKE ?";
+                $searchConditions[] = "m.full_name LIKE ?";
                 $searchConditions[] = 'm.member_no LIKE ?';
             }
 
@@ -589,7 +592,7 @@ try {
             SELECT
                 b.*,
                 " . ($hasMembers ? "
-                TRIM(CONCAT(COALESCE(m.first_name, ''), ' ', COALESCE(m.last_name, ''))) AS member_name,
+                m.full_name AS member_name,
                 COALESCE(m.member_no, '') AS member_no
                 " : "
                 '' AS member_name,
@@ -662,17 +665,15 @@ try {
             SELECT 
                 id,
                 member_no,
-                first_name,
-                last_name,
+                full_name,
                 gender,
                 phone
             FROM members
-            ORDER BY first_name, last_name
+            ORDER BY full_name
             LIMIT 2000
         ");
 
         while ($res && $row = $res->fetch_assoc()) {
-            $row['full_name'] = trim(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? ''));
             $items[] = $row;
         }
 
@@ -694,7 +695,7 @@ try {
             SELECT 
                 b.*,
                 " . ($hasMembers ? "
-                TRIM(CONCAT(COALESCE(m.first_name, ''), ' ', COALESCE(m.last_name, ''))) AS member_name,
+                m.full_name AS member_name,
                 COALESCE(m.member_no, '') AS member_no
                 " : "
                 '' AS member_name,
@@ -721,11 +722,6 @@ try {
         if (!$row) {
             bap_out(false, 'Record not found.');
         }
-
-        $nameParts = preg_split('/\s+/', trim((string)($row['candidate_name'] ?? '')), 2);
-
-        $row['first_name'] = $nameParts[0] ?? '';
-        $row['last_name']  = $nameParts[1] ?? '';
 
         bap_out(true, 'Loaded successfully.', [
             'item' => $row
@@ -782,11 +778,8 @@ try {
 
             $rowNo = (int)$index + 1;
 
-            $firstName = bap_clean($candidate['first_name'] ?? '');
-            $lastName  = bap_clean($candidate['last_name'] ?? '');
-
-            if ($firstName === '' || $lastName === '') {
-                $errors[] = "Row {$rowNo}: First name and last name are required.";
+            if (bap_full_name($candidate) === '') {
+                $errors[] = "Row {$rowNo}: Full name is required.";
                 continue;
             }
 
@@ -862,9 +855,7 @@ try {
 
         $memberId = bap_prepare_member_id($conn, $_POST['member_id'] ?? '');
 
-        $firstName = bap_clean($_POST['first_name'] ?? '');
-        $lastName  = bap_clean($_POST['last_name'] ?? '');
-        $fullName  = trim($firstName . ' ' . $lastName);
+        $fullName = bap_full_name($_POST);
 
         $baptismType = bap_clean($_POST['baptism_type'] ?? '');
         $baptismDate = bap_clean($_POST['baptism_date'] ?? '');

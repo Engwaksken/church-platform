@@ -62,20 +62,12 @@ $sql = "
         y.school_or_work,
         y.education_level,
         m.member_no,
-        m.first_name,
-        m.last_name,
         m.gender,
         m.phone,
         m.marital_status,
         m.joined_date,
 
-        TRIM(
-            CONCAT_WS(
-                ' ',
-                NULLIF(TRIM(m.first_name), ''),
-                NULLIF(TRIM(m.last_name), '')
-            )
-        ) AS full_name,
+        m.full_name,
 
         COALESCE(alloc.total_alloc, 0) AS total_alloc,
         COALESCE(alloc.active_alloc, 0) AS active_alloc
@@ -102,8 +94,7 @@ $sql = "
         ON alloc.youth_id = y.id
 
     ORDER BY
-        m.first_name ASC,
-        m.last_name ASC,
+        m.full_name ASC,
         y.id ASC
 ";
 

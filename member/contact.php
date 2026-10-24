@@ -10,7 +10,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $recipientId=(int)($_POST['recipient_id']??0);$subject=trim((string)($_POST['subject']??''));$message=trim((string)($_POST['message']??''));$recipient=null;foreach($recipients as $r){if((int)$r['id']===$recipientId){$recipient=$r;break;}}
     $errors=[];if(!$recipient)$errors[]='Select a valid recipient.';if($subject===''||mb_strlen($subject)>180)$errors[]='Enter a subject of not more than 180 characters.';if(mb_strlen($message)<10||mb_strlen($message)>5000)$errors[]='Message must be between 10 and 5,000 characters.';
     if(!$errors){
-        $sender=mp_row($conn,'SELECT m.member_no,CONCAT(COALESCE(m.first_name,\'\'),\' \',COALESCE(m.last_name,\'\')) full_name,COALESCE(NULLIF(m.email,\'\'),u.email) email,COALESCE(NULLIF(m.phone,\'\'),u.phone) phone FROM members m JOIN users u ON u.id=m.user_id WHERE m.id=? AND u.id=? LIMIT 1','ii',[$mid,$uid])??[];
+        $sender=mp_row($conn,'SELECT m.member_no,m.full_name,COALESCE(NULLIF(m.email,\'\'),u.email) email,COALESCE(NULLIF(m.phone,\'\'),u.phone) phone FROM members m JOIN users u ON u.id=m.user_id WHERE m.id=? AND u.id=? LIMIT 1','ii',[$mid,$uid])??[];
         $sent=false;$sendError='';$autoloads=[__DIR__.'/../vendor/autoload.php',__DIR__.'/../../vendor/autoload.php'];foreach($autoloads as $a){if(is_file($a)){require_once $a;break;}}
         $body="A member sent a message through the church portal.\n\nMember: ".($sender['full_name']??'Member')."\nMember No: ".($sender['member_no']??'-')."\nEmail: ".($sender['email']??'-')."\nPhone: ".($sender['phone']??'-')."\n\nMessage:\n".$message;
         try{

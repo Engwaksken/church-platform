@@ -19,7 +19,7 @@ $allocations = $conn->query("
         b.bird_no, 
         b.breed, 
         b.status AS bird_status,
-        CONCAT_WS(' ', m.first_name, m.last_name) AS youth_name,
+        m.full_name AS youth_name,
         m.phone AS youth_phone
     FROM bird_allocations ba
     JOIN birds b ON b.id = ba.bird_id
@@ -32,7 +32,7 @@ $returns = $conn->query("
     SELECT 
         cr.*, 
         b.bird_no,
-        CONCAT_WS(' ', m.first_name, m.last_name) AS full_name
+        m.full_name AS full_name
     FROM chick_returns cr
     JOIN bird_allocations ba ON ba.id = cr.allocation_id
     JOIN birds b ON b.id = ba.bird_id

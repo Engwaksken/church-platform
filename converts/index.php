@@ -35,7 +35,7 @@ $types = '';
 $params = [];
 
 if ($q !== '') {
-    $where[] = "(c.full_name LIKE ? OR c.phone LIKE ? OR c.email LIKE ? OR c.conversion_context LIKE ? OR c.decision_type LIKE ? OR CONCAT_WS(' ',am.first_name,am.last_name) LIKE ?)";
+    $where[] = "(c.full_name LIKE ? OR c.phone LIKE ? OR c.email LIKE ? OR c.conversion_context LIKE ? OR c.decision_type LIKE ? OR am.full_name LIKE ?)";
     $like = "%{$q}%";
     for ($i=0; $i<6; $i++) { $params[] = $like; $types .= 's'; }
 }
@@ -78,9 +78,9 @@ if ($hasTable && $hasFollowups) {
     $rows = cb_fetch_all(
         $conn,
         "SELECT c.*,
-                CONCAT_WS(' ',am.first_name,am.last_name) AS assigned_member_name,
+                am.full_name AS assigned_member_name,
                 am.member_no AS assigned_member_no,
-                CONCAT_WS(' ',lm.first_name,lm.last_name) AS linked_member_name,
+                lm.full_name AS linked_member_name,
                 lm.member_no AS linked_member_no,
                 v.full_name AS linked_visitor_name,
                 (SELECT COUNT(*) FROM church_convert_followups f WHERE f.convert_id=c.id) AS followup_count,
@@ -98,7 +98,7 @@ if ($hasTable && $hasFollowups) {
 }
 
 $members = $hasMembers
-    ? cb_fetch_all($conn, "SELECT id,member_no,first_name,last_name,gender,phone,email,address FROM members ORDER BY first_name,last_name LIMIT 5000")
+    ? cb_fetch_all($conn, "SELECT id,member_no,full_name,gender,phone,email,address FROM members ORDER BY full_name LIMIT 5000")
     : [];
 $visitors = $hasVisitors
     ? cb_fetch_all($conn, "SELECT id,full_name,gender,phone,email,address,visit_date FROM church_visitors ORDER BY visit_date DESC,id DESC LIMIT 3000")
@@ -128,8 +128,8 @@ if ($hasLinks && $canManage) {
     $links = cb_fetch_all(
         $conn,
         "SELECT l.*,
-                CONCAT_WS(' ',am.first_name,am.last_name) assigned_member_name,
-                CONCAT_WS(' ',lm.first_name,lm.last_name) linked_member_name,
+                am.full_name assigned_member_name,
+                lm.full_name linked_member_name,
                 lm.member_no linked_member_no,
                 v.full_name linked_visitor_name
          FROM convert_registration_links l
@@ -228,7 +228,7 @@ $pageTitle = 'Converts & Nurture';
             <select class="cb-select" name="assigned">
                 <option value="0">All Members</option>
                 <?php foreach ($members as $member): ?>
-                    <option value="<?= (int)$member['id'] ?>" <?= $assigned === (int)$member['id'] ? 'selected' : '' ?>><?= cb_h(trim($member['first_name'].' '.$member['last_name'])) ?></option>
+                    <option value="<?= (int)$member['id'] ?>" <?= $assigned === (int)$member['id'] ? 'selected' : '' ?>><?= cb_h(trim((string)$member['full_name'])) ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
@@ -351,7 +351,7 @@ $pageTitle = 'Converts & Nurture';
                     <div class="cb-field"><label>Conversion / Decision Date *</label><input class="cb-input" type="date" name="conversion_date" required></div>
                     <div class="cb-field"><label>Person Type *</label><select class="cb-select" name="person_type" id="convertType"><option>Visitor</option><option>Member</option></select></div>
 
-                    <div class="cb-field span-2" id="memberSourceField"><label>Linked Registered Member</label><select class="cb-select" name="member_id" id="convertMember"><option value="">Select member (optional)</option><?php foreach ($members as $m): ?><option value="<?= (int)$m['id'] ?>" data-name="<?= cb_h(trim($m['first_name'].' '.$m['last_name'])) ?>" data-gender="<?= cb_h($m['gender'] ?? '') ?>" data-phone="<?= cb_h($m['phone'] ?? '') ?>" data-email="<?= cb_h($m['email'] ?? '') ?>" data-address="<?= cb_h($m['address'] ?? '') ?>"><?= cb_h(($m['member_no'] ? $m['member_no'].' · ' : '').trim($m['first_name'].' '.$m['last_name'])) ?></option><?php endforeach; ?></select><span class="cb-field-note">Selecting a member can prefill their contact details.</span></div>
+                    <div class="cb-field span-2" id="memberSourceField"><label>Linked Registered Member</label><select class="cb-select" name="member_id" id="convertMember"><option value="">Select member (optional)</option><?php foreach ($members as $m): ?><option value="<?= (int)$m['id'] ?>" data-name="<?= cb_h(trim((string)$m['full_name'])) ?>" data-gender="<?= cb_h($m['gender'] ?? '') ?>" data-phone="<?= cb_h($m['phone'] ?? '') ?>" data-email="<?= cb_h($m['email'] ?? '') ?>" data-address="<?= cb_h($m['address'] ?? '') ?>"><?= cb_h(($m['member_no'] ? $m['member_no'].' · ' : '').trim((string)$m['full_name'])) ?></option><?php endforeach; ?></select><span class="cb-field-note">Selecting a member can prefill their contact details.</span></div>
 
                     <div class="cb-field span-2" id="visitorSourceField"><label>Linked Visitor</label><select class="cb-select" name="visitor_id" id="convertVisitor"><option value="">Select visitor (optional)</option><?php foreach ($visitors as $v): ?><option value="<?= (int)$v['id'] ?>" data-name="<?= cb_h($v['full_name']) ?>" data-gender="<?= cb_h($v['gender'] ?? '') ?>" data-phone="<?= cb_h($v['phone'] ?? '') ?>" data-email="<?= cb_h($v['email'] ?? '') ?>" data-address="<?= cb_h($v['address'] ?? '') ?>"><?= cb_h($v['full_name'].' · '.date('d M Y',strtotime($v['visit_date']))) ?></option><?php endforeach; ?></select><span class="cb-field-note">Use this when the convert first entered the church through the Visitors Book.</span></div>
 
@@ -368,7 +368,7 @@ $pageTitle = 'Converts & Nurture';
                     <div class="cb-field span-2"><label>Prayer Request / Support Needed</label><textarea class="cb-textarea" name="prayer_request"></textarea></div>
 
                     <div class="cb-section-title">Nurture Assignment</div>
-                    <div class="cb-field span-2"><label>Assigned Nurture Member</label><select class="cb-select" name="assigned_member_id"><option value="">Pending Assignment</option><?php foreach ($members as $m): ?><option value="<?= (int)$m['id'] ?>"><?= cb_h(($m['member_no'] ? $m['member_no'].' · ' : '').trim($m['first_name'].' '.$m['last_name'])) ?></option><?php endforeach; ?></select></div>
+                    <div class="cb-field span-2"><label>Assigned Nurture Member</label><select class="cb-select" name="assigned_member_id"><option value="">Pending Assignment</option><?php foreach ($members as $m): ?><option value="<?= (int)$m['id'] ?>"><?= cb_h(($m['member_no'] ? $m['member_no'].' · ' : '').trim((string)$m['full_name'])) ?></option><?php endforeach; ?></select></div>
                     <div class="cb-field"><label>Nurture Start</label><input class="cb-input" type="date" name="nurture_start_date" id="nurtureStart"></div>
                     <div class="cb-field"><label>Nurture Period (weeks)</label><input class="cb-input" type="number" name="nurture_period_weeks" id="nurtureWeeks" min="1" max="104" value="12"></div>
                     <div class="cb-field"><label>Nurture End</label><input class="cb-input" type="date" name="nurture_end_date" id="nurtureEnd"></div>
@@ -429,10 +429,10 @@ $pageTitle = 'Converts & Nurture';
                     <div class="cb-field"><label>Person Type</label><select class="cb-select" name="person_type" id="linkPersonType"><option value="">Let registrant choose</option><option>Visitor</option><option>Member</option></select></div>
                     <div class="cb-field"><label>Recipient Name (optional)</label><input class="cb-input" name="recipient_name"></div>
                     <div class="cb-field"><label>Recipient Phone (optional)</label><input class="cb-input" name="recipient_phone"></div>
-                    <div class="cb-field span-2 cb-hidden" id="linkMemberField"><label>Link to Existing Member</label><select class="cb-select" name="linked_member_id"><option value="">No specific member</option><?php foreach ($members as $m): ?><option value="<?= (int)$m['id'] ?>"><?= cb_h(($m['member_no'] ? $m['member_no'].' · ' : '').trim($m['first_name'].' '.$m['last_name'])) ?></option><?php endforeach; ?></select></div>
+                    <div class="cb-field span-2 cb-hidden" id="linkMemberField"><label>Link to Existing Member</label><select class="cb-select" name="linked_member_id"><option value="">No specific member</option><?php foreach ($members as $m): ?><option value="<?= (int)$m['id'] ?>"><?= cb_h(($m['member_no'] ? $m['member_no'].' · ' : '').trim((string)$m['full_name'])) ?></option><?php endforeach; ?></select></div>
                     <div class="cb-field span-2 cb-hidden" id="linkVisitorField"><label>Link to Existing Visitor</label><select class="cb-select" name="linked_visitor_id"><option value="">No specific visitor</option><?php foreach ($visitors as $v): ?><option value="<?= (int)$v['id'] ?>"><?= cb_h($v['full_name'].' · '.date('d M Y',strtotime($v['visit_date']))) ?></option><?php endforeach; ?></select></div>
                     <div class="cb-section-title">Nurture Assignment</div>
-                    <div class="cb-field span-2"><label>Assign to Church Member</label><select class="cb-select" name="assigned_member_id"><option value="">Assign after registration</option><?php foreach ($members as $m): ?><option value="<?= (int)$m['id'] ?>"><?= cb_h(($m['member_no'] ? $m['member_no'].' · ' : '').trim($m['first_name'].' '.$m['last_name'])) ?></option><?php endforeach; ?></select></div>
+                    <div class="cb-field span-2"><label>Assign to Church Member</label><select class="cb-select" name="assigned_member_id"><option value="">Assign after registration</option><?php foreach ($members as $m): ?><option value="<?= (int)$m['id'] ?>"><?= cb_h(($m['member_no'] ? $m['member_no'].' · ' : '').trim((string)$m['full_name'])) ?></option><?php endforeach; ?></select></div>
                     <div class="cb-field"><label>Nurture Period (weeks)</label><input class="cb-input" type="number" name="nurture_period_weeks" min="1" max="104" value="12" required></div>
                     <div class="cb-field"><label>Maximum Registrations</label><input class="cb-input" type="number" name="max_uses" min="1" max="500" value="1" required></div>
                     <div class="cb-field span-2"><label>Expires At (optional)</label><input class="cb-input" type="datetime-local" name="expires_at"></div>

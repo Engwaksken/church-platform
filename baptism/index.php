@@ -59,9 +59,9 @@ $thisYear     = $hasBaptisms ? b_scalar($conn, "SELECT COUNT(*) FROM baptisms WH
 $members = [];
 if ($hasMembers) {
     $res = $conn->query("
-        SELECT id, member_no, first_name, last_name
+        SELECT id, member_no, full_name
         FROM members
-        ORDER BY first_name, last_name
+        ORDER BY full_name
         LIMIT 2000
     ");
     while ($res && $m = $res->fetch_assoc()) {
@@ -72,7 +72,7 @@ if ($hasMembers) {
 $memberOptionsHtml = '<option value="">- Not a registered member -</option>';
 foreach ($members as $m) {
     $id   = (int)$m['id'];
-    $name = bh(trim(($m['first_name'] ?? '') . ' ' . ($m['last_name'] ?? '')));
+    $name = bh((string)($m['full_name'] ?? ''));
     $no   = !empty($m['member_no']) ? ' (' . bh($m['member_no']) . ')' : '';
     $memberOptionsHtml .= '<option value="' . $id . '">' . $name . $no . '</option>';
 }
@@ -374,8 +374,7 @@ foreach ($members as $m) {
 
                 <div id="bapRowsHeader">
                     <div></div>
-                    <div><i class="fas fa-user"></i> First Name *</div>
-                    <div><i class="fas fa-user"></i> Last Name *</div>
+                    <div><i class="fas fa-user"></i> Full Name *</div>
                     <div><i class="fas fa-link"></i> Linked Member</div>
                     <div><i class="fas fa-certificate"></i> Cert. No</div>
                     <div><i class="fas fa-user-tie"></i> Godfather</div>
@@ -428,14 +427,9 @@ foreach ($members as $m) {
                 <input type="hidden" name="id" id="editBaptismId">
 
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label>First Name <span class="req">*</span></label>
-                        <input type="text" name="first_name" id="editFirstName" class="form-control" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Last Name <span class="req">*</span></label>
-                        <input type="text" name="last_name" id="editLastName" class="form-control" required>
+                    <div class="form-group full-span">
+                        <label>Full Name <span class="req">*</span></label>
+                        <input type="text" name="full_name" id="editFullName" class="form-control" required>
                     </div>
 
                     <div class="form-group full-span">
@@ -716,7 +710,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <td class="text-muted">${(pagination.from || 1) + i}</td>
                     <td><strong>${esc(r.baptism_no || '-')}</strong></td>
                     <td>
-                        <strong>${esc(r.candidate_name || ((r.first_name || '') + ' ' + (r.last_name || '')).trim() || '-')}</strong>
+                        <strong>${esc(r.candidate_name || '-')}</strong>
                         ${r.member_name ? `<br><small class="text-muted"><i class="fas fa-link"></i> ${esc(r.member_name)}${r.member_no ? ' (' + esc(r.member_no) + ')' : ''}</small>` : ''}
                     </td>
                     <td>${badge(r.baptism_type, clsForType(r.baptism_type))}</td>
@@ -923,11 +917,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <div style="padding-top:8px;color:var(--text-muted);font-size:11px;font-weight:700;text-align:center">${number}</div>
 
             <div class="form-group" style="margin:0">
-                <input type="text" name="candidates[${idx}][first_name]" class="form-control form-control-sm" placeholder="First name" required>
-            </div>
-
-            <div class="form-group" style="margin:0">
-                <input type="text" name="candidates[${idx}][last_name]" class="form-control form-control-sm" placeholder="Last name" required>
+                <input type="text" name="candidates[${idx}][full_name]" class="form-control form-control-sm" placeholder="Full name" required>
             </div>
 
             <div class="form-group" style="margin:0">
@@ -1020,8 +1010,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const r = data.item || {};
 
             $('#editBaptismId').value = r.id || '';
-            $('#editFirstName').value = r.first_name || '';
-            $('#editLastName').value = r.last_name || '';
+            $('#editFullName').value = r.candidate_name || '';
             $('#editMemberId').value = r.member_id || '';
             $('#editBapType').value = r.baptism_type || 'Infant';
             $('#editBapDate').value = r.baptism_date || '';
@@ -1063,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const r = data.item || {};
 
-            const candidate = r.candidate_name || ((r.first_name || '') + ' ' + (r.last_name || '')).trim();
+            const candidate = r.candidate_name || '';
 
             const fields = [
                 ['Baptism No', r.baptism_no],
@@ -1210,10 +1199,9 @@ document.addEventListener('DOMContentLoaded', function () {
         let valid = true;
 
         candidateRows.forEach(row => {
-            const firstName = row.querySelector('[name$="[first_name]"]')?.value.trim();
-            const lastName = row.querySelector('[name$="[last_name]"]')?.value.trim();
+            const fullName = row.querySelector('[name$="[full_name]"]')?.value.trim();
 
-            if (!firstName || !lastName) {
+            if (!fullName) {
                 row.style.outline = '2px solid var(--danger)';
                 valid = false;
             } else {
@@ -1222,7 +1210,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         if (!valid) {
-            showAlert($('#bulkBapAlert'), 'Please fill in First Name and Last Name for every candidate.', 'error');
+            showAlert($('#bulkBapAlert'), 'Please fill in the Full Name for every candidate.', 'error');
             return;
         }
 
@@ -1245,8 +1233,7 @@ document.addEventListener('DOMContentLoaded', function () {
         candidateRows.forEach((row, index) => {
             const getVal = name => row.querySelector(`[name$="[${name}]"]`)?.value.trim() || '';
 
-            fd.append(`candidates[${index}][first_name]`, getVal('first_name'));
-            fd.append(`candidates[${index}][last_name]`, getVal('last_name'));
+            fd.append(`candidates[${index}][full_name]`, getVal('full_name'));
             fd.append(`candidates[${index}][member_id]`, getVal('member_id'));
             fd.append(`candidates[${index}][certificate_no]`, getVal('certificate_no'));
             fd.append(`candidates[${index}][godfather]`, getVal('godfather'));

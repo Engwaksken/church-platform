@@ -165,7 +165,7 @@ function check_csrf(): void
 function get_mu_record(mysqli $conn, int $id): ?array
 {
     $stmt = $conn->prepare(
-        "SELECT mu.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS full_name,
+        "SELECT mu.*, m.full_name AS full_name,
                 m.member_no, m.phone, m.email
          FROM mothers_union mu
          JOIN members m ON m.id = mu.member_id
@@ -181,7 +181,7 @@ function get_mu_payment(mysqli $conn, int $paymentId): ?array
     ensure_mu_payments_table($conn);
     $stmt = $conn->prepare(
         "SELECT p.*, mu.mu_no, mu.position,
-                CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS full_name,
+                m.full_name AS full_name,
                 m.member_no, m.phone, m.email
          FROM mothers_union_payments p
          JOIN mothers_union mu ON mu.id = p.mothers_union_id
@@ -327,14 +327,14 @@ function mu_fetch_all_for_export(mysqli $conn, string $status = ''): array
         $types  = 's';
     }
     $sql = "SELECT mu.mu_no, mu.position, mu.date_joined, mu.subscription, mu.status, mu.notes,
-                   TRIM(CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,''))) AS full_name,
+                   m.full_name AS full_name,
                    m.member_no, m.phone, m.email,
                    COALESCE((SELECT SUM(p.amount) FROM mothers_union_payments p WHERE p.mothers_union_id=mu.id),0) AS paid_total,
                    (SELECT COUNT(*) FROM mothers_union_payments p WHERE p.mothers_union_id=mu.id) AS payment_count
             FROM mothers_union mu
             JOIN members m ON m.id = mu.member_id
             $where
-            ORDER BY m.first_name, m.last_name, mu.id";
+            ORDER BY m.full_name, mu.id";
     $stmt = $conn->prepare($sql);
     if (!$stmt) return [];
     if ($types !== '') $stmt->bind_param($types, ...$params);
@@ -524,7 +524,7 @@ try {
         $period=trim((string)($_GET['period']??'')); $dateFrom=trim((string)($_GET['date_from']??'')); $dateTo=trim((string)($_GET['date_to']??''));
         $page=max(1,(int)($_GET['page']??1)); $perPage=(int)($_GET['per_page']??25); if(!in_array($perPage,[10,25,50,100],true))$perPage=25;
         $where=['1=1'];
-        if($search!==''){$q='%'.$conn->real_escape_string($search).'%';$where[]="(mu.mu_no LIKE '$q' OR mu.position LIKE '$q' OR mu.status LIKE '$q' OR m.member_no LIKE '$q' OR m.phone LIKE '$q' OR m.email LIKE '$q' OR CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) LIKE '$q')";}
+        if($search!==''){$q='%'.$conn->real_escape_string($search).'%';$where[]="(mu.mu_no LIKE '$q' OR mu.position LIKE '$q' OR mu.status LIKE '$q' OR m.member_no LIKE '$q' OR m.phone LIKE '$q' OR m.email LIKE '$q' OR m.full_name LIKE '$q')";}
         if($position!=='')$where[]="mu.position='".$conn->real_escape_string($position)."'";
         if($status!=='')$where[]="COALESCE(mu.status,'Active')='".$conn->real_escape_string($status)."'";
         if($period==='daily')$where[]="mu.date_joined=CURDATE()";
@@ -532,7 +532,7 @@ try {
         elseif($period==='range'){if(preg_match('/^\d{4}-\d{2}-\d{2}$/',$dateFrom))$where[]="mu.date_joined>='".$conn->real_escape_string($dateFrom)."'";if(preg_match('/^\d{4}-\d{2}-\d{2}$/',$dateTo))$where[]="mu.date_joined<='".$conn->real_escape_string($dateTo)."'";}
         $whereSql=implode(' AND ',$where); $cr=$conn->query("SELECT COUNT(*) total FROM mothers_union mu LEFT JOIN members m ON m.id=mu.member_id WHERE $whereSql"); $total=(int)(($cr?$cr->fetch_assoc():[])['total']??0);
         $pages=max(1,(int)ceil($total/$perPage)); if($page>$pages)$page=$pages; $offset=($page-1)*$perPage;
-        $sql="SELECT mu.*,TRIM(CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,''))) full_name,m.member_no,m.phone,m.email, COALESCE((SELECT SUM(p.amount) FROM mothers_union_payments p WHERE p.mothers_union_id=mu.id),0) AS paid_total, (SELECT COUNT(*) FROM mothers_union_payments p WHERE p.mothers_union_id=mu.id) AS payment_count FROM mothers_union mu LEFT JOIN members m ON m.id=mu.member_id WHERE $whereSql ORDER BY mu.date_joined DESC,mu.id DESC LIMIT $perPage OFFSET $offset";
+        $sql="SELECT mu.*,m.full_name,m.member_no,m.phone,m.email, COALESCE((SELECT SUM(p.amount) FROM mothers_union_payments p WHERE p.mothers_union_id=mu.id),0) AS paid_total, (SELECT COUNT(*) FROM mothers_union_payments p WHERE p.mothers_union_id=mu.id) AS payment_count FROM mothers_union mu LEFT JOIN members m ON m.id=mu.member_id WHERE $whereSql ORDER BY mu.date_joined DESC,mu.id DESC LIMIT $perPage OFFSET $offset";
         $items=[];$res=$conn->query($sql);while($res&&$row=$res->fetch_assoc())$items[]=$row;
         $pagination=['page'=>$page,'per_page'=>$perPage,'total'=>$total,'pages'=>$pages,'from'=>$total?$offset+1:0,'to'=>min($offset+$perPage,$total)]; json_out(true, '', ['items'=>$items,'pagination'=>$pagination]);
     }

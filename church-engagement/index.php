@@ -11,8 +11,8 @@ $services=ce_query_all($conn,"SELECT * FROM church_services ORDER BY service_dat
 $announcements=ce_query_all($conn,"SELECT * FROM church_announcements ORDER BY publish_from DESC LIMIT 150");
 $themes=ce_query_all($conn,"SELECT * FROM church_annual_themes ORDER BY theme_year DESC");
 $harvests=ce_query_all($conn,"SELECT * FROM church_harvests ORDER BY harvest_year DESC,harvest_date DESC");
-$pledges=ce_query_all($conn,"SELECT p.*,CONCAT_WS(' ',m.first_name,m.last_name) member_name FROM church_pledges p LEFT JOIN members m ON m.id=p.member_id ORDER BY p.created_at DESC LIMIT 200");
-$members=ce_query_all($conn,"SELECT id,CONCAT_WS(' ',first_name,last_name) member_name FROM members ORDER BY first_name,last_name");
+$pledges=ce_query_all($conn,"SELECT p.*,m.full_name member_name FROM church_pledges p LEFT JOIN members m ON m.id=p.member_id ORDER BY p.created_at DESC LIMIT 200");
+$members=ce_query_all($conn,"SELECT id,full_name member_name FROM members ORDER BY full_name");
 $stats=['programs'=>count($programs),'services'=>count($services),'live'=>(int)($conn->query("SELECT COUNT(*) c FROM church_services WHERE is_live=1 AND status='Published'")->fetch_assoc()['c']??0),'announcements'=>(int)($conn->query("SELECT COUNT(*) c FROM church_announcements WHERE status='Published'")->fetch_assoc()['c']??0)];
 function ce_admin_form_header(string $action,string $return): void { echo '<input type="hidden" name="csrf_token" value="'.ce_h(ce_csrf()).'"><input type="hidden" name="action" value="'.ce_h($action).'"><input type="hidden" name="return_to" value="'.ce_h($return).'">'; }
 ?>

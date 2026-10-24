@@ -36,7 +36,7 @@ function cn_member_name(mysqli $conn, ?int $memberId): string
 
     $row = cb_fetch_one(
         $conn,
-        "SELECT CONCAT_WS(' ', first_name, last_name) AS full_name FROM members WHERE id=? LIMIT 1",
+        "SELECT full_name FROM members WHERE id=? LIMIT 1",
         'i',
         [$memberId]
     );

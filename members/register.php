@@ -114,10 +114,10 @@ function sr_generate_member_no(mysqli $conn): string {
     } while($exists);
     return $candidate;
 }
-function sr_unique_username(mysqli $conn,string $requested,string $first,string $last,string $memberNo): string {
+function sr_unique_username(mysqli $conn,string $requested,string $fullName,string $memberNo): string {
     $requested=strtolower(trim($requested));
     if($requested!=='' && !preg_match('/^[a-z0-9._-]{3,50}$/',$requested)) throw new RuntimeException('Username may contain only letters, numbers, dot, underscore and hyphen.');
-    $base=$requested!==''?$requested:strtolower(trim((string)preg_replace('/[^a-z0-9._-]+/i','.',trim($first.'.'.$last)),'.'));
+    $base=$requested!==''?$requested:strtolower(trim((string)preg_replace('/[^a-z0-9._-]+/i','.',trim($fullName)),'.'));
     if($base==='') $base=strtolower((string)preg_replace('/[^a-z0-9]+/i','',$memberNo));
     if($base==='') $base='member';
     $candidate=$base; $n=1;
@@ -194,8 +194,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && !$invalidInvite){
     if(!hash_equals($csrf,$postedCsrf)) $errors[]='Your registration session expired. Please refresh the page and try again.';
     if(trim((string)($_POST['website']??''))!=='') $errors[]='Unable to process this registration.';
 
-    $first=sr_clean($_POST['first_name']??'');
-    $last=sr_clean($_POST['last_name']??'');
+    $fullName=member_full_name($_POST);
+    [$first,$last]=member_split_full_name($fullName);
     $gender=sr_clean($_POST['gender']??'');
     $dob=sr_clean($_POST['date_of_birth']??'');
     $phone=sr_clean($_POST['phone']??'');
@@ -211,8 +211,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && !$invalidInvite){
     $deptId=sr_valid_id($conn,'departments',(int)($_POST['dept_id']??0));
     $zoneId=$zoneTable?sr_valid_id($conn,$zoneTable,(int)($_POST['church_zone_id']??0)):null;
 
-    if($first==='') $errors[]='First name is required.';
-    if($last==='') $errors[]='Last name is required.';
+    if($fullName==='') $errors[]='Full name is required.';
     if(!in_array($gender,['Male','Female','Other'],true)) $errors[]='Please select a valid gender.';
     if($email==='' || !filter_var($email,FILTER_VALIDATE_EMAIL)) $errors[]='A valid email address is required.';
     if(strlen($password)<8) $errors[]='Password must be at least 8 characters.';
@@ -240,9 +239,9 @@ if($_SERVER['REQUEST_METHOD']==='POST' && !$invalidInvite){
             if(!$locked) throw new RuntimeException('This registration invitation is no longer available.');
 
             $memberNo=sr_generate_member_no($conn);
-            $username=sr_unique_username($conn,$requestedUsername,$first,$last,$memberNo);
+            $username=sr_unique_username($conn,$requestedUsername,$fullName,$memberNo);
             $passwordHash=password_hash($password,PASSWORD_DEFAULT);
-            $fullName=trim($first.' '.$last); $role='member'; $status='Active';
+            $role='member'; $status='Active';
 
             $ust=$conn->prepare('INSERT INTO users (username,password,full_name,role,email,phone,status) VALUES (?,?,?,?,?,?,?)');
             if(!$ust) throw new RuntimeException('Unable to prepare your login account.');
@@ -254,16 +253,16 @@ if($_SERVER['REQUEST_METHOD']==='POST' && !$invalidInvite){
             $dobDb=$dob!==''?$dob:null; $baptismDb=$baptism!==''?$baptism:null;
             if(sr_column_exists($conn,'members','church_zone_id')){
                 $mst=$conn->prepare("INSERT INTO members
-                    (user_id,member_no,first_name,last_name,gender,date_of_birth,phone,email,address,marital_status,occupation,department,dept_id,church_zone_id,joined_date,baptism_date,status,notes)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+                    (user_id,member_no,full_name,first_name,last_name,gender,date_of_birth,phone,email,address,marital_status,occupation,department,dept_id,church_zone_id,joined_date,baptism_date,status,notes)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
                 if(!$mst) throw new RuntimeException('Unable to prepare member registration.');
-                $mst->bind_param('isssssssssssiissss',$userId,$memberNo,$first,$last,$gender,$dobDb,$phone,$email,$address,$marital,$occupation,$department,$deptId,$zoneId,$joined,$baptismDb,$status,$notes);
+                $mst->bind_param('issssssssssssiissss',$userId,$memberNo,$fullName,$first,$last,$gender,$dobDb,$phone,$email,$address,$marital,$occupation,$department,$deptId,$zoneId,$joined,$baptismDb,$status,$notes);
             } else {
                 $mst=$conn->prepare("INSERT INTO members
-                    (user_id,member_no,first_name,last_name,gender,date_of_birth,phone,email,address,marital_status,occupation,department,dept_id,joined_date,baptism_date,status,notes)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+                    (user_id,member_no,full_name,first_name,last_name,gender,date_of_birth,phone,email,address,marital_status,occupation,department,dept_id,joined_date,baptism_date,status,notes)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
                 if(!$mst) throw new RuntimeException('Unable to prepare member registration.');
-                $mst->bind_param('issssssssssissss',$userId,$memberNo,$first,$last,$gender,$dobDb,$phone,$email,$address,$marital,$occupation,$department,$deptId,$joined,$baptismDb,$status,$notes);
+                $mst->bind_param('issssssssssssissss',$userId,$memberNo,$fullName,$first,$last,$gender,$dobDb,$phone,$email,$address,$marital,$occupation,$department,$deptId,$joined,$baptismDb,$status,$notes);
             }
             if(!$mst->execute()) throw new RuntimeException('Unable to save your member details: '.$mst->error);
             $memberId=(int)$conn->insert_id; $mst->close();
@@ -354,8 +353,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && !$invalidInvite){
                 <input type="hidden" name="csrf_token" value="<?= sr_h($csrf) ?>">
                 <div class="hp" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
                 <div class="reg-grid">
-                    <div class="reg-group"><label>First Name *</label><input type="text" name="first_name" required maxlength="100" value="<?= sr_h($_POST['first_name']??'') ?>"></div>
-                    <div class="reg-group"><label>Last Name *</label><input type="text" name="last_name" required maxlength="100" value="<?= sr_h($_POST['last_name']??'') ?>"></div>
+                    <div class="reg-group"><label>Full Name *</label><input type="text" name="full_name" required maxlength="200" value="<?= sr_h($_POST['full_name']??'') ?>"></div>
                     <div class="reg-group"><label>Gender *</label><select name="gender" required><option value="">Select gender</option><?php foreach(['Male','Female','Other'] as $g): ?><option value="<?= $g ?>" <?= (($_POST['gender']??'')===$g)?'selected':'' ?>><?= $g ?></option><?php endforeach; ?></select></div>
                     <div class="reg-group"><label>Date of Birth</label><input type="date" name="date_of_birth" value="<?= sr_h($_POST['date_of_birth']??'') ?>"></div>
                     <div class="reg-group"><label>Phone</label><input type="tel" name="phone" maxlength="40" placeholder="+256..." value="<?= sr_h($_POST['phone']??'') ?>"></div>

@@ -22,7 +22,7 @@ function fr_find_autoload(){
 }
 
 $sql = "SELECT fc.*, f.campaign_no, f.title campaign_title, f.venue, f.organizer,
-               CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) member_name, m.member_no, m.phone
+               m.full_name member_name, m.member_no, m.phone
         FROM fundraising_collections fc
         LEFT JOIN fundraising f ON f.id=fc.campaign_id
         LEFT JOIN members m ON m.id=fc.member_id

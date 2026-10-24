@@ -717,16 +717,7 @@ if (
     }
 }
 
-$fullName = trim(
-    implode(
-        ' ',
-        array_filter([
-            $profile['first_name'] ?? '',
-            $profile['middle_name'] ?? '',
-            $profile['last_name'] ?? '',
-        ])
-    )
-);
+$fullName = trim((string)($profile['full_name'] ?? ''));
 
 if ($fullName === '') {
     $fullName = 'Member';

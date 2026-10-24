@@ -102,7 +102,7 @@ $surplus = $total_income - $total_proj;
 $pledge_rows = mysqli_query($conn, "
     SELECT 
         p.pledge_no,
-        CONCAT_WS(' ', m.first_name, m.last_name) AS full_name,
+        m.full_name AS full_name,
         p.amount_pledged,
         p.amount_paid,
         p.due_date,

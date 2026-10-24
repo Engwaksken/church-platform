@@ -35,10 +35,10 @@ if ($isAjax) {
         }
 
         $like = '%' . $q . '%';
-        $stmt = $conn->prepare("SELECT id, CONCAT(first_name,' ',last_name) AS full_name, member_no, department, phone
+        $stmt = $conn->prepare("SELECT id, full_name, member_no, department, phone
                                  FROM members
                                  WHERE COALESCE(status,'Active')='Active'
-                                   AND (CONCAT(first_name,' ',last_name) LIKE ? OR member_no LIKE ? OR phone LIKE ?)
+                                   AND (full_name LIKE ? OR member_no LIKE ? OR phone LIKE ?)
                                  ORDER BY full_name ASC
                                  LIMIT 8");
         if (!$stmt) {
@@ -73,7 +73,7 @@ if ($isAjax) {
             pc_respond(false, [], 'Please select your name from the list.');
         }
 
-        $mStmt = $conn->prepare("SELECT id, CONCAT(first_name,' ',last_name) AS full_name FROM members WHERE id=? AND COALESCE(status,'Active')='Active'");
+        $mStmt = $conn->prepare("SELECT id, full_name FROM members WHERE id=? AND COALESCE(status,'Active')='Active'");
         $mStmt->bind_param('i', $memberId);
         $mStmt->execute();
         $member = $mStmt->get_result()->fetch_assoc();

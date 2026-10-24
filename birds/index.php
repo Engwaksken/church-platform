@@ -118,7 +118,7 @@ if (empty($missingTables)) {
                ba.`$dueCol`        AS due_date,
                b.bird_no, b.breed,
                y.youth_no, y.id AS yid,
-               m.first_name, m.last_name, m.phone
+               m.full_name, m.phone
         FROM bird_allocations ba
         JOIN birds   b ON b.id = ba.bird_id
         JOIN youth   y ON y.id = ba.youth_id
@@ -128,12 +128,12 @@ if (empty($missingTables)) {
     ");
 
     $eligibleYouth = bidx_rows($conn, "
-        SELECT y.id, y.youth_no, m.first_name, m.last_name, m.phone
+        SELECT y.id, y.youth_no, m.full_name, m.phone
         FROM youth   y
         JOIN members m ON m.id = y.member_id
         WHERE y.status = 'Active'
           AND y.id NOT IN (SELECT youth_id FROM bird_allocations WHERE status IN('Active','Overdue'))
-        ORDER BY m.first_name, m.last_name
+        ORDER BY m.full_name
     ");
 } else {
     $totalBirds = $availableBirds = $allocatedBirds = $overdueBirds = $completedCycles = $returnedChicks = 0;
@@ -297,7 +297,7 @@ $statuses = ['Available','Allocated','Returned','Deceased'];
                        ba.`$dueCol`      AS due_date,
                        b.bird_no, b.breed, b.gender AS bird_gender,
                        y.youth_no,
-                       m.first_name, m.last_name, m.phone
+                       m.full_name, m.phone
                 FROM bird_allocations ba
                 JOIN birds   b ON b.id = ba.bird_id
                 JOIN youth   y ON y.id = ba.youth_id
@@ -347,7 +347,7 @@ $statuses = ['Available','Allocated','Returned','Deceased'];
                                 <small class="text-muted"><?= h($r['breed']) ?> · <?= h($r['bird_gender']) ?></small>
                             </td>
                             <td>
-                                <strong><?= h(trim($r['first_name'] . ' ' . $r['last_name'])) ?></strong><br>
+                                <strong><?= h(trim((string)$r['full_name'])) ?></strong><br>
                                 <small class="badge badge-gold"><?= h($r['youth_no']) ?></small>
                             </td>
                             <td><?= h($r['phone'] ?: '-') ?></td>
@@ -401,7 +401,7 @@ $statuses = ['Available','Allocated','Returned','Deceased'];
                        $chickSelect
                        b.bird_no, b.breed,
                        y.youth_no,
-                       m.first_name, m.last_name
+                       m.full_name
                 FROM bird_allocations ba
                 JOIN birds   b ON b.id = ba.bird_id
                 JOIN youth   y ON y.id = ba.youth_id
@@ -438,7 +438,7 @@ $statuses = ['Available','Allocated','Returned','Deceased'];
                             <td><span class="badge badge-primary"><?= h(bidx_allocation_no($r)) ?></span></td>
                             <td><?= h($r['bird_no'] . ' - ' . $r['breed']) ?></td>
                             <td>
-                                <strong><?= h(trim($r['first_name'] . ' ' . $r['last_name'])) ?></strong><br>
+                                <strong><?= h(trim((string)$r['full_name'])) ?></strong><br>
                                 <small class="text-muted"><?= h($r['youth_no']) ?></small>
                             </td>
                             <td><?= h(bidx_date_display($r['allocated_date']    ?? null)) ?></td>
@@ -736,8 +736,8 @@ $statuses = ['Available','Allocated','Returned','Deceased'];
                                     <option value="">- Select Youth -</option>
                                     <?php foreach ($eligibleYouth as $y): ?>
                                         <option value="<?= (int)$y['id'] ?>"
-                                                data-name="<?= h(trim($y['first_name'].' '.$y['last_name'])) ?>">
-                                            <?= h(trim($y['first_name'].' '.$y['last_name']).' ('.$y['youth_no'].')') ?>
+                                                data-name="<?= h(trim((string)$y['full_name'])) ?>">
+                                            <?= h(trim((string)$y['full_name']).' ('.$y['youth_no'].')') ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -813,7 +813,7 @@ $statuses = ['Available','Allocated','Returned','Deceased'];
                                         <?= h(
                                             bidx_allocation_no($a)
                                             . ' | ' . $a['bird_no']
-                                            . ' - ' . trim($a['first_name'] . ' ' . $a['last_name'])
+                                            . ' - ' . trim((string)$a['full_name'])
                                             . ' | Due: ' . bidx_date_display($a['due_date'] ?? null)
                                         ) ?>
                                     </option>
@@ -844,7 +844,7 @@ $statuses = ['Available','Allocated','Returned','Deceased'];
                                     <option value="">- Allocate Later -</option>
                                     <?php foreach ($eligibleYouth as $y): ?>
                                         <option value="<?= (int)$y['id'] ?>">
-                                            <?= h(trim($y['first_name'] . ' ' . $y['last_name']) . ' (' . $y['youth_no'] . ')') ?>
+                                            <?= h(trim((string)$y['full_name']) . ' (' . $y['youth_no'] . ')') ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>

@@ -46,7 +46,7 @@ function scalar(mysqli $conn, string $sql): int {
 }
 function department_select_sql(mysqli $conn, string $where='1=1'): string {
     $leaderJoin = table_exists($conn, 'members') ? " LEFT JOIN members m ON m.id = d.leader " : "";
-    $leaderFields = table_exists($conn, 'members') ? ", TRIM(CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,''))) AS leader_name, m.member_no AS leader_no" : ", '' AS leader_name, '' AS leader_no";
+    $leaderFields = table_exists($conn, 'members') ? ", m.full_name AS leader_name, m.member_no AS leader_no" : ", '' AS leader_name, '' AS leader_no";
     $countSql = table_exists($conn, 'department_members') ? "(SELECT COUNT(*) FROM department_members dm WHERE dm.dept_id=d.id)" : "0";
     return "SELECT d.*, {$countSql} AS member_count {$leaderFields} FROM departments d {$leaderJoin} WHERE {$where}";
 }
@@ -86,15 +86,15 @@ try {
         $id = intv('id');
         if ($id <= 0) json_out(['success'=>false,'message'=>'Invalid department ID.']);
         if (!table_exists($conn,'department_members') || !table_exists($conn,'members')) json_out(['success'=>true,'members'=>[], 'available'=>[]]);
-        $stmt = $conn->prepare("SELECT m.id,m.member_no,m.first_name,m.last_name,m.gender,m.phone,m.email,dm.role,dm.joined_date FROM department_members dm JOIN members m ON m.id=dm.member_id WHERE dm.dept_id=? ORDER BY m.first_name,m.last_name");
+        $stmt = $conn->prepare("SELECT m.id,m.member_no,m.full_name,m.gender,m.phone,m.email,dm.role,dm.joined_date FROM department_members dm JOIN members m ON m.id=dm.member_id WHERE dm.dept_id=? ORDER BY m.full_name");
         $stmt->bind_param('i', $id); $stmt->execute();
         $res = $stmt->get_result(); $members=[];
-        while($r=$res->fetch_assoc()) { $r['full_name'] = trim(($r['first_name']??'').' '.($r['last_name']??'')); $members[]=$r; }
+        while($r=$res->fetch_assoc()) $members[]=$r;
         $stmt->close();
-        $stmt = $conn->prepare("SELECT id,member_no,first_name,last_name,phone FROM members WHERE COALESCE(status,'Active')='Active' AND id NOT IN (SELECT member_id FROM department_members WHERE dept_id=?) ORDER BY first_name,last_name");
+        $stmt = $conn->prepare("SELECT id,member_no,full_name,phone FROM members WHERE COALESCE(status,'Active')='Active' AND id NOT IN (SELECT member_id FROM department_members WHERE dept_id=?) ORDER BY full_name");
         $stmt->bind_param('i', $id); $stmt->execute();
         $res = $stmt->get_result(); $available=[];
-        while($r=$res->fetch_assoc()) { $r['full_name'] = trim(($r['first_name']??'').' '.($r['last_name']??'')); $available[]=$r; }
+        while($r=$res->fetch_assoc()) $available[]=$r;
         $stmt->close();
         json_out(['success'=>true,'members'=>$members,'available'=>$available]);
     }

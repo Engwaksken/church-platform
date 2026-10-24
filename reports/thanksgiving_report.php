@@ -30,7 +30,7 @@ $generated = date('d F Y, H:i');
 $stmt = $conn->prepare("
     SELECT 
         t.*,
-        CONCAT_WS(' ', m.first_name, m.last_name) AS full_name
+        m.full_name AS full_name
     FROM thanksgiving t
     LEFT JOIN members m ON m.id = t.member_id
     WHERE t.thanksgiving_date BETWEEN ? AND ?

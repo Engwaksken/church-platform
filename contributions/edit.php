@@ -5,7 +5,7 @@ $id = intval($_GET['id']??0);
 $c = fetchOne("SELECT * FROM contributions WHERE id=$id");
 if(!$c){ setFlash('Not found.','danger'); redirect('index.php'); }
 $projects = mysqli_query($conn,"SELECT id,name FROM projects ORDER BY name");
-$members  = mysqli_query($conn,"SELECT id, CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) AS full_name,member_no FROM members ORDER BY first_name");
+$members  = mysqli_query($conn,"SELECT id, full_name,member_no FROM members ORDER BY full_name");
 if($_SERVER['REQUEST_METHOD']==='POST'){
     $member_id  = intval($_POST['member_id']);
     $project_id = intval($_POST['project_id']);

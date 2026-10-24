@@ -58,12 +58,12 @@ $members = [];
 if ($hasMembers && $hasFU) {
     try {
         $res = $conn->query("
-            SELECT m.id, m.first_name, m.last_name, m.member_no, m.phone
+            SELECT m.id, m.full_name, m.member_no, m.phone
             FROM members m
             WHERE LOWER(COALESCE(m.gender,'')) IN ('male','m')
               AND COALESCE(m.status,'Active') = 'Active'
               AND m.id NOT IN (SELECT member_id FROM fathers_union WHERE member_id IS NOT NULL)
-            ORDER BY m.first_name, m.last_name
+            ORDER BY m.full_name
         ");
         while ($res && $row = $res->fetch_assoc()) $members[] = $row;
     } catch (Throwable $e) {}
@@ -281,7 +281,7 @@ $positions = ['Member','Chairman','Vice Chairman','Secretary','Treasurer','Chapl
                                 </label>
 
                                 <?php if ($members): foreach ($members as $m):
-                                    $fullName = fu_h(trim(($m['first_name'] ?? '').' '.($m['last_name'] ?? '')));
+                                    $fullName = fu_h(trim((string)($m['full_name'] ?? '')));
                                     $phone    = $m['phone']     ? ' . '.fu_h($m['phone'])     : '';
                                     $memNo    = $m['member_no'] ? ' ('.fu_h($m['member_no']).')' : '';
                                 ?>

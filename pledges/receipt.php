@@ -19,7 +19,7 @@ if ($payment_id <= 0 && $pledge_id > 0) {
 if ($payment_id <= 0) { die('Invalid payment ID. Open receipt from a payment row, not the pledge row.'); }
 
 $payment = r_one($conn, "SELECT pp.*, p.pledge_no, p.amount_pledged, p.amount_paid, p.pledge_reason, p.due_date, p.status,
-        CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS full_name,
+        m.full_name AS full_name,
         m.member_no, m.phone, m.email, pr.name AS project_name
     FROM pledge_payments pp
     JOIN pledges p ON p.id = pp.pledge_id

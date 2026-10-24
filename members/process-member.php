@@ -233,27 +233,27 @@ function sync_department_member(mysqli $conn, int $memberId, ?int $deptId, strin
     $stmt->execute(); $stmt->close();
 }
 
-function send_registration_email(mysqli $conn, string $email, string $firstName, string $lastName, string $memberNo, string $joinedDate): bool
+function send_registration_email(mysqli $conn, string $email, string $fullName, string $memberNo, string $joinedDate): bool
 {
     if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) return false;
     if (!function_exists('sendMemberRegistrationConfirmation'))         return false;
     return sendMemberRegistrationConfirmation(
-        $conn, $email, trim($firstName.' '.$lastName),
+        $conn, $email, $fullName,
         $memberNo, $joinedDate, 'Rongoro COU Church'
     );
 }
 
 
-function unique_member_username(mysqli $conn,string $firstName,string $lastName,string $memberNo):string{$base=strtolower(trim((string)preg_replace('/[^a-z0-9]+/i','',$firstName.'.'.$lastName),'.'));if($base==='')$base=strtolower((string)preg_replace('/[^a-z0-9]+/i','',$memberNo));if($base==='')$base='member';$candidate=$base;$i=1;while(true){$st=$conn->prepare('SELECT id FROM users WHERE username=? LIMIT 1');$st->bind_param('s',$candidate);$st->execute();$exists=(bool)$st->get_result()->fetch_row();$st->close();if(!$exists)return $candidate;$candidate=$base.(++$i);}}
-function create_member_login(mysqli $conn,string $firstName,string $lastName,string $memberNo,string $email,string $phone,string $status,array $data=[]):array{$username=clean_value($data['login_username']??'');if($username==='')$username=unique_member_username($conn,$firstName,$lastName,$memberNo);else{$st=$conn->prepare('SELECT id FROM users WHERE username=? LIMIT 1');$st->bind_param('s',$username);$st->execute();$exists=(bool)$st->get_result()->fetch_row();$st->close();if($exists)throw new Exception('The selected login username is already in use.');}$plain=clean_value($data['login_password']??'');if($plain==='')$plain='Change@'.preg_replace('/\D+/','',$memberNo);if(strlen($plain)<8)$plain.='@1234';$hash=password_hash($plain,PASSWORD_DEFAULT);$full=trim($firstName.' '.$lastName);$role='member';$userStatus=$status==='Active'?'Active':'Inactive';$st=$conn->prepare('INSERT INTO users (username,password,full_name,role,email,phone,status) VALUES (?,?,?,?,?,?,?)');if(!$st)throw new Exception('Unable to prepare member login account: '.$conn->error);$st->bind_param('sssssss',$username,$hash,$full,$role,$email,$phone,$userStatus);if(!$st->execute())throw new Exception('Unable to create member login account: '.$st->error);$uid=(int)$conn->insert_id;$st->close();return ['user_id'=>$uid,'username'=>$username,'temporary_password'=>$plain];}
+function unique_member_username(mysqli $conn,string $fullName,string $memberNo):string{$base=strtolower(trim((string)preg_replace('/[^a-z0-9]+/i','.',$fullName),'.'));if($base==='')$base=strtolower((string)preg_replace('/[^a-z0-9]+/i','',$memberNo));if($base==='')$base='member';$candidate=$base;$i=1;while(true){$st=$conn->prepare('SELECT id FROM users WHERE username=? LIMIT 1');$st->bind_param('s',$candidate);$st->execute();$exists=(bool)$st->get_result()->fetch_row();$st->close();if(!$exists)return $candidate;$candidate=$base.(++$i);}}
+function create_member_login(mysqli $conn,string $fullName,string $memberNo,string $email,string $phone,string $status,array $data=[]):array{$username=clean_value($data['login_username']??'');if($username==='')$username=unique_member_username($conn,$fullName,$memberNo);else{$st=$conn->prepare('SELECT id FROM users WHERE username=? LIMIT 1');$st->bind_param('s',$username);$st->execute();$exists=(bool)$st->get_result()->fetch_row();$st->close();if($exists)throw new Exception('The selected login username is already in use.');}$plain=clean_value($data['login_password']??'');if($plain==='')$plain='Change@'.preg_replace('/\D+/','',$memberNo);if(strlen($plain)<8)$plain.='@1234';$hash=password_hash($plain,PASSWORD_DEFAULT);$full=$fullName;$role='member';$userStatus=$status==='Active'?'Active':'Inactive';$st=$conn->prepare('INSERT INTO users (username,password,full_name,role,email,phone,status) VALUES (?,?,?,?,?,?,?)');if(!$st)throw new Exception('Unable to prepare member login account: '.$conn->error);$st->bind_param('sssssss',$username,$hash,$full,$role,$email,$phone,$userStatus);if(!$st->execute())throw new Exception('Unable to create member login account: '.$st->error);$uid=(int)$conn->insert_id;$st->close();return ['user_id'=>$uid,'username'=>$username,'temporary_password'=>$plain];}
 
 /**
  * Insert a single member record.
  */
 function insert_member(mysqli $conn, array $data): array
 {
-    $firstName    = clean_value($data['first_name']    ?? '');
-    $lastName     = clean_value($data['last_name']     ?? '');
+    $fullName     = member_full_name($data);
+    [$firstName, $lastName] = member_split_full_name($fullName);
     $gender       = clean_value($data['gender']        ?? '');
     $dob          = clean_value($data['date_of_birth'] ?? '');
     $phone        = clean_value($data['phone']         ?? '');
@@ -288,30 +288,30 @@ function insert_member(mysqli $conn, array $data): array
     if (!column_exists($conn, 'members', 'user_id')) {
         throw new Exception('The members.user_id column is missing. Run database_member_user_relationship.sql first.');
     }
-    $login = create_member_login($conn,$firstName,$lastName,$memberNo,$email,$phone,$status,$data);
+    $login = create_member_login($conn,$fullName,$memberNo,$email,$phone,$status,$data);
     $userId = (int)$login['user_id'];
 
     if (column_exists($conn, 'members', 'church_zone_id')) {
         $stmt = $conn->prepare("
             INSERT INTO members
-                (user_id,member_no,first_name,last_name,gender,date_of_birth,phone,email,address,
+                (user_id,member_no,full_name,first_name,last_name,gender,date_of_birth,phone,email,address,
                  marital_status,occupation,department,dept_id,church_zone_id,joined_date,
                  baptism_date,status,notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ");
-        $stmt->bind_param('isssssssssssiissss',
-            $userId,$memberNo,$firstName,$lastName,$gender,$dobParam,$phone,$email,$address,
+        $stmt->bind_param('issssssssssssiissss',
+            $userId,$memberNo,$fullName,$firstName,$lastName,$gender,$dobParam,$phone,$email,$address,
             $marital,$occupation,$department,$deptId,$churchZoneId,$joinedDate,$baptismParam,$status,$notes
         );
     } else {
         $stmt = $conn->prepare("
             INSERT INTO members
-                (user_id,member_no,first_name,last_name,gender,date_of_birth,phone,email,address,
+                (user_id,member_no,full_name,first_name,last_name,gender,date_of_birth,phone,email,address,
                  marital_status,occupation,department,dept_id,joined_date,baptism_date,status,notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ");
-        $stmt->bind_param('issssssssssissss',
-            $userId,$memberNo,$firstName,$lastName,$gender,$dobParam,$phone,$email,$address,
+        $stmt->bind_param('issssssssssssissss',
+            $userId,$memberNo,$fullName,$firstName,$lastName,$gender,$dobParam,$phone,$email,$address,
             $marital,$occupation,$department,$deptId,$joinedDate,$baptismParam,$status,$notes
         );
     }
@@ -322,7 +322,7 @@ function insert_member(mysqli $conn, array $data): array
 
     save_member_extras($conn, $newId, $data);
     sync_department_member($conn, $newId, $deptId, $deptRole, $joinedDate);
-    $emailSent = send_registration_email($conn, $email, $firstName, $lastName, $memberNo, $joinedDate);
+    $emailSent = send_registration_email($conn, $email, $fullName, $memberNo, $joinedDate);
 
     return ['id'=>$newId,'member_no'=>$memberNo,'email_sent'=>$emailSent,'username'=>$login['username'],'temporary_password'=>$login['temporary_password']];
 }
@@ -353,10 +353,10 @@ function fetch_all_members(mysqli $conn, string $search = '', string $status = '
 
     if ($search !== '') {
         $like = '%' . $search . '%';
-        $where .= " AND (m.first_name LIKE ? OR m.last_name LIKE ? OR CONCAT_WS(' ',m.first_name,m.last_name) LIKE ?
+        $where .= " AND (m.full_name LIKE ?
                      OR m.member_no LIKE ? OR m.phone LIKE ? OR m.email LIKE ?
                      OR m.occupation LIKE ? OR m.department LIKE ? OR d.name LIKE ?";
-        for ($i = 0; $i < 9; $i++) { $params[] = $like; $types .= 's'; }
+        for ($i = 0; $i < 7; $i++) { $params[] = $like; $types .= 's'; }
         if ($hasExtras) {
             $where .= ' OR m.pledge_no LIKE ? OR m.service_attended LIKE ?';
             $params[] = $like; $params[] = $like; $types .= 'ss';
@@ -390,7 +390,7 @@ function fetch_all_members(mysqli $conn, string $search = '', string $status = '
     }
 
     $sql = "
-        SELECT m.id, m.member_no, $extraSelect m.first_name, m.last_name, m.gender,
+        SELECT m.id, m.member_no, $extraSelect m.full_name, m.gender,
                m.date_of_birth, m.phone, m.email, m.address,
                m.marital_status, m.occupation,
                COALESCE(d.name, m.department, '') AS dept_name,
@@ -400,7 +400,7 @@ function fetch_all_members(mysqli $conn, string $search = '', string $status = '
         LEFT JOIN departments d ON d.id=m.dept_id
         $zoneJoin
         $where
-        ORDER BY m.last_name ASC, m.first_name ASC";
+        ORDER BY m.full_name ASC";
 
     $stmt = $conn->prepare($sql);
     if ($types !== '' && $params) {
@@ -421,7 +421,7 @@ function build_csv_rows(array $members): array
 {
     $rows   = [];
     $rows[] = [
-        'Member No', 'Pledge No', 'First Name', 'Last Name', 'Gender',
+        'Member No', 'Pledge No', 'Full Name', 'Gender',
         'Date of Birth', 'Phone', 'Email', 'Address',
         'Marital Status', 'Occupation', 'Department', 'Zone', 'Service Attended',
         'Joined Date', 'Baptism Date', 'Status', 'Notes',
@@ -430,8 +430,7 @@ function build_csv_rows(array $members): array
         $rows[] = [
             $m['member_no']    ?? '',
             $m['pledge_no']    ?? '',
-            $m['first_name']   ?? '',
-            $m['last_name']    ?? '',
+            $m['full_name']    ?? '',
             $m['gender']       ?? '',
             $m['date_of_birth']?? '',
             $m['phone']        ?? '',
@@ -466,7 +465,7 @@ function build_pdf_html(array $members, string $search, string $status): string
         $bg   = ($i % 2 === 0) ? '#f7f5ff' : '#ffffff';
         $sClr = ($m['status'] ?? '') === 'Active' ? '#15803d' : '#6b7280';
         $sTag = '<span style="color:' . $sClr . ';font-weight:600">' . htmlspecialchars((string)($m['status'] ?? '-'), ENT_QUOTES) . '</span>';
-        $full = htmlspecialchars(trim(($m['first_name']??'') . ' ' . ($m['last_name']??'')), ENT_QUOTES);
+        $full = htmlspecialchars((string)($m['full_name'] ?? ''), ENT_QUOTES);
         $rows .= '<tr style="background:' . $bg . '">
             <td style="text-align:center">' . $i . '</td>
             <td>' . $full . '</td>
@@ -567,6 +566,9 @@ function parse_csv_upload(string $filePath, bool $skipHeader = true): array
 function normalise_csv_row(array $row): array
 {
     $aliases = [
+        'fullname'       => 'full_name',
+        'full_name'      => 'full_name',
+        'name'           => 'full_name',
         'firstname'      => 'first_name',
         'first_name'     => 'first_name',
         'surname'        => 'last_name',
@@ -731,13 +733,13 @@ try {
     -------------------------------------------------------- */
     if ($action === 'csv_template') {
         $template = [
-            ['first_name','last_name','gender','phone','email','occupation',
+            ['full_name','gender','phone','email','occupation',
              'marital_status','date_of_birth','joined_date','baptism_date',
              'address','notes','status','pledge_no','service_attended'],
-            ['John','Doe','Male','+256700000001','john@example.com','Teacher',
+            ['John Doe','Male','+256700000001','john@example.com','Teacher',
              'Married','1985-06-15','2020-01-10','2019-12-25',
              '123 Main St, Kampala','Choir leader','Active','P-001','First Service'],
-            ['Jane','Smith','Female','+256700000002','jane@example.com','Nurse',
+            ['Jane Smith','Female','+256700000002','jane@example.com','Nurse',
              'Single','1992-03-22','2021-05-01','',
              '45 Church Road','','Active','','Second Service'],
         ];
@@ -817,11 +819,8 @@ try {
         foreach ($csvRows as $idx => $raw) {
             $row = normalise_csv_row($raw);
             $lineNo = $idx + ($skipHeader ? 2 : 1); // human-readable line number
-            $fn = trim($row['first_name'] ?? '');
-            $ln = trim($row['last_name']  ?? '');
             $gn = trim($row['gender']     ?? '');
-            if ($fn === '') $errors[] = "Line {$lineNo}: first_name is required.";
-            if ($ln === '') $errors[] = "Line {$lineNo}: last_name is required.";
+            if (member_full_name($row) === '') $errors[] = "Line {$lineNo}: full_name is required.";
             if ($gn === '') $errors[] = "Line {$lineNo}: gender is required.";
             $em = trim($row['email'] ?? '');
             if ($em !== '' && !filter_var($em, FILTER_VALIDATE_EMAIL))
@@ -891,12 +890,9 @@ try {
        CREATE (single)
     -------------------------------------------------------- */
     if ($action === 'create') {
-        $firstName = clean_value($_POST['first_name'] ?? '');
-        $lastName  = clean_value($_POST['last_name']  ?? '');
         $email     = clean_value($_POST['email']      ?? '');
 
-        if ($firstName === '') json_out(['success' => false, 'message' => 'First name is required.']);
-        if ($lastName  === '') json_out(['success' => false, 'message' => 'Last name is required.']);
+        if (member_full_name($_POST) === '') json_out(['success' => false, 'message' => 'Full name is required.']);
         if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL))
             json_out(['success' => false, 'message' => 'Invalid email address.']);
 
@@ -932,12 +928,9 @@ try {
         $errors = [];
         foreach ($members as $i => $m) {
             $row  = (int)$i + 1;
-            $fn   = clean_value($m['first_name'] ?? '');
-            $ln   = clean_value($m['last_name']  ?? '');
             $gn   = clean_value($m['gender']     ?? '');
             $em   = clean_value($m['email']      ?? '');
-            if ($fn === '') $errors[] = "Row {$row}: First name is required.";
-            if ($ln === '') $errors[] = "Row {$row}: Last name is required.";
+            if (member_full_name($m) === '') $errors[] = "Row {$row}: Full name is required.";
             if ($gn === '') $errors[] = "Row {$row}: Gender is required.";
             if ($em !== '' && !filter_var($em, FILTER_VALIDATE_EMAIL))
                 $errors[] = "Row {$row}: Invalid email address.";
@@ -959,7 +952,7 @@ try {
             } catch (Throwable $e) {
                 $row = (int)$i + 1;
                 error_log("[bulk_create] row {$row}: " . $e->getMessage());
-                $rowErrors[] = "Row {$row} (" . clean_value($m['first_name'] ?? '') . ' ' . clean_value($m['last_name'] ?? '') . '): ' . $e->getMessage();
+                $rowErrors[] = "Row {$row} (" . member_full_name($m) . '): ' . $e->getMessage();
             }
         }
 
@@ -996,13 +989,12 @@ try {
     -------------------------------------------------------- */
     if ($action === 'update') {
         $id        = (int)($_POST['id'] ?? 0);
-        $firstName = clean_value($_POST['first_name'] ?? '');
-        $lastName  = clean_value($_POST['last_name']  ?? '');
+        $fullName  = member_full_name($_POST);
+        [$firstName, $lastName] = member_split_full_name($fullName);
         $email     = clean_value($_POST['email']      ?? '');
 
         if ($id <= 0)        json_out(['success' => false, 'message' => 'Invalid member ID.']);
-        if ($firstName==='') json_out(['success' => false, 'message' => 'First name is required.']);
-        if ($lastName==='')  json_out(['success' => false, 'message' => 'Last name is required.']);
+        if ($fullName==='')  json_out(['success' => false, 'message' => 'Full name is required.']);
         if ($email!==''&&!filter_var($email,FILTER_VALIDATE_EMAIL))
             json_out(['success' => false, 'message' => 'Invalid email address.']);
         if (!get_member($conn, $id))
@@ -1041,24 +1033,24 @@ try {
         if (column_exists($conn, 'members', 'church_zone_id')) {
             $stmt = $conn->prepare("
                 UPDATE members SET
-                    member_no=?,first_name=?,last_name=?,gender=?,date_of_birth=?,
+                    member_no=?,full_name=?,first_name=?,last_name=?,gender=?,date_of_birth=?,
                     phone=?,email=?,address=?,marital_status=?,occupation=?,
                     department=?,dept_id=?,church_zone_id=?,joined_date=?,baptism_date=?,
                     status=?,notes=?
                 WHERE id=?");
-            $stmt->bind_param('sssssssssssiissssi',
-                $memberNo,$firstName,$lastName,$gender,$dobParam,$phone,$email,$address,
+            $stmt->bind_param('ssssssssssssiissssi',
+                $memberNo,$fullName,$firstName,$lastName,$gender,$dobParam,$phone,$email,$address,
                 $marital,$occupation,$department,$deptId,$churchZoneId,$joinedDate,$baptismParam,$status,$notes,$id
             );
         } else {
             $stmt = $conn->prepare("
                 UPDATE members SET
-                    member_no=?,first_name=?,last_name=?,gender=?,date_of_birth=?,
+                    member_no=?,full_name=?,first_name=?,last_name=?,gender=?,date_of_birth=?,
                     phone=?,email=?,address=?,marital_status=?,occupation=?,
                     department=?,dept_id=?,joined_date=?,baptism_date=?,status=?,notes=?
                 WHERE id=?");
-            $stmt->bind_param('sssssssssssissssi',
-                $memberNo,$firstName,$lastName,$gender,$dobParam,$phone,$email,$address,
+            $stmt->bind_param('ssssssssssssissssi',
+                $memberNo,$fullName,$firstName,$lastName,$gender,$dobParam,$phone,$email,$address,
                 $marital,$occupation,$department,$deptId,$joinedDate,$baptismParam,$status,$notes,$id
             );
         }
@@ -1067,7 +1059,6 @@ try {
 
         save_member_extras($conn, $id, $_POST);
         sync_department_member($conn, $id, $deptId, $deptRole, $joinedDate);
-        $fullName = trim($firstName.' '.$lastName);
         $userStatus = $status === 'Active' ? 'Active' : 'Inactive';
         $ust = $conn->prepare('UPDATE users u INNER JOIN members m ON m.user_id=u.id SET u.full_name=?,u.email=?,u.phone=?,u.status=? WHERE m.id=?');
         if($ust){$ust->bind_param('ssssi',$fullName,$email,$phone,$userStatus,$id);$ust->execute();$ust->close();}

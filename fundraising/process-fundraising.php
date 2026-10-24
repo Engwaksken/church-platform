@@ -44,7 +44,7 @@ function fr_pdf_out(string $filename, string $html): void
 {
     while (ob_get_level()) ob_end_clean();
 
-    // Locate Composer autoload — checks three common project layouts.
+    // Locate Composer autoload â€” checks three common project layouts.
     // Run:  composer require dompdf/dompdf  in your project root.
     $candidates = [
         __DIR__ . '/../../vendor/autoload.php',
@@ -179,7 +179,7 @@ function fr_fetch_campaigns_for_export(mysqli $conn, string $status = ''): array
 function fr_fetch_collections_for_export(mysqli $conn, int $campaignId): array
 {
     $sql = "SELECT fc.receipt_no,
-                   TRIM(CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,''))) AS member_name,
+                   m.full_name AS member_name,
                    m.member_no,
                    COALESCE(fc.donor_name,'') AS donor_name,
                    fc.amount, fc.payment_method, fc.collection_date,
@@ -504,7 +504,7 @@ function fr_send_sms_confirm(mysqli $conn, array $r): bool
 function fr_collection_row(mysqli $conn, int $id): ?array
 {
     $sql = "SELECT fc.*, f.title campaign_title, f.campaign_no,
-                   CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) full_name,
+                   m.full_name,
                    m.member_no, m.email, m.phone
             FROM fundraising_collections fc
             LEFT JOIN fundraising f ON f.id=fc.campaign_id
@@ -603,7 +603,7 @@ try {
     ------------------------------------------------------- */
     if ($action === 'members') {
         if (!fr_table_exists($conn, 'members')) fr_json(true, 'Loaded.', ['items' => []]);
-        $items = fr_fetch_all($conn, "SELECT id, member_no, CONCAT(COALESCE(first_name,''),' ',COALESCE(last_name,'')) full_name, email, phone FROM members ORDER BY first_name,last_name LIMIT 500");
+        $items = fr_fetch_all($conn, "SELECT id, member_no, full_name, email, phone FROM members ORDER BY full_name LIMIT 500");
         fr_json(true, 'Loaded.', ['items' => $items]);
     }
 
@@ -623,7 +623,7 @@ try {
     ------------------------------------------------------- */
     if ($action === 'collections') {
         $campaign_id = (int)fr_get('campaign_id');
-        $sql = "SELECT fc.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) full_name, m.member_no, m.email, m.phone
+        $sql = "SELECT fc.*, m.full_name, m.member_no, m.email, m.phone
                 FROM fundraising_collections fc
                 LEFT JOIN members m ON m.id=fc.member_id
                 WHERE fc.campaign_id=?
@@ -716,7 +716,7 @@ try {
     ------------------------------------------------------- */
     if ($action === 'get_collection') {
         $id  = (int)fr_get('id');
-        $sql = "SELECT fc.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) full_name, m.email, m.phone, f.title campaign_title
+        $sql = "SELECT fc.*, m.full_name, m.email, m.phone, f.title campaign_title
                 FROM fundraising_collections fc
                 LEFT JOIN members m ON m.id=fc.member_id
                 LEFT JOIN fundraising f ON f.id=fc.campaign_id

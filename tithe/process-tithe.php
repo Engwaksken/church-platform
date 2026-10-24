@@ -87,7 +87,7 @@ function get_tithe_with_member(int $id): ?array
     $sql = "
         SELECT
             t.*,
-            CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS full_name,
+            m.full_name,
             m.member_no,
             m.email,
             m.phone
@@ -263,7 +263,7 @@ try {
         $sql = "
             SELECT
                 t.*,
-                CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS full_name,
+                m.full_name,
                 m.member_no,
                 m.email,
                 m.phone

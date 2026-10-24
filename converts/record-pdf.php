@@ -17,10 +17,10 @@ if ($id <= 0) { http_response_code(400); exit('Invalid convert record.'); }
 $row = cb_fetch_one(
     $conn,
     "SELECT c.*,
-            CONCAT_WS(' ',am.first_name,am.last_name) assigned_member_name,
+            am.full_name assigned_member_name,
             am.member_no assigned_member_no,
             am.phone assigned_member_phone,
-            CONCAT_WS(' ',lm.first_name,lm.last_name) linked_member_name,
+            lm.full_name linked_member_name,
             lm.member_no linked_member_no,
             v.full_name linked_visitor_name
      FROM church_converts c

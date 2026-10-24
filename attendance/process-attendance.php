@@ -236,14 +236,13 @@ try {
             while ($r = $rs->fetch_assoc()) $existing[(int)$r['member_id']] = $r['status'];
             $stmt->close();
         }
-        $sql = "SELECT id, member_no, first_name, last_name, gender, phone, department
+        $sql = "SELECT id, member_no, full_name, gender, phone, department
                 FROM members
                 WHERE COALESCE(status,'Active')='Active'
-                ORDER BY first_name ASC, last_name ASC";
+                ORDER BY full_name ASC";
         $res = $conn->query($sql);
         while ($res && $m = $res->fetch_assoc()) {
             $mid = (int)$m['id'];
-            $m['full_name'] = trim(($m['first_name'] ?? '') . ' ' . ($m['last_name'] ?? ''));
             $m['attendance_status'] = $existing[$mid] ?? 'Present';
             $items[] = $m;
         }
@@ -255,11 +254,11 @@ try {
         $type = trim($_GET['type'] ?? '');
         if ($date === '' || $type === '') aj_out(false, 'Missing attendance session.');
 
-        $stmt = $conn->prepare("SELECT a.*, CONCAT(m.first_name,' ',m.last_name) member_name, m.member_no, m.department, m.gender, m.phone
+        $stmt = $conn->prepare("SELECT a.*, m.full_name member_name, m.member_no, m.department, m.gender, m.phone
                                FROM attendance a
                                JOIN members m ON m.id=a.member_id
                                WHERE a.service_date=? AND a.service_type=?
-                               ORDER BY a.status DESC, m.first_name ASC, m.last_name ASC");
+                               ORDER BY a.status DESC, m.full_name ASC");
         $stmt->bind_param('ss', $date, $type);
         $stmt->execute();
         $rs = $stmt->get_result();

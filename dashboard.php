@@ -15,7 +15,7 @@ if ($isMember) {
     $eventCertificateCount = 0;
 
     if ($memberId > 0) {
-        $stmt = $conn->prepare("SELECT m.*, CONCAT(m.first_name,' ',m.last_name) AS full_name FROM members m WHERE m.id=? LIMIT 1");
+        $stmt = $conn->prepare("SELECT m.* FROM members m WHERE m.id=? LIMIT 1");
         if ($stmt) {
             $stmt->bind_param('i', $memberId);
             $stmt->execute();
@@ -55,7 +55,7 @@ if ($isMember) {
             <?= showFlash(); ?>
             <div class="member-welcome">
                 <div>
-                    <h3>Welcome, <?= h((string) ($member['first_name'] ?? ($_SESSION['full_name'] ?? 'Member'))) ?></h3>
+                    <h3>Welcome, <?= h(explode(' ', trim((string) ($member['full_name'] ?? ($_SESSION['full_name'] ?? 'Member'))))[0]) ?></h3>
                     <p>Member No: <strong><?= h((string) ($member['member_no'] ?? '-')) ?></strong></p>
                 </div>
                 <i class="fas fa-church"></i>
@@ -117,7 +117,7 @@ $total_baptisms  = numRows("SELECT id FROM baptisms");
 $total_ss        = numRows("SELECT id FROM sunday_school_pupils WHERE status='Active'");
 $fu_count        = numRows("SELECT id FROM fathers_union WHERE status='Active'");
 $mu_count        = numRows("SELECT id FROM mothers_union WHERE status='Active'");
-$recent_members = mysqli_query($conn,"SELECT *,CONCAT(first_name,' ',last_name) AS full_name FROM members ORDER BY created_at DESC LIMIT 6");
+$recent_members = mysqli_query($conn,"SELECT * FROM members ORDER BY created_at DESC LIMIT 6");
 include 'includes/header.php';
 include 'includes/sidebar.php';
 ?>
@@ -127,6 +127,6 @@ include 'includes/sidebar.php';
 <?php foreach ([[$total_members,'Members','fa-users','#4a1e8f'],[$total_youth,'Youth','fa-user-friends','#6f42c1'],[$total_baptisms,'Baptisms','fa-water','#007bff'],[$total_ss,'Pupils','fa-child','#17a2b8'],[$fu_count,'Fathers','fa-male','#20c997'],[$mu_count,'Mothers','fa-female','#e83e8c']] as $stat): ?>
 <div class="stat-card"><div class="stat-icon"><i class="fas <?= h($stat[2]) ?>"></i></div><div><div class="stat-number"><?= (int)$stat[0] ?></div><div class="stat-label"><?= h($stat[1]) ?></div></div></div>
 <?php endforeach; ?></div>
-<div class="card"><div class="card-header d-flex justify-content-between align-items-center"><span><i class="fas fa-users"></i> Recent Members</span><a href="<?= BASE_URL ?>members/index.php" class="btn btn-sm btn-primary"><i class="fas fa-user-plus"></i> Add</a></div><div class="card-body p-0"><table class="table table-sm mb-0"><tbody><?php while($m=mysqli_fetch_assoc($recent_members)): ?><tr><td style="width:50px"><span class="avatar-sm"><?= h(strtoupper(substr((string)$m['first_name'],0,1))) ?></span></td><td><strong><?= h((string)$m['full_name']) ?></strong><br><small class="text-muted"><?= h((string)$m['member_no']) ?></small></td><td><small class="text-muted"><?= h((string)($m['department']??'')) ?></small></td></tr><?php endwhile; ?></tbody></table></div><div class="card-footer"><a href="<?= BASE_URL ?>members/">View all members <i class="fas fa-arrow-right"></i></a></div></div>
+<div class="card"><div class="card-header d-flex justify-content-between align-items-center"><span><i class="fas fa-users"></i> Recent Members</span><a href="<?= BASE_URL ?>members/index.php" class="btn btn-sm btn-primary"><i class="fas fa-user-plus"></i> Add</a></div><div class="card-body p-0"><table class="table table-sm mb-0"><tbody><?php while($m=mysqli_fetch_assoc($recent_members)): ?><tr><td style="width:50px"><span class="avatar-sm"><?= h(strtoupper(substr(trim((string)$m['full_name']),0,1))) ?></span></td><td><strong><?= h((string)$m['full_name']) ?></strong><br><small class="text-muted"><?= h((string)$m['member_no']) ?></small></td><td><small class="text-muted"><?= h((string)($m['department']??'')) ?></small></td></tr><?php endwhile; ?></tbody></table></div><div class="card-footer"><a href="<?= BASE_URL ?>members/">View all members <i class="fas fa-arrow-right"></i></a></div></div>
 <div class="card mt-3"><div class="card-header"><i class="fas fa-bolt"></i> Quick Actions</div><div class="card-body"><div class="row"><?php foreach ([['members/index.php','fa-user-plus','Add Member','#4a1e8f'],['baptism/index.php','fa-water','Baptism','#007bff'],['sunday_school/index.php','fa-child','Enrol Pupil','#17a2b8'],['attendance/index.php','fa-clipboard-check','Attendance','#d4a017']] as $q): ?><div class="col-md-3 col-6 mb-2"><a href="<?= BASE_URL.h($q[0]) ?>" class="btn btn-block text-white" style="background:<?= h($q[3]) ?>"><i class="fas <?= h($q[1]) ?>"></i> <?= h($q[2]) ?></a></div><?php endforeach; ?></div></div></div>
 </div></div><?php require_once 'includes/footer.php'; ?>

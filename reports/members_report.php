@@ -17,8 +17,7 @@ $sql = "
     SELECT 
         m.id,
         m.member_no,
-        m.first_name,
-        m.last_name,
+        m.full_name,
         m.gender,
         m.phone,
         m.marital_status,
@@ -27,7 +26,7 @@ $sql = "
     FROM members m
     LEFT JOIN departments d ON d.id = m.dept_id
     WHERE m.status = 'Active'
-    ORDER BY m.first_name ASC, m.last_name ASC
+    ORDER BY m.full_name ASC
 ";
 
 $members = mysqli_query($conn, $sql);
@@ -88,7 +87,7 @@ ob_start();
   <tbody>
     <?php if ($members && mysqli_num_rows($members) > 0): ?>
       <?php $i = 1; while ($m = mysqli_fetch_assoc($members)): ?>
-        <?php $fullName = trim(($m['first_name'] ?? '') . ' ' . ($m['last_name'] ?? '')); ?>
+        <?php $fullName = trim((string)($m['full_name'] ?? '')); ?>
         <tr>
           <td><?= $i++ ?></td>
           <td><?= e($m['member_no'] ?? '-') ?></td>

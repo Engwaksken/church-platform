@@ -40,7 +40,7 @@ $uniqueProjects = $hasContributions ? c_scalar($conn, "SELECT COUNT(DISTINCT pro
 
 $members = [];
 if ($hasMembers) {
-    $res = $conn->query("SELECT id, member_no, CONCAT(COALESCE(first_name,''),' ',COALESCE(last_name,'')) full_name FROM members ORDER BY first_name,last_name");
+    $res = $conn->query("SELECT id, member_no, full_name FROM members ORDER BY full_name");
     while ($res && $r = $res->fetch_assoc()) $members[] = $r;
 }
 $projects = [];

@@ -26,7 +26,7 @@ $withLeaders = z_scalar($conn, "SELECT COUNT(*) FROM church_zones WHERE leader_m
 
 $members = [];
 if (z_table_exists($conn, 'members')) {
-    $res = $conn->query("SELECT id, member_no, first_name, last_name, phone, email FROM members WHERE COALESCE(status,'Active')='Active' ORDER BY first_name,last_name");
+    $res = $conn->query("SELECT id, member_no, full_name, phone, email FROM members WHERE COALESCE(status,'Active')='Active' ORDER BY full_name");
     while($res && $row=$res->fetch_assoc()) $members[]=$row;
 }
 
@@ -90,7 +90,7 @@ include '../includes/sidebar.php';
       <div class="form-grid">
         <div class="form-group"><label>Zone Name <span class="req">*</span></label><input type="text" name="zone_name" id="zone_name" class="form-control" required maxlength="150"></div>
         <div class="form-group"><label>Zone Code</label><input type="text" name="zone_code" id="zone_code" class="form-control" maxlength="50" placeholder="e.g. ZONE-001"></div>
-        <div class="form-group"><label>Zone Leader</label><select name="leader_member_id" id="leader_member_id" class="form-control"><option value="0">-- Select Leader --</option><?php foreach($members as $m): $name=trim(($m['first_name']??'').' '.($m['last_name']??'')); ?><option value="<?= (int)$m['id'] ?>" data-phone="<?= zh($m['phone'] ?? '') ?>" data-email="<?= zh($m['email'] ?? '') ?>"><?= zh($name) ?><?= !empty($m['member_no'])?' ('.zh($m['member_no']).')':'' ?></option><?php endforeach; ?></select></div>
+        <div class="form-group"><label>Zone Leader</label><select name="leader_member_id" id="leader_member_id" class="form-control"><option value="0">-- Select Leader --</option><?php foreach($members as $m): $name=trim((string)($m['full_name']??'')); ?><option value="<?= (int)$m['id'] ?>" data-phone="<?= zh($m['phone'] ?? '') ?>" data-email="<?= zh($m['email'] ?? '') ?>"><?= zh($name) ?><?= !empty($m['member_no'])?' ('.zh($m['member_no']).')':'' ?></option><?php endforeach; ?></select></div>
         <div class="form-group"><label>Status</label><select name="status" id="zone_status" class="form-control"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></div>
         <div class="form-group"><label>Phone</label><input type="text" name="phone" id="zone_phone" class="form-control" maxlength="50"></div>
         <div class="form-group"><label>Email</label><input type="email" name="email" id="zone_email" class="form-control" maxlength="150"></div>

@@ -39,7 +39,7 @@ if ($action === 'create') {
     if ($linkedMemberId) {
         $personType = 'Member';
         $linkedVisitorId = null;
-        $member = cb_fetch_one($conn, "SELECT id, CONCAT_WS(' ',first_name,last_name) full_name, phone FROM members WHERE id=? LIMIT 1", 'i', [$linkedMemberId]);
+        $member = cb_fetch_one($conn, "SELECT id, full_name, phone FROM members WHERE id=? LIMIT 1", 'i', [$linkedMemberId]);
         if ($member) {
             if ($name === '') $name = trim((string)$member['full_name']);
             if ($phone === '') $phone = trim((string)($member['phone'] ?? ''));

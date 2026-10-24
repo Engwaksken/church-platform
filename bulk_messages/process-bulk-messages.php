@@ -125,11 +125,11 @@ function bm_members(mysqli $conn, string $groupName = 'Member', string $extraWhe
     $where = "WHERE COALESCE(m.status,'Active')='Active'";
     if ($extraWhere !== '') $where .= ' AND ' . $extraWhere;
 
-    $sql = "SELECT CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS name,
+    $sql = "SELECT m.full_name AS name,
                    m.email, m.phone, ? AS group_name
             FROM members m
             {$where}
-            ORDER BY m.first_name, m.last_name";
+            ORDER BY m.full_name";
     return bm_fetch_all($conn, $sql, 's' . $types, array_merge([$groupName], $params));
 }
 
@@ -148,52 +148,52 @@ function bm_recipients(mysqli $conn, string $group, int $zoneId = 0): array {
 
     if ($group === 'youth') {
         if (!bm_table_exists($conn, 'youth') || !bm_table_exists($conn, 'members')) return [];
-        return bm_fetch_all($conn, "SELECT CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS name,
+        return bm_fetch_all($conn, "SELECT m.full_name AS name,
                                             m.email, m.phone, 'Youth' AS group_name
                                      FROM youth y
                                      JOIN members m ON m.id = y.member_id
                                      WHERE COALESCE(y.status,'Active')='Active'
-                                     ORDER BY m.first_name, m.last_name");
+                                     ORDER BY m.full_name");
     }
 
     if ($group === 'mothers_union') {
         if (bm_table_exists($conn, 'mothers_union') && bm_col_exists($conn, 'mothers_union', 'member_id')) {
-            return bm_fetch_all($conn, "SELECT CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS name,
+            return bm_fetch_all($conn, "SELECT m.full_name AS name,
                                                 m.email, m.phone, 'Mothers Union' AS group_name
                                          FROM mothers_union u
                                          JOIN members m ON m.id = u.member_id
                                          WHERE COALESCE(u.status,'Active')='Active'
-                                         ORDER BY m.first_name, m.last_name");
+                                         ORDER BY m.full_name");
         }
         return bm_members($conn, 'Mothers Union', "LOWER(COALESCE(m.gender,'')) IN ('female','f')");
     }
 
     if ($group === 'fathers_union') {
         if (bm_table_exists($conn, 'fathers_union') && bm_col_exists($conn, 'fathers_union', 'member_id')) {
-            return bm_fetch_all($conn, "SELECT CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS name,
+            return bm_fetch_all($conn, "SELECT m.full_name AS name,
                                                 m.email, m.phone, 'Fathers Union' AS group_name
                                          FROM fathers_union u
                                          JOIN members m ON m.id = u.member_id
                                          WHERE COALESCE(u.status,'Active')='Active'
-                                         ORDER BY m.first_name, m.last_name");
+                                         ORDER BY m.full_name");
         }
         return bm_members($conn, 'Fathers Union', "LOWER(COALESCE(m.gender,'')) IN ('male','m')");
     }
 
     if ($group === 'sunday_school_teachers') {
         if (!bm_table_exists($conn, 'sunday_school_classes') || !bm_table_exists($conn, 'members') || !bm_col_exists($conn, 'sunday_school_classes', 'teacher_id')) return [];
-        return bm_fetch_all($conn, "SELECT DISTINCT CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS name,
+        return bm_fetch_all($conn, "SELECT DISTINCT m.full_name AS name,
                                             m.email, m.phone, 'Sunday School Teacher' AS group_name
                                      FROM sunday_school_classes c
                                      JOIN members m ON m.id = c.teacher_id
                                      WHERE c.teacher_id IS NOT NULL
-                                     ORDER BY m.first_name, m.last_name");
+                                     ORDER BY m.full_name");
     }
 
     if ($group === 'sunday_school_parents') {
         if (!bm_table_exists($conn, 'sunday_school_pupils')) return [];
         if (bm_col_exists($conn, 'sunday_school_pupils', 'parent_member_id') && bm_table_exists($conn, 'members')) {
-            $rows = bm_fetch_all($conn, "SELECT DISTINCT COALESCE(NULLIF(p.parent_guardian,''), CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,''))) AS name,
+            $rows = bm_fetch_all($conn, "SELECT DISTINCT COALESCE(NULLIF(p.parent_guardian,''), m.full_name) AS name,
                                                  m.email,
                                                  COALESCE(NULLIF(p.parent_phone,''), m.phone) AS phone,
                                                  'Sunday School Parent' AS group_name

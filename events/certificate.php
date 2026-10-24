@@ -6,7 +6,7 @@ require_permission('events.view');
 require_once __DIR__ . '/certificate-functions.php';
 if (!event_certificate_tables_ready($conn)) { http_response_code(404); exit('Certificate not found.'); }
 $certificateId = (int)($_GET['certificate_id'] ?? 0);
-$stmt = $conn->prepare('SELECT ec.*,e.title event_title,e.event_type,e.event_date,e.venue,e.organizer,m.id member_id,m.first_name,m.last_name,m.member_no FROM event_certificates ec JOIN events e ON e.id=ec.event_id JOIN members m ON m.id=ec.member_id JOIN event_attendance ea ON ea.event_id=ec.event_id AND ea.member_id=ec.member_id AND ea.attended=1 WHERE ec.id=? LIMIT 1');
+$stmt = $conn->prepare('SELECT ec.*,e.title event_title,e.event_type,e.event_date,e.venue,e.organizer,m.id member_id,m.full_name,m.member_no FROM event_certificates ec JOIN events e ON e.id=ec.event_id JOIN members m ON m.id=ec.member_id JOIN event_attendance ea ON ea.event_id=ec.event_id AND ea.member_id=ec.member_id AND ea.attended=1 WHERE ec.id=? LIMIT 1');
 if (!$stmt) { http_response_code(500); exit('Unable to load the certificate.'); }
 $stmt->bind_param('i',$certificateId);$stmt->execute();$certificate=$stmt->get_result()->fetch_assoc();$stmt->close();
 if (!$certificate) { http_response_code(404); exit('Certificate not found.'); }
@@ -19,7 +19,7 @@ $templateSrc = event_certificate_logo_src(event_certificate_setting($conn,'event
 $nameTop = (float)event_certificate_setting($conn,'event_certificate_name_top','52');
 $detailsTop = (float)event_certificate_setting($conn,'event_certificate_details_top','70');
 $certificateName = trim((string)$certificate['certificate_name']) ?: $brand['name'];
-$participant = trim((string)$certificate['first_name'].' '.(string)$certificate['last_name']);
+$participant = trim((string)$certificate['full_name']);
 $eventDate = date('d F Y',strtotime((string)$certificate['event_date']));
 $e = static fn($v): string => htmlspecialchars((string)$v,ENT_QUOTES|ENT_SUBSTITUTE,'UTF-8');
 $isPdf = isset($_GET['pdf']) && $_GET['pdf'] === '1';

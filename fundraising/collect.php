@@ -3,7 +3,7 @@ require_once '../config/config.php'; requireLogin();
 $cid = intval($_GET['id']??0);
 $campaign = fetchOne("SELECT * FROM fundraising WHERE id=$cid");
 if(!$campaign){ setFlash('Campaign not found.','danger'); redirect('index.php'); }
-$members = mysqli_query($conn,"SELECT id,CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) AS full_name,member_no FROM members ORDER BY full_name");
+$members = mysqli_query($conn,"SELECT id,full_name,member_no FROM members ORDER BY full_name");
 if($_SERVER['REQUEST_METHOD']==='POST'){
     $no     = genNo('FRC');
     $mid    = intval($_POST['member_id'])||'NULL';

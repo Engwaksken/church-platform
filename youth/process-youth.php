@@ -227,9 +227,7 @@ function youth_build_select(mysqli $conn): array
     }
 
     if ($hasMembers) {
-        $select[] = "TRIM(CONCAT(COALESCE(m.first_name, ''), ' ', COALESCE(m.last_name, ''))) AS full_name";
-        $select[] = "m.first_name";
-        $select[] = "m.last_name";
+        $select[] = "m.full_name";
         $select[] = youth_col_exists($conn, 'members', 'gender') ? 'm.gender' : "NULL AS gender";
         $select[] = youth_col_exists($conn, 'members', 'phone') ? 'm.phone' : "NULL AS phone";
         $select[] = youth_col_exists($conn, 'members', 'email') ? 'm.email' : "NULL AS email";
@@ -238,8 +236,6 @@ function youth_build_select(mysqli $conn): array
         $select[] = youth_col_exists($conn, 'members', 'occupation') ? 'm.occupation' : "NULL AS occupation";
     } else {
         $select[] = "'' AS full_name";
-        $select[] = "NULL AS first_name";
-        $select[] = "NULL AS last_name";
         $select[] = "NULL AS gender";
         $select[] = "NULL AS phone";
         $select[] = "NULL AS email";
@@ -273,7 +269,7 @@ function youth_fetch_rows(mysqli $conn, string $search = ''): array
                 " . (youth_col_exists($conn, 'youth', 'education_level') ? 'y.education_level' : "''") . ",
                 " . (youth_col_exists($conn, 'youth', 'school_or_work') ? 'y.school_or_work' : "''") . ",
                 " . (youth_col_exists($conn, 'youth', 'status') ? 'y.status' : "''") . ",
-                " . ($join ? "m.first_name, m.last_name, m.phone, m.email, m.gender" : "''") . "
+                " . ($join ? "m.full_name, m.phone, m.email, m.gender" : "''") . "
             ) LIKE ?
         ";
         $types = 's';
@@ -352,7 +348,7 @@ function youth_filter_parts(
             " . (youth_col_exists($conn, 'youth', 'education_level') ? 'y.education_level' : "''") . ",
             " . (youth_col_exists($conn, 'youth', 'school_or_work') ? 'y.school_or_work' : "''") . ",
             " . (youth_col_exists($conn, 'youth', 'status') ? 'y.status' : "''") . ",
-            " . (youth_table_exists($conn, 'members') ? "m.first_name, m.last_name, m.phone, m.email, m.gender" : "''") . "
+            " . (youth_table_exists($conn, 'members') ? "m.full_name, m.phone, m.email, m.gender" : "''") . "
         ) LIKE ?";
         $types .= 's';
         $params[] = '%' . $search . '%';

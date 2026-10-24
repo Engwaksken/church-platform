@@ -2,7 +2,7 @@
 require_once '../config/config.php';
 requireLogin();
 $id=(int)($_GET['id']??0);
-$row=fetchOne("SELECT mu.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) full_name, m.member_no, m.phone FROM fathers_union mu JOIN members m ON m.id=mu.member_id WHERE mu.id=$id");
+$row=fetchOne("SELECT mu.*, m.full_name, m.member_no, m.phone FROM fathers_union mu JOIN members m ON m.id=mu.member_id WHERE mu.id=$id");
 if(!$row){ die('Receipt record not found.'); }
 $autoload = __DIR__.'/../vendor/autoload.php';
 if(!file_exists($autoload)) $autoload = dirname(__DIR__).'/vendor/autoload.php';

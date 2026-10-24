@@ -80,7 +80,7 @@ function tg_gen_receipt(mysqli $conn): string
 
 function tg_fetch_one(mysqli $conn, int $id): ?array
 {
-    $sql = "SELECT t.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS member_name, m.member_no, m.phone, m.email
+    $sql = "SELECT t.*, m.full_name AS member_name, m.member_no, m.phone, m.email
             FROM thanksgiving t
             LEFT JOIN members m ON m.id = t.member_id
             WHERE t.id = ? LIMIT 1";
@@ -112,7 +112,7 @@ try {
         if ($from === '') $from = date('Y-m-01');
         if ($to === '') $to = date('Y-m-d');
 
-        $sql = "SELECT t.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS member_name, m.member_no
+        $sql = "SELECT t.*, m.full_name AS member_name, m.member_no
                 FROM thanksgiving t
                 LEFT JOIN members m ON m.id = t.member_id
                 WHERE t.thanksgiving_date BETWEEN ? AND ?
@@ -150,10 +150,9 @@ try {
 
     if ($action === 'members') {
         if (!tg_table_exists($conn, 'members')) tg_json(true, '', ['items' => []]);
-        $res = $conn->query("SELECT id, member_no, first_name, last_name, phone FROM members ORDER BY first_name, last_name");
+        $res = $conn->query("SELECT id, member_no, full_name, phone FROM members ORDER BY full_name");
         $items = [];
         while ($row = $res->fetch_assoc()) {
-            $row['full_name'] = trim(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? ''));
             $items[] = $row;
         }
         tg_json(true, '', ['items' => $items]);

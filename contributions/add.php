@@ -2,7 +2,7 @@
 require_once '../config/config.php';
 requireLogin();
 $projects = mysqli_query($conn,"SELECT id,name FROM projects WHERE status='Active' ORDER BY name");
-$members  = mysqli_query($conn,"SELECT id, CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')) AS full_name,member_no FROM members ORDER BY first_name");
+$members  = mysqli_query($conn,"SELECT id, full_name,member_no FROM members ORDER BY full_name");
 if($_SERVER['REQUEST_METHOD']==='POST'){
     $receipt = genNo('RCP');
     $member_id = intval($_POST['member_id']);

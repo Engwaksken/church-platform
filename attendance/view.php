@@ -8,14 +8,14 @@ $type = san($_GET['type'] ?? '');
 $records = mysqli_query($conn, "
     SELECT 
         a.*,
-        CONCAT(m.first_name, ' ', m.last_name) AS member_name,
+        m.full_name AS member_name,
         m.member_no,
         m.department
     FROM attendance a
     JOIN members m ON m.id = a.member_id
     WHERE a.service_date = '$date'
     AND a.service_type = '$type'
-    ORDER BY a.status DESC, m.first_name ASC, m.last_name ASC
+    ORDER BY a.status DESC, m.full_name ASC
 ");
 
 $total = numRows("

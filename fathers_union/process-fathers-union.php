@@ -138,7 +138,7 @@ function fu_gen_no(mysqli $conn): string
 function fu_fetch(mysqli $conn, int $id): ?array
 {
     $stmt = $conn->prepare(
-        "SELECT f.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS full_name,
+        "SELECT f.*, m.full_name AS full_name,
                 m.member_no, m.phone, m.email
          FROM fathers_union f
          LEFT JOIN members m ON m.id = f.member_id
@@ -182,12 +182,12 @@ function fu_fetch_all_for_export(mysqli $conn, string $status = ''): array
         $types  = 's';
     }
     $sql = "SELECT f.fu_no, f.position, f.date_joined, f.subscription, f.status, f.notes,
-                   TRIM(CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,''))) AS full_name,
+                   m.full_name AS full_name,
                    m.member_no, m.phone, m.email
             FROM fathers_union f
             LEFT JOIN members m ON m.id = f.member_id
             $where
-            ORDER BY m.first_name, m.last_name, f.id";
+            ORDER BY m.full_name, f.id";
     $stmt = $conn->prepare($sql);
     if (!$stmt) return [];
     if ($types !== '') $stmt->bind_param($types, ...$params);
@@ -436,7 +436,7 @@ try {
         $period=trim((string)($_GET['period']??'')); $dateFrom=trim((string)($_GET['date_from']??'')); $dateTo=trim((string)($_GET['date_to']??''));
         $page=max(1,(int)($_GET['page']??1)); $perPage=(int)($_GET['per_page']??25); if(!in_array($perPage,[10,25,50,100],true))$perPage=25;
         $where=['1=1'];
-        if($search!==''){$q='%'.$conn->real_escape_string($search).'%';$where[]="(f.fu_no LIKE '$q' OR f.position LIKE '$q' OR f.status LIKE '$q' OR m.member_no LIKE '$q' OR m.phone LIKE '$q' OR m.email LIKE '$q' OR CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) LIKE '$q')";}
+        if($search!==''){$q='%'.$conn->real_escape_string($search).'%';$where[]="(f.fu_no LIKE '$q' OR f.position LIKE '$q' OR f.status LIKE '$q' OR m.member_no LIKE '$q' OR m.phone LIKE '$q' OR m.email LIKE '$q' OR m.full_name LIKE '$q')";}
         if($position!=='')$where[]="f.position='".$conn->real_escape_string($position)."'";
         if($status!=='')$where[]="COALESCE(f.status,'Active')='".$conn->real_escape_string($status)."'";
         if($period==='daily')$where[]="f.date_joined=CURDATE()";
@@ -444,7 +444,7 @@ try {
         elseif($period==='range'){if(preg_match('/^\d{4}-\d{2}-\d{2}$/',$dateFrom))$where[]="f.date_joined>='".$conn->real_escape_string($dateFrom)."'";if(preg_match('/^\d{4}-\d{2}-\d{2}$/',$dateTo))$where[]="f.date_joined<='".$conn->real_escape_string($dateTo)."'";}
         $whereSql=implode(' AND ',$where); $cr=$conn->query("SELECT COUNT(*) total FROM fathers_union f LEFT JOIN members m ON m.id=f.member_id WHERE $whereSql"); $total=(int)(($cr?$cr->fetch_assoc():[])['total']??0);
         $pages=max(1,(int)ceil($total/$perPage)); if($page>$pages)$page=$pages; $offset=($page-1)*$perPage;
-        $sql="SELECT f.*,TRIM(CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,''))) full_name,m.member_no,m.phone,m.email FROM fathers_union f LEFT JOIN members m ON m.id=f.member_id WHERE $whereSql ORDER BY f.date_joined DESC,f.id DESC LIMIT $perPage OFFSET $offset";
+        $sql="SELECT f.*,m.full_name,m.member_no,m.phone,m.email FROM fathers_union f LEFT JOIN members m ON m.id=f.member_id WHERE $whereSql ORDER BY f.date_joined DESC,f.id DESC LIMIT $perPage OFFSET $offset";
         $items=[];$res=$conn->query($sql);while($res&&$row=$res->fetch_assoc())$items[]=$row;
         $pagination=['page'=>$page,'per_page'=>$perPage,'total'=>$total,'pages'=>$pages,'from'=>$total?$offset+1:0,'to'=>min($offset+$perPage,$total)]; fu_out(['success'=>true,'items'=>$items,'pagination'=>$pagination]);
     }

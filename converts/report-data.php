@@ -16,7 +16,7 @@ if (!function_exists('cn_report_rows')) {
         $params = [];
 
         if ($q !== '') {
-            $where[] = "(c.full_name LIKE ? OR c.phone LIKE ? OR c.email LIKE ? OR c.conversion_context LIKE ? OR c.decision_type LIKE ? OR CONCAT_WS(' ',am.first_name,am.last_name) LIKE ?)";
+            $where[] = "(c.full_name LIKE ? OR c.phone LIKE ? OR c.email LIKE ? OR c.conversion_context LIKE ? OR c.decision_type LIKE ? OR am.full_name LIKE ?)";
             $like = "%{$q}%";
             for ($i=0; $i<6; $i++) { $params[] = $like; $types .= 's'; }
         }
@@ -39,9 +39,9 @@ if (!function_exists('cn_report_rows')) {
         return cb_fetch_all(
             $conn,
             "SELECT c.*,
-                    CONCAT_WS(' ',am.first_name,am.last_name) assigned_member_name,
+                    am.full_name assigned_member_name,
                     am.member_no assigned_member_no,
-                    CONCAT_WS(' ',lm.first_name,lm.last_name) linked_member_name,
+                    lm.full_name linked_member_name,
                     lm.member_no linked_member_no,
                     v.full_name linked_visitor_name,
                     (SELECT COUNT(*) FROM church_convert_followups f WHERE f.convert_id=c.id) followup_count,
@@ -73,7 +73,7 @@ if (!function_exists('cn_report_filter_text')) {
         if ($type !== '') $parts[] = 'Type: ' . $type;
         if ($status !== '') $parts[] = 'Status: ' . $status;
         if ($assigned > 0) {
-            $row = cb_fetch_one($conn, "SELECT CONCAT_WS(' ',first_name,last_name) full_name FROM members WHERE id=? LIMIT 1", 'i', [$assigned]);
+            $row = cb_fetch_one($conn, "SELECT full_name FROM members WHERE id=? LIMIT 1", 'i', [$assigned]);
             if ($row) $parts[] = 'Assigned to: ' . trim((string)$row['full_name']);
         }
         if ($from !== '') $parts[] = 'From: ' . $from;

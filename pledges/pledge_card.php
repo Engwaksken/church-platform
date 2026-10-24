@@ -5,7 +5,7 @@ requireLogin();
 $id = intval($_GET['id'] ?? 0);
 if ($id <= 0) { die('Invalid pledge ID.'); }
 
-$pledge = fetchOne("SELECT p.*, CONCAT(COALESCE(m.first_name,''),' ',COALESCE(m.last_name,'')) AS full_name,
+$pledge = fetchOne("SELECT p.*, m.full_name AS full_name,
                            m.member_no, m.phone, m.email, pr.name AS project_name
                     FROM pledges p
                     LEFT JOIN members m ON m.id = p.member_id
