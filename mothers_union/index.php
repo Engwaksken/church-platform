@@ -140,14 +140,18 @@ $positions = ['Member','Chairperson','Vice Chairperson','Secretary','Treasurer',
     <!-- -- Table card ----------------------------------------- -->
     <div class="card module-card">
         <div class="card-body">
-            <div class="module-toolbar union-filter-toolbar">
-<div class="module-search-box"><i class="fas fa-search"></i><input type="search" id="muSearch" class="form-control" placeholder="Search name, number, phone..."></div>
+            <div class="page-toolbar">
+<div class="page-toolbar-search"><i class="fas fa-search"></i><input type="search" id="muSearch" class="form-control" placeholder="Search name, number, phone..."></div>
+<div class="page-toolbar-filters">
 <select id="muPositionFilter" class="form-control"><option value="">All Positions</option><option value="Member">Member</option><option value="Chairperson">Chairperson</option><option value="Vice Chairperson">Vice Chairperson</option><option value="Secretary">Secretary</option><option value="Treasurer">Treasurer</option><option value="Chaplain">Chaplain</option><option value="Prayer Leader">Prayer Leader</option></select>
 <select id="muStatusFilter" class="form-control"><option value="">All Statuses</option><option>Active</option><option>Inactive</option><option>Suspended</option></select>
 <select id="muPeriodFilter" class="form-control"><option value="">All Dates</option><option value="daily">Today</option><option value="weekly">This Week</option><option value="range">Custom Range</option></select>
 <select id="muPerPage" class="form-control"><option value="10">10 per page</option><option value="25" selected>25 per page</option><option value="50">50 per page</option><option value="100">100 per page</option></select>
-<button type="button" class="btn btn-outline" id="muClearFilters"><i class="fas fa-undo"></i> Clear</button>
-<button type="button" class="btn btn-outline" id="btnRefreshMU"><i class="fas fa-sync-alt"></i> Refresh</button>
+</div>
+<div class="page-toolbar-actions">
+<button type="button" class="btn btn-outline-secondary" id="muClearFilters"><i class="fas fa-undo"></i> Clear</button>
+<button type="button" class="btn btn-outline-primary page-toolbar-refresh" id="btnRefreshMU"><i class="fas fa-rotate-right"></i> Refresh</button>
+</div>
 </div>
 <div class="union-date-range" id="muDateRange" hidden><label>From<input type="date" id="muDateFrom" class="form-control"></label><label>To<input type="date" id="muDateTo" class="form-control"></label><button type="button" class="btn btn-primary" id="muApplyRange"><i class="fas fa-filter"></i> Apply Range</button></div>
 <div id="muAlert" class="ajax-alert"></div>
@@ -443,7 +447,7 @@ $positions = ['Member','Chairperson','Vice Chairperson','Secretary','Treasurer',
 </style>
 
 <style>
-.union-filter-toolbar{display:grid;grid-template-columns:minmax(220px,1.6fr) repeat(4,minmax(125px,.8fr)) auto auto;gap:10px;align-items:center}.union-filter-toolbar>*{min-width:0;width:100%;margin:0}.union-filter-toolbar .btn{white-space:nowrap;justify-content:center}.union-date-range{display:flex;gap:10px;align-items:end;flex-wrap:wrap;padding:12px 0}.union-date-range[hidden]{display:none!important}.union-date-range label{display:grid;gap:5px;font-size:12px;font-weight:700}.union-pagination-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 0 2px}.union-pagination-summary{color:var(--text-muted,#64748b);font-size:12px}.union-pagination{display:flex;gap:6px;flex-wrap:wrap}.union-pagination button{min-width:36px;height:36px;border:1px solid var(--border,#dbe1ea);border-radius:8px;background:#fff;cursor:pointer}.union-pagination button.active{background:var(--primary,#4a1e8f);color:#fff;border-color:var(--primary,#4a1e8f)}.union-pagination button:disabled{opacity:.5;cursor:not-allowed}@media(max-width:1200px){.union-filter-toolbar{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:767px){.union-filter-toolbar{grid-template-columns:1fr}}
+.union-date-range{display:flex;gap:10px;align-items:end;flex-wrap:wrap;padding:12px 0}.union-date-range[hidden]{display:none!important}.union-date-range label{display:grid;gap:5px;font-size:12px;font-weight:700}.union-pagination-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 0 2px}.union-pagination-summary{color:var(--text-muted,#64748b);font-size:12px}.union-pagination{display:flex;gap:6px;flex-wrap:wrap}.union-pagination button{min-width:36px;height:36px;border:1px solid var(--border,#dbe1ea);border-radius:8px;background:#fff;cursor:pointer}.union-pagination button.active{background:var(--primary,#4a1e8f);color:#fff;border-color:var(--primary,#4a1e8f)}.union-pagination button:disabled{opacity:.5;cursor:not-allowed}
 </style>
 <script>
 window.MothersUnionConfig = {

@@ -56,11 +56,13 @@ $csrfToken = $_SESSION['csrf_token'] ?? $_SESSION['csrf'] ?? '';
 
 <div class="card">
   <div class="card-body">
-    <div class="attendance-toolbar attendance-filter-toolbar">
-      <div class="attendance-search">
+    <div class="page-toolbar">
+      <div class="page-toolbar-search">
+        <i class="fas fa-search"></i>
         <input type="search" id="attendanceSearch" placeholder="Search by date, service type or notes...">
       </div>
 
+      <div class="page-toolbar-filters">
       <select id="attendancePeriod" class="form-control" aria-label="Attendance period">
         <option value="all">All periods</option>
         <option value="daily">Today</option>
@@ -80,14 +82,13 @@ $csrfToken = $_SESSION['csrf_token'] ?? $_SESSION['csrf'] ?? '';
         <option value="50">50 per page</option>
         <option value="100">100 per page</option>
       </select>
+      </div>
 
-      <button type="button" class="btn btn-outline" id="btnClearAttendanceFilters">
-        <i class="fas fa-rotate-left"></i> Clear
-      </button>
-
-      <button type="button" class="btn btn-outline" id="btnRefreshAttendance">
-        <i class="fas fa-sync-alt"></i> Refresh
-      </button>
+      <div class="page-toolbar-actions">
+        <button type="button" class="btn btn-outline-primary page-toolbar-refresh" id="btnRefreshAttendance">
+          <i class="fas fa-rotate-right"></i> Refresh
+        </button>
+      </div>
     </div>
     <div id="attendanceAlert" class="attendance-alert"></div>
     <div class="table-responsive">
@@ -277,9 +278,7 @@ $csrfToken = $_SESSION['csrf_token'] ?? $_SESSION['csrf'] ?? '';
 @media(max-width:950px){.attendance-stats-grid,.attendance-members-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.attendance-form-grid,.attendance-view-stats{grid-template-columns:1fr 1fr}}
 @media(max-width:620px){.attendance-stats-grid,.attendance-members-grid,.attendance-form-grid,.attendance-view-stats{grid-template-columns:1fr}.attendance-search,.attendance-member-actions input{min-width:100%;max-width:100%;width:100%}.attendance-member-actions{width:100%}.attendance-header-actions{width:100%}.attendance-header-actions .btn{flex:1}}
 
-.attendance-filter-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) 170px minmax(280px,auto) 145px auto auto;gap:10px;align-items:center}
-.attendance-filter-toolbar .form-control,.attendance-filter-toolbar input,.attendance-filter-toolbar select{width:100%;min-width:0}
-.attendance-date-range{display:flex;align-items:center;gap:8px;min-width:280px}
+.page-toolbar-filters>.attendance-date-range{display:flex;align-items:center;gap:8px;flex:0 1 300px;min-width:280px}
 .attendance-date-range[hidden]{display:none!important}
 .attendance-date-range span{color:#64748b;font-size:13px;white-space:nowrap}
 .attendance-pagination-wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 16px;border-top:1px solid #e5e7eb;background:#fff}
@@ -289,9 +288,8 @@ $csrfToken = $_SESSION['csrf_token'] ?? $_SESSION['csrf'] ?? '';
 .attendance-page-btn:hover:not(:disabled){border-color:var(--primary,#4a1e8f);color:var(--primary,#4a1e8f)}
 .attendance-page-btn.active{border-color:var(--primary,#4a1e8f);background:var(--primary,#4a1e8f);color:#fff}
 .attendance-page-btn:disabled{opacity:.5;cursor:not-allowed}
-@media(max-width:1200px){.attendance-filter-toolbar{grid-template-columns:minmax(220px,1fr) 160px minmax(260px,1fr) 140px}.attendance-filter-toolbar .btn{width:100%}}
-@media(max-width:780px){.attendance-filter-toolbar{grid-template-columns:1fr 1fr}.attendance-date-range{grid-column:1/-1;min-width:0}.attendance-filter-toolbar .attendance-search{grid-column:1/-1}.attendance-pagination-wrap{align-items:flex-start;flex-direction:column}}
-@media(max-width:520px){.attendance-filter-toolbar{grid-template-columns:1fr}.attendance-filter-toolbar .attendance-search,.attendance-date-range{grid-column:auto}.attendance-date-range{flex-direction:column;align-items:stretch}.attendance-date-range span{text-align:center}.attendance-pagination{width:100%;justify-content:center}}
+@media(max-width:780px){.page-toolbar-filters>.attendance-date-range{grid-column:1/-1;min-width:0}.attendance-pagination-wrap{align-items:flex-start;flex-direction:column}}
+@media(max-width:520px){.attendance-date-range{flex-direction:column;align-items:stretch}.attendance-date-range span{text-align:center}.attendance-pagination{width:100%;justify-content:center}}
 
 </style>
 
@@ -498,7 +496,6 @@ $csrfToken = $_SESSION['csrf_token'] ?? $_SESSION['csrf'] ?? '';
   }
 
   qs('#btnOpenMarkAttendance').addEventListener('click',()=>openMark().catch(err=>showAlert(qs('#attendanceAlert'),err.message,'error')));
-  qs('#btnRefreshAttendance').addEventListener('click',()=>loadSessions(false).catch(err=>showAlert(qs('#attendanceAlert'),err.message,'error')));
 
   let attendanceSearchTimer;
   qs('#attendanceSearch').addEventListener('input',()=>{
@@ -529,7 +526,7 @@ $csrfToken = $_SESSION['csrf_token'] ?? $_SESSION['csrf'] ?? '';
     loadSessions(true).catch(err=>showAlert(qs('#attendanceAlert'),err.message,'error'));
   });
 
-  qs('#btnClearAttendanceFilters').addEventListener('click',()=>{
+  qs('#btnRefreshAttendance').addEventListener('click',()=>{
     qs('#attendanceSearch').value='';
     qs('#attendancePeriod').value='all';
     qs('#attendanceDateFrom').value='';

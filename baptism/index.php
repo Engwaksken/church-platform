@@ -83,12 +83,9 @@ foreach ($members as $m) {
 
 <link rel="stylesheet" href="../assets/css/baptism.css?v=<?= urlencode((string)@filemtime(__DIR__ . '/../assets/css/baptism.css')) ?>">
 <style>
-.baptism-filter-toolbar{display:grid;grid-template-columns:minmax(260px,1fr) 170px 160px auto 140px auto;gap:10px;align-items:center}
-.baptism-search-box{min-width:0}
-.baptism-range-fields{display:flex;align-items:center;gap:8px;min-width:280px}
+.page-toolbar-filters>.baptism-range-fields{display:flex;align-items:center;gap:8px;flex:0 1 300px;min-width:280px}
 .baptism-range-fields[hidden]{display:none!important}
 .baptism-range-separator{color:var(--text-muted);font-size:12px;font-weight:700}
-.baptism-filter-actions{display:flex;gap:8px;justify-content:flex-end}
 .baptism-pagination-bar{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 0 0;border-top:1px solid var(--border);margin-top:14px}
 .baptism-pagination-summary{color:var(--text-muted);font-size:12px}
 .baptism-pagination{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
@@ -97,9 +94,8 @@ foreach ($members as $m) {
 .baptism-page-btn.active{border-color:var(--primary);background:var(--primary);color:#fff}
 .baptism-page-btn:disabled{opacity:.45;cursor:not-allowed}
 .baptism-page-ellipsis{display:inline-grid;place-items:center;min-width:30px;height:36px;color:var(--text-muted)}
-@media(max-width:1200px){.baptism-filter-toolbar{grid-template-columns:minmax(240px,1fr) repeat(3,minmax(140px,auto))}.baptism-range-fields,.baptism-filter-actions{grid-column:1/-1}.baptism-filter-actions{justify-content:flex-start}}
-@media(max-width:767px){.baptism-filter-toolbar{grid-template-columns:1fr}.baptism-range-fields,.baptism-filter-actions{grid-column:auto;width:100%}.baptism-range-fields{min-width:0}.baptism-range-fields input{min-width:0}.baptism-filter-actions .btn{flex:1;justify-content:center}.baptism-pagination-bar{align-items:flex-start;flex-direction:column}.baptism-pagination{justify-content:flex-start}}
-@media(max-width:480px){.baptism-range-fields{display:grid;grid-template-columns:1fr}.baptism-range-separator{text-align:center}.baptism-filter-actions{flex-direction:column}.baptism-filter-actions .btn{width:100%}}
+@media(max-width:767px){.page-toolbar-filters>.baptism-range-fields{grid-column:1/-1;min-width:0}.baptism-range-fields input{min-width:0}.baptism-pagination-bar{align-items:flex-start;flex-direction:column}.baptism-pagination{justify-content:flex-start}}
+@media(max-width:480px){.page-toolbar-filters>.baptism-range-fields{display:grid;grid-template-columns:1fr}.baptism-range-separator{text-align:center}}
 </style>
 
 <div class="main-content">
@@ -200,12 +196,13 @@ foreach ($members as $m) {
 
 <div class="card module-card">
     <div class="card-body">
-        <div class="module-toolbar baptism-filter-toolbar">
-            <div class="module-search-box baptism-search-box">
+        <div class="page-toolbar">
+            <div class="page-toolbar-search">
                 <i class="fas fa-search"></i>
                 <input type="search" id="baptismSearch" class="form-control" placeholder="Search candidate, number, officiant, venue...">
             </div>
 
+            <div class="page-toolbar-filters">
             <select id="typeFilter" class="form-control baptism-type-filter" aria-label="Filter by baptism type">
                 <option value="">All Types</option>
                 <option value="Infant">Infant</option>
@@ -234,12 +231,11 @@ foreach ($members as $m) {
                 <option value="100">100 per page</option>
             </select>
 
-            <div class="baptism-filter-actions">
-                <button type="button" class="btn btn-outline" id="btnClearBaptismFilters">
-                    <i class="fas fa-rotate-left"></i> Clear
-                </button>
-                <button type="button" class="btn btn-outline" id="btnRefreshBaptism">
-                    <i class="fas fa-sync-alt"></i> Refresh
+            </div>
+
+            <div class="page-toolbar-actions">
+                <button type="button" class="btn btn-outline-primary page-toolbar-refresh" id="btnRefreshBaptism">
+                    <i class="fas fa-rotate-right"></i> Refresh
                 </button>
             </div>
         </div>
@@ -1332,7 +1328,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    $('#btnRefreshBaptism')?.addEventListener('click', loadBaptisms);
     $('#baptismSearch')?.addEventListener('input', function () {
         window.clearTimeout(searchTimer);
         searchTimer = window.setTimeout(function () {
@@ -1365,10 +1360,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     $('#btnRefreshBaptism')?.addEventListener('click', function () {
-        loadBaptisms(false);
-    });
-
-    $('#btnClearBaptismFilters')?.addEventListener('click', function () {
         if ($('#baptismSearch')) $('#baptismSearch').value = '';
         if ($('#typeFilter')) $('#typeFilter').value = '';
         if ($('#periodFilter')) $('#periodFilter').value = 'all';

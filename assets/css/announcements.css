@@ -59,49 +59,6 @@
 }
 
 /* ---------------------------------------------------------
-   Toolbar and filters
-   --------------------------------------------------------- */
-.announcements-toolbar {
-    display: grid;
-    grid-template-columns: minmax(260px, 1fr) 180px 180px auto;
-    gap: 10px;
-    align-items: center;
-    padding: 16px 18px;
-    border-bottom: 1px solid var(--border, #e5e7eb);
-    background: var(--surface, #ffffff);
-}
-
-.announcements-toolbar .form-control,
-.announcements-toolbar select,
-.announcements-toolbar input {
-    width: 100%;
-    min-width: 0;
-}
-
-.announcements-search {
-    position: relative;
-    min-width: 0;
-}
-
-.announcements-search i {
-    position: absolute;
-    top: 50%;
-    left: 13px;
-    z-index: 1;
-    color: var(--text-muted, #64748b);
-    pointer-events: none;
-    transform: translateY(-50%);
-}
-
-.announcements-search input {
-    padding-left: 40px;
-}
-
-.announcements-toolbar .btn {
-    white-space: nowrap;
-}
-
-/* ---------------------------------------------------------
    Announcements table
    --------------------------------------------------------- */
 .announcements-table {
@@ -588,15 +545,6 @@ body.cms-modal-open {
     .announcements-stats {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
-
-    .announcements-toolbar {
-        grid-template-columns: minmax(240px, 1fr) repeat(2, 170px);
-    }
-
-    .announcements-toolbar .btn {
-        grid-column: 1 / -1;
-        justify-self: end;
-    }
 }
 
 @media (max-width: 900px) {
@@ -612,18 +560,6 @@ body.cms-modal-open {
 @media (max-width: 767px) {
     .announcements-stats {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .announcements-toolbar {
-        grid-template-columns: 1fr;
-        padding: 14px;
-    }
-
-    .announcements-toolbar .btn {
-        grid-column: auto;
-        width: 100%;
-        justify-self: stretch;
-        justify-content: center;
     }
 
     .announcements-result-count {

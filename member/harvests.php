@@ -33,12 +33,10 @@ require_once __DIR__ . '/../includes/sidebar.php';
   </div>
   <?php endforeach; ?>
 </div>
+<div class="page-toolbar"><div class="page-toolbar-search"><i class="fas fa-search"></i><input type="search" data-member-search placeholder="Search harvests..." aria-label="Search harvests"></div><div class="page-toolbar-filters"><select data-member-filter="type" aria-label="Category"><option value="">All Categories</option><option>General</option><option>Zone</option><option>Sunday School</option></select><input type="number" name="year" value="<?=$year?>" min="2000" max="2100" form="memberHarvestYearForm" title="Year" aria-label="Year"></div><div class="page-toolbar-actions"><form method="get" id="memberHarvestYearForm" hidden></form><button type="submit" form="memberHarvestYearForm" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button><a class="btn btn-outline-primary page-toolbar-refresh" href="harvests.php"><i class="fas fa-rotate-right"></i> Refresh</a></div></div>
 <div class="member-module-card">
   <div class="member-module-card-head"><h3><i class="fas fa-seedling"></i> Church Harvests</h3><span class="member-module-count"><?= count($rows) ?> records</span></div>
   <div class="member-module-body">
-    <div class="member-module-toolbar"><div class="member-module-search"><i class="fas fa-search"></i><input class="form-control" data-member-search placeholder="Search harvests..."></div>
-<select class="form-control" data-member-filter="type"><option value="">All Categories</option><option>General</option><option>Zone</option><option>Sunday School</option></select>
-<form method="get"><input class="form-control" type="number" name="year" value="<?=$year?>" min="2000" max="2100"></form></div>
     <div class="member-module-table-wrap">
       <table class="member-module-table"><thead><tr><th>#</th><th>Category</th><th>Zone</th><th>Target</th><th>Collected</th><th>Progress</th><th>Date</th><th>Status</th><th>Action</th></tr></thead><tbody>
       <?php if(!$rows):?><tr><td colspan="9"><div class="member-empty"><i class="fas fa-seedling"></i>No harvest records are available for <?=$year?>.</div></td></tr><?php else:foreach($rows as $i=>$r):$p=$r['target_amount']>0?min(100,round(((float)$r['collected_amount']/(float)$r['target_amount'])*100,1)):0;$record=['category'=>$r['harvest_type']??'','zone'=>$r['zone_name']??'','target'=>'UGX '.mp_money((float)($r['target_amount']??0),0),'collected'=>'UGX '.mp_money((float)($r['collected_amount']??0),0),'progress'=>$p.'%','date'=>mp_date($r['harvest_date']??''),'status'=>$r['status']??'','notes'=>$r['notes']??''];

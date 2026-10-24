@@ -36,14 +36,17 @@ include '../includes/sidebar.php';
 
 <div class="card">
   <div class="card-body">
-    <div class="module-toolbar">
-      <div class="d-flex gap-2 flex-wrap">
+    <div class="page-toolbar">
+      <div class="page-toolbar-search"><i class="fas fa-search"></i><input type="text" class="form-control" id="pledgeSearch" placeholder="Search pledge, member, project..."></div>
+      <div class="page-toolbar-filters">
+      <div class="d-flex gap-2 flex-wrap" style="flex:0 0 auto;min-width:0" role="group" aria-label="Pledge status">
         <button type="button" class="btn btn-sm btn-primary pledge-filter" data-status="">All</button>
         <?php foreach(['Pending','Partial','Fulfilled','Cancelled'] as $s): ?>
           <button type="button" class="btn btn-sm btn-outline pledge-filter" data-status="<?= ph($s) ?>"><?= ph($s) ?></button>
         <?php endforeach; ?>
       </div>
-      <input type="text" class="form-control" id="pledgeSearch" placeholder="Search pledge, member, project...">
+      </div>
+      <div class="page-toolbar-actions"><button type="button" class="btn btn-outline-primary page-toolbar-refresh" id="btnRefreshPledges"><i class="fas fa-rotate-right"></i> Refresh</button></div>
     </div>
     <div id="pageAlert" class="ajax-alert"></div>
     <div class="table-responsive">
@@ -121,7 +124,7 @@ async function openView(id){ const d=await req(cfg.endpoint+'?action=get&id='+en
 async function openEdit(id){ const d=await req(cfg.endpoint+'?action=get&id='+encodeURIComponent(id)); if(!d.success) return alertBox(qs('#pageAlert'),d.message||'Not found','error'); const p=d.item; resetForm(); qs('#pledgeId').value=p.id; qs('#member_id').value=p.member_id||''; qs('#project_id').value=p.project_id||''; qs('#pledge_reason').value=p.pledge_reason||''; qs('#amount_pledged').value=p.amount_pledged||''; qs('#pledge_date').value=p.pledge_date||''; qs('#due_date').value=p.due_date||''; qs('#status').value=p.status||'Pending'; qs('#notes').value=p.notes||''; qs('#pledgeFormTitle').innerHTML='<i class="fas fa-edit"></i> Edit Pledge'; openModal('#pledgeFormModal'); }
 qs('#btnAddPledge').addEventListener('click',()=>{resetForm();openModal('#pledgeFormModal');});
 qs('#pledgeBackdrop').addEventListener('click',closeModals); qsa('[data-close-pledge]').forEach(b=>b.addEventListener('click',closeModals)); document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModals();});
-qs('#pledgeSearch').addEventListener('input',applySearch); qsa('.pledge-filter').forEach(b=>b.addEventListener('click',()=>{currentStatus=b.dataset.status||''; load().catch(err=>alertBox(qs('#pageAlert'),err.message,'error'));}));
+qs('#pledgeSearch').addEventListener('input',applySearch); qs('#btnRefreshPledges').addEventListener('click',()=>{qs('#pledgeSearch').value=''; currentStatus=''; load().catch(err=>alertBox(qs('#pageAlert'),err.message,'error'));}); qsa('.pledge-filter').forEach(b=>b.addEventListener('click',()=>{currentStatus=b.dataset.status||''; load().catch(err=>alertBox(qs('#pageAlert'),err.message,'error'));}));
 document.addEventListener('click',e=>{ const b=e.target.closest('[data-action]'); if(!b)return; const a=b.dataset.action,id=b.dataset.id; if(a==='view')openView(id).catch(err=>alertBox(qs('#pageAlert'),err.message,'error')); if(a==='edit')openEdit(id).catch(err=>alertBox(qs('#pageAlert'),err.message,'error')); if(a==='pay'){ qs('#payForm').reset(); qs('#payPledgeId').value=id; qs('#payAmount').max=b.dataset.balance||''; qs('#paySummary').textContent='Pledge: '+(b.dataset.name||'')+' | Balance: '+money(b.dataset.balance||0); clearAlert(qs('#payAlert')); openModal('#pledgePayModal'); } if(a==='delete'){ qs('#deleteId').value=id; qs('#deleteName').textContent=b.dataset.name||'this pledge'; clearAlert(qs('#deleteAlert')); openModal('#pledgeDeleteModal'); } if(a==='email_receipt'){ const fd=new FormData(); fd.append('action','send_receipt'); fd.append('payment_id',b.dataset.paymentId); req(cfg.endpoint,{method:'POST',body:fd}).then(d=>alertBox(qs('#pageAlert'),d.message,d.success?'success':'error')).catch(err=>alertBox(qs('#pageAlert'),err.message,'error')); }});
 qs('#pledgeForm').addEventListener('submit',async e=>{e.preventDefault(); try{const d=await post(e.currentTarget); if(!d.success)return alertBox(qs('#formAlert'),d.message,'error'); closeModals(); alertBox(qs('#pageAlert'),d.message); await load();}catch(err){alertBox(qs('#formAlert'),err.message,'error');}});
 qs('#payForm').addEventListener('submit',async e=>{e.preventDefault(); try{const d=await post(e.currentTarget); if(!d.success)return alertBox(qs('#payAlert'),d.message,'error'); closeModals(); const link=d.payment_id?` <a href="receipt.php?payment_id=${Number(d.payment_id)}" target="_blank">Open receipt</a>`:''; alertBox(qs('#pageAlert'),(d.message||'Payment saved')+link); await load();}catch(err){alertBox(qs('#payAlert'),err.message,'error');}});

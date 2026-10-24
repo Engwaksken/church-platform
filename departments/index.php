@@ -127,14 +127,17 @@ if ($hasMembers) {
         <div class="card module-card">
             <div class="card-body">
 
-                <div class="dept-toolbar">
-                    <div class="dept-search">
+                <div class="page-toolbar">
+                    <div class="page-toolbar-search">
+                        <i class="fas fa-search"></i>
                         <input type="text" id="departmentSearch" class="form-control"
                                placeholder="Search departments…">
                     </div>
-                    <button type="button" class="btn btn-outline" id="btnRefreshDept">
-                        <i class="fa fa-sync-alt"></i> Refresh
-                    </button>
+                    <div class="page-toolbar-actions">
+                        <button type="button" class="btn btn-outline-primary page-toolbar-refresh" id="btnRefreshDept">
+                            <i class="fas fa-rotate-right"></i> Refresh
+                        </button>
+                    </div>
                 </div>
 
                 <div id="departmentAlert" class="dept-alert"></div>
@@ -542,7 +545,7 @@ if ($hasMembers) {
 
             /* ── event bindings ── */
             $('#btnOpenAddDept').addEventListener('click', () => { resetDeptForm(); openModal('#departmentFormModal'); });
-            $('#btnRefreshDept').addEventListener('click', loadDepartments);
+            $('#btnRefreshDept').addEventListener('click', () => { $('#departmentSearch').value = ''; loadDepartments(); });
             $('#departmentSearch').addEventListener('input', applySearch);
             $('#deptBackdrop').addEventListener('click', closeModals);
             $$('[data-close-dept-modal]').forEach(b => b.addEventListener('click', closeModals));

@@ -433,20 +433,28 @@ foreach ($permissions as $permission) {
                             </small>
                         </div>
 
-                        <div class="permission-toolbar">
-                            <button type="button" class="btn btn-secondary" id="selectAllPermissions">
-                                <i class="fas fa-square-check"></i> Select All
-                            </button>
-                            <button type="button" class="btn btn-secondary" id="clearAllPermissions">
-                                <i class="fas fa-square"></i> Clear All
-                            </button>
-                            <input
-                                type="search"
-                                id="permissionSearch"
-                                class="form-control"
-                                placeholder="Search permissions..."
-                                autocomplete="off"
-                            >
+                        <div class="page-toolbar permission-page-toolbar">
+                            <div class="page-toolbar-search">
+                                <i class="fas fa-search"></i>
+                                <input
+                                    type="search"
+                                    id="permissionSearch"
+                                    class="form-control"
+                                    placeholder="Search permissions..."
+                                    autocomplete="off"
+                                >
+                            </div>
+                            <div class="page-toolbar-actions">
+                                <button type="button" class="btn btn-outline-primary page-toolbar-refresh" id="refreshPermissionSearch">
+                                    <i class="fas fa-rotate-right"></i> Refresh
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="selectAllPermissions">
+                                    <i class="fas fa-square-check"></i> Select All
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="clearAllPermissions">
+                                    <i class="fas fa-square"></i> Clear All
+                                </button>
+                            </div>
                         </div>
 
                         <?php if ($permissionsByModule === []): ?>
@@ -539,7 +547,6 @@ foreach ($permissions as $permission) {
 }
 
 .permission-target-actions,
-.permission-toolbar,
 .permission-save-bar {
     display: flex;
     align-items: center;
@@ -555,13 +562,8 @@ foreach ($permissions as $permission) {
     background: #eef6ff;
 }
 
-.permission-toolbar {
-    justify-content: flex-start;
+.permission-page-toolbar {
     margin: 18px 0;
-}
-
-.permission-toolbar .form-control {
-    max-width: 360px;
 }
 
 .permission-modules {
@@ -684,8 +686,6 @@ foreach ($permissions as $permission) {
 .permission-target-actions{margin-top:14px}
 .permission-summary{padding:16px 18px;border:1px solid #d9d2ec;border-left:4px solid #4a1e8f;border-radius:11px;background:#faf8ff;color:#344054;line-height:1.55}
 .permission-summary small{display:inline-block;margin-top:5px;color:#667085}
-.permission-toolbar{padding:12px;background:#f8fafc;border:1px solid #e6eaf0;border-radius:11px}
-.permission-toolbar .form-control{margin-left:auto;max-width:340px;border-radius:9px}
 .permission-modules{grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:14px}
 .permission-module{border:1px solid #e3e8ef;border-radius:12px;box-shadow:0 2px 8px rgba(15,23,42,.035)}
 .permission-module-heading{padding:13px 15px;background:#f8fafc}
@@ -699,7 +699,7 @@ foreach ($permissions as $permission) {
 .permission-partial{background:#fffcf0;border-color:#eadba7}
 .permission-save-bar{margin-top:18px;padding:13px 16px;border:1px solid #e1e5ed;border-radius:12px;background:rgba(255,255,255,.97);box-shadow:0 -4px 18px rgba(15,23,42,.06)}
 .permission-save-bar #selectedPermissionCount{color:#64748b;font-size:12px;font-weight:650}
-@media(max-width:700px){.permissions-page{padding:14px 10px 24px}.permissions-page>.card>.card-body{padding:14px}.permission-page-header{padding:16px;align-items:flex-start}.permission-header-badge{display:none}.permission-toolbar .form-control{margin-left:0;max-width:none;width:100%}.permission-modules{grid-template-columns:1fr}.permission-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.permissions-page{padding:14px 10px 24px}.permissions-page>.card>.card-body{padding:14px}.permission-page-header{padding:16px;align-items:flex-start}.permission-header-badge{display:none}.permission-modules{grid-template-columns:1fr}.permission-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:420px){.permission-grid{grid-template-columns:1fr}.permission-target-actions>.btn{width:100%}.permission-save-bar{align-items:stretch;flex-direction:column}.permission-save-bar>.btn{width:100%}}
 </style>
 
@@ -841,6 +841,11 @@ foreach ($permissions as $permission) {
 
                 module.style.display = visibleItems > 0 ? '' : 'none';
             });
+        });
+
+        document.getElementById('refreshPermissionSearch')?.addEventListener('click', function () {
+            permissionSearch.value = '';
+            permissionSearch.dispatchEvent(new Event('input'));
         });
     }
 

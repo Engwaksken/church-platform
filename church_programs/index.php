@@ -236,8 +236,8 @@ $programRowsJson = json_encode(
                 </span>
             </div>
 
-            <div class="church-program-toolbar">
-                <div class="church-program-search">
+            <div class="page-toolbar">
+                <div class="page-toolbar-search">
                     <i class="fas fa-search"></i>
                     <input
                         type="search"
@@ -248,6 +248,7 @@ $programRowsJson = json_encode(
                     >
                 </div>
 
+                <div class="page-toolbar-filters">
                 <select id="programTypeFilter" class="form-control">
                     <option value="">All program types</option>
                     <?php foreach ($programTypes as $type): ?>
@@ -268,11 +269,14 @@ $programRowsJson = json_encode(
                     class="form-control"
                     aria-label="Filter by month"
                 >
+                </div>
 
-                <button type="button" class="btn btn-outline" id="clearProgramFilters">
-                    <i class="fas fa-rotate-left"></i>
-                    Clear
-                </button>
+                <div class="page-toolbar-actions">
+                    <button type="button" class="btn btn-outline-primary page-toolbar-refresh" id="clearProgramFilters">
+                        <i class="fas fa-rotate-right"></i>
+                        Refresh
+                    </button>
+                </div>
             </div>
 
             <div class="church-table-wrap">

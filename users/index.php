@@ -661,14 +661,14 @@ include __DIR__ . '/../includes/sidebar.php';
 .users-page .users-stat-card h3{margin:0;font-size:24px;line-height:1.1}.users-page .users-stat-card p{margin:4px 0 0;color:var(--users-muted);font-size:13px}
 .users-page .role-stats-wrap{margin-bottom:18px}.users-page .role-stats-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}.users-page .role-stats-title h4{margin:0;font-size:15px}
 .users-page .role-stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:10px}.users-page .role-stat-card{background:#fff;border:1px solid var(--users-border);border-radius:12px;padding:13px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}.users-page .role-stat-card:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(15,23,42,.08)}.users-page .role-stat-card.active{border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,.1)}.users-page .role-stat-label{font-size:13px;color:#475569;font-weight:600}.users-page .role-stat-number{font-size:20px;font-weight:700;color:#0f172a}
-.users-page .filters-card{margin-bottom:18px}.users-page .users-filters{display:grid;grid-template-columns:minmax(220px,2fr) repeat(4,minmax(145px,1fr)) auto auto;gap:10px;align-items:end}.users-page .filter-item label{display:block;margin-bottom:6px;font-size:12px;font-weight:600;color:#475569}.users-page .filter-item .form-control{width:100%}.users-page .filter-actions{display:flex;gap:8px;align-items:center;white-space:nowrap}
+
 .users-page .table-card{overflow:hidden}.users-page .users-table th{white-space:nowrap;text-align:left}.users-page .users-table td{vertical-align:middle}.users-page .action-buttons{display:flex;gap:6px;flex-wrap:nowrap}.users-page .badge-role{display:inline-flex;align-items:center;padding:5px 9px;border-radius:999px;background:#ede9fe;color:#5b21b6;font-size:12px;font-weight:600;white-space:nowrap}.users-page .status-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}.users-page .status-active{background:#dcfce7;color:#166534}.users-page .status-inactive{background:#fee2e2;color:#991b1b}
 .users-page .table-footer{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 16px;border-top:1px solid var(--users-border);background:#fff}.users-page .pagination-info{color:var(--users-muted);font-size:13px}.users-page .pagination-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.users-page .page-btn{min-width:36px;height:36px;padding:0 10px;border:1px solid #dbe3ec;background:#fff;border-radius:8px;cursor:pointer;display:inline-grid;place-items:center;font-size:13px}.users-page .page-btn:hover:not(:disabled){background:#f8fafc}.users-page .page-btn.active{background:#2563eb;border-color:#2563eb;color:#fff}.users-page .page-btn:disabled{opacity:.45;cursor:not-allowed}
 .users-page .user-alert{display:none;padding:12px 14px;margin:0 0 15px;border-radius:9px}.users-page .user-alert.show{display:block}.users-page .user-alert.error{background:#fee2e2;border:1px solid #fca5a5;color:#991b1b}.users-page .user-alert.success{background:#dcfce7;border:1px solid #86efac;color:#166534}
 .users-page .modal-layer{position:fixed;inset:0;background:rgba(15,23,42,.58);display:none;z-index:9998}.users-page .user-modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:20px;z-index:9999}.users-page .modal-layer.open,.users-page .user-modal.open{display:flex}.users-page .modal-card{width:min(760px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.25)}.users-page .modal-head,.users-page .modal-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--users-border)}.users-page .modal-foot{border-top:1px solid var(--users-border);border-bottom:0;justify-content:flex-end}.users-page .modal-body{padding:20px}.users-page .modal-close{border:0;background:transparent;font-size:28px;line-height:1;cursor:pointer}.users-page .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.users-page .form-group{margin-bottom:0}.users-page .form-group.full{grid-column:1/-1}.users-page .password-wrap{position:relative}.users-page .password-wrap input{padding-right:44px}.users-page .password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;cursor:pointer;padding:6px}.users-page .empty-state{text-align:center;padding:34px 15px;color:#64748b}.users-page .empty-state i{font-size:30px;margin-bottom:10px;opacity:.45}.users-page .loading-cell{text-align:center;padding:28px!important;color:#64748b}
-@media(max-width:1350px){.users-page .users-summary-grid{grid-template-columns:repeat(3,minmax(150px,1fr))}.users-page .users-filters{grid-template-columns:repeat(3,minmax(160px,1fr))}.users-page .search-filter{grid-column:span 2}.users-page .filter-actions{grid-column:span 1}}
-@media(max-width:850px){.users-page .users-summary-grid{grid-template-columns:repeat(2,minmax(140px,1fr))}.users-page .users-filters{grid-template-columns:1fr 1fr}.users-page .search-filter{grid-column:1/-1}.users-page .filter-actions{grid-column:1/-1}.users-page .table-footer{align-items:flex-start;flex-direction:column}.users-page .form-grid{grid-template-columns:1fr}}
-@media(max-width:520px){.users-page .users-summary-grid{grid-template-columns:1fr 1fr;gap:9px}.users-page .users-stat-card{padding:12px;min-height:82px}.users-page .users-stat-icon{width:38px;height:38px;min-width:38px}.users-page .users-stat-card h3{font-size:20px}.users-page .users-filters{grid-template-columns:1fr}.users-page .search-filter,.users-page .filter-actions{grid-column:auto}.users-page .filter-actions{display:grid;grid-template-columns:1fr 1fr}.users-page .role-stats-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:1350px){.users-page .users-summary-grid{grid-template-columns:repeat(3,minmax(150px,1fr))}}
+@media(max-width:850px){.users-page .users-summary-grid{grid-template-columns:repeat(2,minmax(140px,1fr))}.users-page .table-footer{align-items:flex-start;flex-direction:column}.users-page .form-grid{grid-template-columns:1fr}}
+@media(max-width:520px){.users-page .users-summary-grid{grid-template-columns:1fr 1fr;gap:9px}.users-page .users-stat-card{padding:12px;min-height:82px}.users-page .users-stat-icon{width:38px;height:38px;min-width:38px}.users-page .users-stat-card h3{font-size:20px}.users-page .role-stats-grid{grid-template-columns:1fr 1fr}}
 </style>
 
 <div class="main-content users-page">
@@ -724,51 +724,36 @@ include __DIR__ . '/../includes/sidebar.php';
             </div>
         </section>
 
-        <div class="card filters-card">
-            <div class="card-body users-filters">
-                <div class="filter-item search-filter">
-                    <label for="searchUsers">Search</label>
-                    <input type="search" id="searchUsers" class="form-control" placeholder="Name, username, email or phone">
+        <div class="page-toolbar">
+                <div class="page-toolbar-search">
+                    <i class="fas fa-search"></i>
+                    <input type="search" id="searchUsers" class="form-control" placeholder="Name, username, email or phone" aria-label="Search users">
                 </div>
-                <div class="filter-item">
-                    <label for="filterRole">Role</label>
-                    <select id="filterRole" class="form-control">
+                <div class="page-toolbar-filters">
+                    <select id="filterRole" class="form-control" aria-label="Role">
                         <option value="">All roles</option>
                         <?php foreach ($roleOptions as $roleValue => $roleLabel): ?>
                             <option value="<?= users_h($roleValue) ?>"><?= users_h($roleLabel) ?></option>
                         <?php endforeach; ?>
                     </select>
-                </div>
-                <div class="filter-item">
-                    <label for="filterStatus">Status</label>
-                    <select id="filterStatus" class="form-control">
+                    <select id="filterStatus" class="form-control" aria-label="Status">
                         <option value="">All statuses</option>
                         <option value="Active">Active</option>
                         <option value="Inactive">Deactive / Inactive</option>
                     </select>
-                </div>
-                <div class="filter-item">
-                    <label for="dateFrom">From Date</label>
-                    <input type="date" id="dateFrom" class="form-control">
-                </div>
-                <div class="filter-item">
-                    <label for="dateTo">To Date</label>
-                    <input type="date" id="dateTo" class="form-control">
-                </div>
-                <div class="filter-item">
-                    <label for="perPage">Records</label>
-                    <select id="perPage" class="form-control">
-                        <option value="10">10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
+                    <input type="date" id="dateFrom" class="form-control" title="From date" aria-label="From date">
+                    <input type="date" id="dateTo" class="form-control" title="To date" aria-label="To date">
+                    <select id="perPage" class="form-control" aria-label="Records per page">
+                        <option value="10">10 / page</option>
+                        <option value="25">25 / page</option>
+                        <option value="50">50 / page</option>
+                        <option value="100">100 / page</option>
                     </select>
                 </div>
-                <div class="filter-actions">
-                    <button type="button" class="btn btn-secondary" id="applyFilters"><i class="fas fa-filter"></i> Apply</button>
-                    <button type="button" class="btn btn-light" id="clearFilters"><i class="fas fa-times"></i> Clear</button>
+                <div class="page-toolbar-actions">
+                    <button type="button" class="btn btn-primary" id="applyFilters"><i class="fas fa-filter"></i> Filter</button>
+                    <button type="button" class="btn btn-outline-primary page-toolbar-refresh" id="clearFilters"><i class="fas fa-rotate-right"></i> Refresh</button>
                 </div>
-            </div>
         </div>
 
         <div class="card table-card">

@@ -334,8 +334,8 @@ foreach ($rows as $row) {
         </div>
 
         <section class="church-card announcements-register-card">
-            <div class="announcements-toolbar">
-                <div class="announcements-search">
+            <div class="page-toolbar">
+                <div class="page-toolbar-search">
                     <i class="fas fa-search"></i>
                     <input
                         type="search"
@@ -345,6 +345,7 @@ foreach ($rows as $row) {
                     >
                 </div>
 
+                <div class="page-toolbar-filters">
                 <select id="announcementStatusFilter" class="form-control">
                     <option value="">All statuses</option>
                     <option value="Published">Published</option>
@@ -358,11 +359,14 @@ foreach ($rows as $row) {
                     <option value="Important">Important</option>
                     <option value="Urgent">Urgent</option>
                 </select>
+                </div>
 
-                <button type="button" class="btn btn-outline" id="clearAnnouncementFilters">
-                    <i class="fas fa-rotate-left"></i>
-                    Clear
-                </button>
+                <div class="page-toolbar-actions">
+                    <button type="button" class="btn btn-outline-primary page-toolbar-refresh" id="clearAnnouncementFilters">
+                        <i class="fas fa-rotate-right"></i>
+                        Refresh
+                    </button>
+                </div>
             </div>
 
             <div class="church-table-wrap">

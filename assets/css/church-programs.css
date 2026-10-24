@@ -13,33 +13,6 @@
     border-bottom: 1px solid var(--border);
 }
 
-.church-program-toolbar {
-    display: grid;
-    grid-template-columns: minmax(240px, 1fr) minmax(170px, 220px) minmax(140px, 170px) minmax(145px, 175px) auto;
-    gap: 10px;
-    align-items: center;
-    padding: 14px 20px;
-    border-bottom: 1px solid var(--border);
-    background: #faf9fd;
-}
-
-.church-program-search {
-    position: relative;
-}
-
-.church-program-search i {
-    position: absolute;
-    top: 50%;
-    left: 13px;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    pointer-events: none;
-}
-
-.church-program-search input {
-    padding-left: 38px;
-}
-
 .church-program-table {
     min-width: 920px;
 }
@@ -263,24 +236,11 @@
     .church-program-stats {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
-
-    .church-program-toolbar {
-        grid-template-columns: minmax(240px, 1fr) repeat(2, minmax(150px, 190px));
-    }
-
-    .church-program-toolbar input[type="month"],
-    .church-program-toolbar .btn {
-        width: 100%;
-    }
 }
 
 @media (max-width: 767px) {
     .church-program-stats {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .church-program-toolbar {
-        grid-template-columns: 1fr;
     }
 
     .church-form-row-3 {

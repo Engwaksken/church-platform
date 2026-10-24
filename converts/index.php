@@ -202,41 +202,37 @@ $pageTitle = 'Converts & Nurture';
 <?php endforeach; ?>
 </div>
 
-<div class="cb-panel">
-    <form method="get" class="cb-filters" style="grid-template-columns:2fr repeat(5,minmax(125px,1fr)) auto">
-        <div class="cb-field">
-            <label>Search</label>
-            <input class="cb-input" name="q" value="<?= cb_h($q) ?>" placeholder="Name, phone, email, decision, assigned member">
-        </div>
-        <div class="cb-field">
-            <label>Person Type</label>
-            <select class="cb-select" name="type">
-                <option value="">All Types</option>
-                <option value="Member" <?= $type === 'Member' ? 'selected' : '' ?>>Member</option>
-                <option value="Visitor" <?= $type === 'Visitor' ? 'selected' : '' ?>>Visitor</option>
-            </select>
-        </div>
-        <div class="cb-field">
-            <label>Status</label>
-            <select class="cb-select" name="status">
-                <option value="">All Statuses</option>
-                <?php foreach ($allowedStatuses as $s): ?><option value="<?= cb_h($s) ?>" <?= $status === $s ? 'selected' : '' ?>><?= cb_h($s) ?></option><?php endforeach; ?>
-            </select>
-        </div>
-        <div class="cb-field">
-            <label>Assigned To</label>
-            <select class="cb-select" name="assigned">
-                <option value="0">All Members</option>
-                <?php foreach ($members as $member): ?>
-                    <option value="<?= (int)$member['id'] ?>" <?= $assigned === (int)$member['id'] ? 'selected' : '' ?>><?= cb_h(trim((string)$member['full_name'])) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </div>
-        <div class="cb-field"><label>From</label><input class="cb-input" type="date" name="from" value="<?= cb_h($from) ?>"></div>
-        <div class="cb-field"><label>To</label><input class="cb-input" type="date" name="to" value="<?= cb_h($to) ?>"></div>
-        <div class="cb-actions"><button class="cb-btn cb-btn-primary"><i class="fas fa-filter"></i> Filter</button><a class="cb-btn cb-btn-outline" href="./"><i class="fas fa-rotate-left"></i></a></div>
-    </form>
+<form method="get" action="index.php" class="page-toolbar">
+    <div class="page-toolbar-search">
+        <i class="fas fa-search"></i>
+        <input type="search" name="q" value="<?= cb_h($q) ?>" placeholder="Name, phone, email, decision, assigned member" aria-label="Search converts">
+    </div>
+    <div class="page-toolbar-filters">
+        <select name="type" aria-label="Person type">
+            <option value="">All Types</option>
+            <option value="Member" <?= $type === 'Member' ? 'selected' : '' ?>>Member</option>
+            <option value="Visitor" <?= $type === 'Visitor' ? 'selected' : '' ?>>Visitor</option>
+        </select>
+        <select name="status" aria-label="Status">
+            <option value="">All Statuses</option>
+            <?php foreach ($allowedStatuses as $s): ?><option value="<?= cb_h($s) ?>" <?= $status === $s ? 'selected' : '' ?>><?= cb_h($s) ?></option><?php endforeach; ?>
+        </select>
+        <select name="assigned" aria-label="Assigned to">
+            <option value="0">All Members</option>
+            <?php foreach ($members as $member): ?>
+                <option value="<?= (int)$member['id'] ?>" <?= $assigned === (int)$member['id'] ? 'selected' : '' ?>><?= cb_h(trim((string)$member['full_name'])) ?></option>
+            <?php endforeach; ?>
+        </select>
+        <input type="date" name="from" value="<?= cb_h($from) ?>" title="From date" aria-label="From date">
+        <input type="date" name="to" value="<?= cb_h($to) ?>" title="To date" aria-label="To date">
+    </div>
+    <div class="page-toolbar-actions">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+        <a class="btn btn-outline-primary page-toolbar-refresh" href="index.php"><i class="fas fa-rotate-right"></i> Refresh</a>
+    </div>
+</form>
 
+<div class="cb-panel">
     <div class="cb-table-wrap">
         <table class="cb-table" style="min-width:1250px">
             <thead>

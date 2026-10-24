@@ -54,17 +54,25 @@ include '../includes/sidebar.php';
       <div class="stat-card accent"><div class="stat-icon"><i class="fas fa-user-tie"></i></div><div><div class="stat-value" id="zoneStatLeaders"><?= number_format($withLeaders) ?></div><div class="stat-label">With Leaders</div></div></div>
     </div>
 
+    <div class="page-toolbar">
+      <div class="page-toolbar-search">
+        <i class="fas fa-search"></i>
+        <input type="text" id="zoneSearch" class="form-control" placeholder="Search zone, leader, location...">
+      </div>
+      <div class="page-toolbar-filters">
+        <select id="zoneStatusFilter" class="form-control">
+          <option value="">All Status</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+      <div class="page-toolbar-actions">
+        <button type="button" class="btn btn-outline-primary page-toolbar-refresh" id="btnRefreshZones"><i class="fas fa-rotate-right"></i> Refresh</button>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-body">
-        <div class="module-toolbar zones-toolbar">
-          <input type="text" id="zoneSearch" class="form-control" placeholder="Search zone, leader, location...">
-          <select id="zoneStatusFilter" class="form-control" style="max-width:180px">
-            <option value="">All Status</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-          <button type="button" class="btn btn-outline" id="btnRefreshZones"><i class="fas fa-sync-alt"></i> Refresh</button>
-        </div>
         <div id="zoneAlert" class="ajax-alert"></div>
         <div class="table-responsive">
           <table class="module-table">
@@ -145,7 +153,7 @@ async function openEdit(id){ resetForm(); const d=await req(cfg.endpoint+'?actio
 async function openView(id){ const d=await req(cfg.endpoint+'?action=get&id='+encodeURIComponent(id)); if(!d.success) return alertBox(qs('#zoneAlert'),d.message||'Not found','error'); const z=d.item; const fields=[['Zone Name',z.zone_name],['Zone Code',z.zone_code],['Leader',z.leader_name],['Phone',z.phone],['Email',z.email],['Location',z.location],['Meeting Place',z.meeting_place],['Meeting Day',z.meeting_day],['Meeting Time',z.meeting_time],['Status',z.status],['Description',z.description]]; qs('#viewZoneContent').innerHTML=fields.map(([k,v])=>`<div class="detail-item"><b>${esc(k)}</b><span>${esc(v||'—')}</span></div>`).join(''); openModal('#viewZoneModal'); }
 document.addEventListener('click',e=>{ const add=e.target.closest('#btnOpenZone'); if(add){ resetForm(); openModal('#zoneFormModal'); return; } if(e.target.closest('[data-close-zone]')||e.target.id==='zoneBackdrop'){ closeModals(); return; } const btn=e.target.closest('[data-zone-action]'); if(!btn) return; const id=btn.dataset.id; const a=btn.dataset.zoneAction; if(a==='view') openView(id).catch(err=>alertBox(qs('#zoneAlert'),err.message,'error')); if(a==='edit') openEdit(id).catch(err=>alertBox(qs('#zoneAlert'),err.message,'error')); if(a==='delete'){ qs('#deleteZoneId').value=id; qs('#deleteZoneName').textContent=btn.dataset.name||'this zone'; clearAlert(qs('#deleteZoneAlert')); openModal('#deleteZoneModal'); } });
 qs('#leader_member_id')?.addEventListener('change',function(){ const o=this.options[this.selectedIndex]; if(o){ if(!qs('#zone_phone').value) qs('#zone_phone').value=o.dataset.phone||''; if(!qs('#zone_email').value) qs('#zone_email').value=o.dataset.email||''; }});
-qs('#zoneSearch')?.addEventListener('input',applyFilters); qs('#zoneStatusFilter')?.addEventListener('change',applyFilters); qs('#btnRefreshZones')?.addEventListener('click',()=>loadZones().catch(err=>alertBox(qs('#zoneAlert'),err.message,'error')));
+qs('#zoneSearch')?.addEventListener('input',applyFilters); qs('#zoneStatusFilter')?.addEventListener('change',applyFilters); qs('#btnRefreshZones')?.addEventListener('click',()=>{ ['zoneSearch','zoneStatusFilter'].forEach(id=>{const el=qs('#'+id); if(el) el.value='';}); loadZones().catch(err=>alertBox(qs('#zoneAlert'),err.message,'error')); });
 qs('#zoneForm')?.addEventListener('submit',async e=>{ e.preventDefault(); try{ const d=await post(e.currentTarget); if(!d.success) return alertBox(qs('#zoneFormAlert'),d.message||'Save failed','error'); closeModals(); alertBox(qs('#zoneAlert'),d.message||'Saved'); await loadZones(); }catch(err){ alertBox(qs('#zoneFormAlert'),err.message,'error'); }});
 qs('#deleteZoneForm')?.addEventListener('submit',async e=>{ e.preventDefault(); try{ const d=await post(e.currentTarget); if(!d.success) return alertBox(qs('#deleteZoneAlert'),d.message||'Delete failed','error'); closeModals(); alertBox(qs('#zoneAlert'),d.message||'Deleted'); await loadZones(); }catch(err){ alertBox(qs('#deleteZoneAlert'),err.message,'error'); }});
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModals(); });

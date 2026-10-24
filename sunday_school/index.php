@@ -108,20 +108,24 @@ try {
 
 <!-- PUPILS TAB -->
 <section id="tabPupils" class="d-none">
-  <div class="card"><div class="card-body">
-    <div class="ss-pupil-toolbar">
-      <div class="ss-search ss-pupil-search">
+  <div class="page-toolbar">
+      <div class="page-toolbar-search">
         <i class="fas fa-search" aria-hidden="true"></i>
         <input type="search" id="pupilSearch" placeholder="Search pupil, parent, phone..." autocomplete="off">
       </div>
+      <div class="page-toolbar-filters">
       <select id="classFilter" aria-label="Filter by class"><option value="">All Classes</option><?php foreach($classes as $c): ?><option value="<?= (int)($c['id'] ?? 0) ?>"><?= ss_h($c['class_name'] ?? '') ?></option><?php endforeach; ?></select>
       <select id="pupilPeriodFilter" aria-label="Filter by date period">
         <option value="">All Dates</option><option value="daily">Today</option><option value="weekly">This Week</option><option value="range">Custom Range</option>
       </select>
       <select id="pupilPerPage" aria-label="Records per page"><option value="10">10 per page</option><option value="25" selected>25 per page</option><option value="50">50 per page</option><option value="100">100 per page</option></select>
-      <button type="button" class="btn btn-outline ss-filter-button" id="btnClearPupilFilters"><i class="fas fa-rotate-left"></i> Clear</button>
-      <button type="button" class="btn btn-outline ss-filter-button" id="btnRefreshPupils"><i class="fas fa-sync"></i> Refresh</button>
-    </div>
+      </div>
+      <div class="page-toolbar-actions">
+        <button type="button" class="btn btn-outline-secondary" id="btnClearPupilFilters"><i class="fas fa-rotate-left"></i> Clear</button>
+        <button type="button" class="btn btn-outline-primary page-toolbar-refresh" id="btnRefreshPupils"><i class="fas fa-rotate-right"></i> Refresh</button>
+      </div>
+  </div>
+  <div class="card"><div class="card-body">
     <div class="ss-date-range" id="pupilDateRange" hidden>
       <div class="ss-field"><label for="pupilDateFrom">Start date</label><input type="date" id="pupilDateFrom"></div>
       <div class="ss-field"><label for="pupilDateTo">End date</label><input type="date" id="pupilDateTo"></div>
@@ -396,19 +400,11 @@ try {
   .ss-toolbar-actions{width:100%}.ss-toolbar-actions .btn{flex:1}
 }
 
-/* -- One-row pupil filter toolbar ---------------------- */
-.ss-pupil-toolbar{display:grid;grid-template-columns:minmax(220px,1.6fr) minmax(150px,1fr) minmax(150px,1fr) minmax(125px,.72fr) auto auto;gap:10px;align-items:center;width:100%;margin-bottom:14px}
-.ss-pupil-toolbar>*{min-width:0;margin:0}
-.ss-pupil-toolbar select,.ss-pupil-toolbar input{width:100%;min-height:42px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#0f172a;font:inherit}
-.ss-pupil-search{position:relative;min-width:0;max-width:none}
-.ss-pupil-search i{position:absolute;top:50%;left:13px;z-index:1;color:#64748b;pointer-events:none;transform:translateY(-50%)}
-.ss-pupil-search input{padding-left:38px}
-.ss-filter-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:9px 15px;white-space:nowrap}
+/* -- Pupil custom date range ---------------------------- */
 .ss-date-range{display:grid;grid-template-columns:repeat(2,minmax(180px,260px));gap:12px;align-items:end;margin:-2px 0 14px;padding:12px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}
 .ss-date-range[hidden]{display:none!important}
-@media(max-width:1180px){.ss-pupil-toolbar{grid-template-columns:minmax(200px,1.4fr) minmax(135px,1fr) minmax(135px,1fr) minmax(115px,.75fr) auto auto}}
-@media(max-width:900px){.ss-pupil-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.ss-pupil-search{grid-column:1/-1}.ss-filter-button{width:100%}.ss-date-range{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:560px){.ss-pupil-toolbar{grid-template-columns:1fr}.ss-pupil-search{grid-column:auto}.ss-date-range{grid-template-columns:1fr}}
+@media(max-width:900px){.ss-date-range{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.ss-date-range{grid-template-columns:1fr}}
 
 </style>
 

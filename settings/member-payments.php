@@ -526,33 +526,12 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
         </div>
 
-        <div class="card module-card">
-
-            <div class="module-card-header">
-                <div>
-                    <strong>
-                        <i class="fas fa-credit-card"></i>
-                        Payment Details Visible to Members
-                    </strong>
-
-                    <p class="payment-card-description">
-                        Search, filter and manage member-facing payment options.
-                    </p>
-                </div>
-
-                <span class="module-count">
-                    <?= number_format($total) ?> records
-                </span>
-            </div>
-
-            <div class="card-body">
-
                 <form
                     method="get"
-                    class="payment-filter-form"
+                    class="page-toolbar"
                     id="paymentFilterForm"
                 >
-                    <div class="module-search-box payment-search-box">
+                    <div class="page-toolbar-search">
                         <i class="fas fa-search"></i>
 
                         <input
@@ -563,6 +542,8 @@ require_once __DIR__ . '/../includes/sidebar.php';
                             autocomplete="off"
                         >
                     </div>
+
+                    <div class="page-toolbar-filters">
 
                     <select
                         name="type"
@@ -623,29 +604,43 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <?php endforeach; ?>
                     </select>
 
-                    <button
-                        type="submit"
-                        class="btn btn-primary"
-                    >
-                        <i class="fas fa-filter"></i>
-                        Apply
-                    </button>
+                    </div>
 
-                    <?php if (
-                        $search !== ''
-                        || $typeFilter !== ''
-                        || $statusFilter !== ''
-                        || $perPage !== 10
-                    ): ?>
-                        <a
-                            href="member-payments.php"
-                            class="btn btn-outline"
+                    <div class="page-toolbar-actions">
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
                         >
-                            <i class="fas fa-rotate-left"></i>
-                            Reset
+                            <i class="fas fa-filter"></i>
+                            Filter
+                        </button>
+
+                        <a href="member-payments.php" class="btn btn-outline-primary page-toolbar-refresh">
+                            <i class="fas fa-rotate-right"></i> Refresh
                         </a>
-                    <?php endif; ?>
+                    </div>
                 </form>
+
+        <div class="card module-card">
+
+            <div class="module-card-header">
+                <div>
+                    <strong>
+                        <i class="fas fa-credit-card"></i>
+                        Payment Details Visible to Members
+                    </strong>
+
+                    <p class="payment-card-description">
+                        Search, filter and manage member-facing payment options.
+                    </p>
+                </div>
+
+                <span class="module-count">
+                    <?= number_format($total) ?> records
+                </span>
+            </div>
+
+            <div class="card-body">
 
                 <div class="module-table-wrap">
                     <table class="module-table payment-table">

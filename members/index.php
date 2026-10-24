@@ -229,9 +229,8 @@ $exportQuery = http_build_query(array_filter(['search'=>$search,'status'=>$statu
     .zone-stat{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:#fff;border:1px solid var(--border,#e5e7eb);border-radius:12px;text-decoration:none;color:inherit}
     .zone-stat.active,.zone-stat:hover{border-color:#2e3192;background:rgba(46,49,146,.04)}
     .zone-stat b{font-size:18px;color:#2e3192}.zone-stat small{display:block;color:#6b7280;margin-top:2px}
-    .module-filter-form.filter-expanded{display:grid;grid-template-columns:minmax(220px,2fr) repeat(6,minmax(130px,1fr)) auto auto;gap:10px;align-items:end}
-    @media(max-width:1100px){.member-stats-grid{grid-template-columns:repeat(2,1fr)}.module-filter-form.filter-expanded{grid-template-columns:repeat(2,1fr)}}
-    @media(max-width:620px){.member-stats-grid{grid-template-columns:1fr}.module-filter-form.filter-expanded{grid-template-columns:1fr}#memberRegistrationLinkModal .form-grid{grid-template-columns:1fr!important}#memberRegistrationLinkModal .modal-body>div[style*="grid-template-columns:minmax"]{grid-template-columns:1fr!important}}
+    @media(max-width:1100px){.member-stats-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:620px){.member-stats-grid{grid-template-columns:1fr}#memberRegistrationLinkModal .form-grid{grid-template-columns:1fr!important}#memberRegistrationLinkModal .modal-body>div[style*="grid-template-columns:minmax"]{grid-template-columns:1fr!important}}
     </style>
 
     <div class="member-stats-grid">
@@ -255,13 +254,13 @@ $exportQuery = http_build_query(array_filter(['search'=>$search,'status'=>$statu
     <?php endif; ?>
 
     <!-- -- Filter toolbar ------------------------------------- -->
-    <div class="card module-toolbar" style="padding:15px">
-        <form method="GET" action="index.php" class="module-filter-form filter-expanded">
-            <div class="module-search-box">
+    <form method="GET" action="index.php" class="page-toolbar">
+            <div class="page-toolbar-search">
                 <i class="fas fa-search"></i>
                 <input type="text" name="search" value="<?= h($search) ?>"
                        placeholder="Search name, member/pledge no...">
             </div>
+            <div class="page-toolbar-filters">
             <select name="status" class="form-control">
                 <option value="">All Status</option>
                 <option value="Active"   <?= $status==='Active'  ?'selected':'' ?>>Active</option>
@@ -286,14 +285,16 @@ $exportQuery = http_build_query(array_filter(['search'=>$search,'status'=>$statu
                     <option value="<?= $s ?>" <?= $perPage===$s?'selected':'' ?>><?= $s ?> / page</option>
                 <?php endforeach; ?>
             </select>
-            <button class="btn btn-primary" type="submit">
-                <i class="fas fa-search"></i> Search
-            </button>
-            <a class="btn btn-outline" href="index.php">
-                <i class="fas fa-sync-alt"></i> Reset
-            </a>
-        </form>
-    </div>
+            </div>
+            <div class="page-toolbar-actions">
+                <button class="btn btn-primary" type="submit">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+                <a class="btn btn-outline-primary page-toolbar-refresh" href="index.php">
+                    <i class="fas fa-rotate-right"></i> Refresh
+                </a>
+            </div>
+    </form>
 
     <!-- -- Members table -------------------------------------- -->
     <div class="card module-card">

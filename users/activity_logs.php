@@ -370,33 +370,12 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
         </div>
 
-        <div class="card module-card">
-
-            <div class="module-card-header">
-                <div>
-                    <strong>
-                        <i class="fas fa-shield-halved"></i>
-                        Audit Trail
-                    </strong>
-
-                    <p class="activity-card-description">
-                        Filter activities by keyword, action, or date range.
-                    </p>
-                </div>
-
-                <span class="module-count">
-                    <?= number_format($total) ?> records
-                </span>
-            </div>
-
-            <div class="card-body">
-
                 <form
                     method="get"
-                    class="activity-filter-form"
+                    class="page-toolbar"
                     id="activityFilterForm"
                 >
-                    <div class="module-search-box activity-search-box">
+                    <div class="page-toolbar-search">
                         <i class="fas fa-search"></i>
 
                         <input
@@ -408,6 +387,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         >
                     </div>
 
+                    <div class="page-toolbar-filters">
                     <select
                         name="action"
                         class="form-control"
@@ -451,7 +431,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
                     <select
                         name="per_page"
-                        class="form-control activity-per-page"
+                        class="form-control"
                         aria-label="Records per page"
                     >
                         <?php foreach ([10, 25, 50, 100] as $size): ?>
@@ -463,31 +443,47 @@ require_once __DIR__ . '/../includes/sidebar.php';
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    </div>
 
-                    <button
-                        type="submit"
-                        class="btn btn-primary"
-                    >
-                        <i class="fas fa-filter"></i>
-                        Apply Filters
-                    </button>
+                    <div class="page-toolbar-actions">
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                        >
+                            <i class="fas fa-filter"></i>
+                            Filter
+                        </button>
 
-                    <?php if (
-                        $search !== ''
-                        || $action !== ''
-                        || $dateFrom !== ''
-                        || $dateTo !== ''
-                        || $perPage !== 25
-                    ): ?>
                         <a
                             href="activity_logs.php"
-                            class="btn btn-outline"
+                            class="btn btn-outline-primary page-toolbar-refresh"
                         >
-                            <i class="fas fa-rotate-left"></i>
-                            Reset
+                            <i class="fas fa-rotate-right"></i>
+                            Refresh
                         </a>
-                    <?php endif; ?>
+                    </div>
                 </form>
+        <div class="card module-card">
+
+            <div class="module-card-header">
+                <div>
+                    <strong>
+                        <i class="fas fa-shield-halved"></i>
+                        Audit Trail
+                    </strong>
+
+                    <p class="activity-card-description">
+                        Filter activities by keyword, action, or date range.
+                    </p>
+                </div>
+
+                <span class="module-count">
+                    <?= number_format($total) ?> records
+                </span>
+            </div>
+
+            <div class="card-body">
+
 
                 <div class="module-table-wrap">
                     <table class="module-table activity-table">

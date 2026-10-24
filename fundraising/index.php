@@ -64,18 +64,23 @@ $csrfToken = $_SESSION['csrf_token'] ?? $_SESSION['csrf'] ?? '';
 
 <div class="card">
   <div class="card-body">
-    <div class="module-toolbar">
-      <div class="search-box">
+    <div class="page-toolbar">
+      <div class="page-toolbar-search">
+        <i class="fas fa-search"></i>
         <input type="text" id="frSearch" class="form-control" placeholder="Search campaign, organizer, venue, status...">
       </div>
-      <select id="frStatusFilter" class="form-control" style="max-width:190px">
+      <div class="page-toolbar-filters">
+      <select id="frStatusFilter" class="form-control">
         <option value="">All Statuses</option>
         <option value="Planning">Planning</option>
         <option value="Active">Active</option>
         <option value="Completed">Completed</option>
         <option value="Cancelled">Cancelled</option>
       </select>
-      <button type="button" class="btn btn-outline" id="frRefresh"><i class="fas fa-sync-alt"></i> Refresh</button>
+      </div>
+      <div class="page-toolbar-actions">
+        <button type="button" class="btn btn-outline-primary page-toolbar-refresh" id="frRefresh"><i class="fas fa-rotate-right"></i> Refresh</button>
+      </div>
     </div>
     <div id="frAlert" class="ajax-alert"></div>
     <div id="frCampaignGrid" class="fundraising-grid">

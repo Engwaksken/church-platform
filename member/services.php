@@ -37,12 +37,10 @@ require_once __DIR__ . '/../includes/sidebar.php';
   </div>
   <?php endforeach; ?>
 </div>
+<div class="page-toolbar"><div class="page-toolbar-search"><i class="fas fa-search"></i><input type="search" data-member-search placeholder="Search services..." aria-label="Search services"></div><div class="page-toolbar-filters"><select data-member-filter="status" aria-label="Status"><option value="">All Statuses</option><option>Upcoming</option><option>Live</option><option>Completed</option></select><select data-member-filter="platform" aria-label="Platform"><option value="">All Platforms</option><option>Zoom</option><option>Google Meet</option><option>YouTube</option><option>Facebook</option></select></div><div class="page-toolbar-actions"><a class="btn btn-outline-primary page-toolbar-refresh" href="services.php"><i class="fas fa-rotate-right"></i> Refresh</a></div></div>
 <div class="member-module-card">
   <div class="member-module-card-head"><h3><i class="fas fa-video"></i> Live & Recorded Services</h3><span class="member-module-count"><?= count($rows) ?> records</span></div>
   <div class="member-module-body">
-    <div class="member-module-toolbar"><div class="member-module-search"><i class="fas fa-search"></i><input class="form-control" data-member-search placeholder="Search services..."></div>
-<select class="form-control" data-member-filter="status"><option value="">All Statuses</option><option>Upcoming</option><option>Live</option><option>Completed</option></select>
-<select class="form-control" data-member-filter="platform"><option value="">All Platforms</option><option>Zoom</option><option>Google Meet</option><option>YouTube</option><option>Facebook</option></select></div>
     <div class="member-module-table-wrap">
       <table class="member-module-table"><thead><tr><th>#</th><th>Service</th><th>Date</th><th>Time</th><th>Preacher</th><th>Platform</th><th>Status</th><th>Attend</th><th>Details</th></tr></thead><tbody>
       <?php if(!$rows): ?><tr><td colspan="9"><div class="member-empty"><i class="fas fa-video-slash"></i>No services are available.</div></td></tr><?php else: foreach($rows as $i=>$r):

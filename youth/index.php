@@ -169,15 +169,14 @@ if ($hasBirds) {
         </div>
 
         <!-- -- Table card ------------------------------------- -->
-        <div class="card module-card">
-            <div class="card-body">
-                <div class="module-toolbar youth-filter-toolbar">
-                    <div class="module-search-box">
+        <div class="page-toolbar">
+                    <div class="page-toolbar-search">
                         <i class="fa fa-search"></i>
                         <input type="search" id="yrSearch" class="form-control"
                                placeholder="Search by name, phone, education...">
                     </div>
 
+                    <div class="page-toolbar-filters">
                     <select id="yrPeriod" class="form-control" aria-label="Filter registration period">
                         <option value="">All periods</option>
                         <option value="daily">Today</option>
@@ -197,14 +196,20 @@ if ($hasBirds) {
                         <option value="50">50 per page</option>
                         <option value="100">100 per page</option>
                     </select>
+                    </div>
 
-                    <button type="button" class="btn btn-outline" id="yrClearFilters">
-                        <i class="fa fa-times"></i> Clear
-                    </button>
-                    <button type="button" class="btn btn-outline" id="yrRefresh">
-                        <i class="fa fa-sync-alt"></i> Refresh
-                    </button>
-                </div>
+                    <div class="page-toolbar-actions">
+                        <button type="button" class="btn btn-outline-secondary" id="yrClearFilters">
+                            <i class="fa fa-times"></i> Clear
+                        </button>
+                        <button type="button" class="btn btn-outline-primary page-toolbar-refresh" id="yrRefresh">
+                            <i class="fas fa-rotate-right"></i> Refresh
+                        </button>
+                    </div>
+        </div>
+
+        <div class="card module-card">
+            <div class="card-body">
 
                 <div id="yrAlert" class="ajax-alert"></div>
 
@@ -533,7 +538,7 @@ if ($hasBirds) {
 
 
 <style>
-.youth-filter-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.youth-filter-toolbar .module-search-box{flex:1 1 260px}.youth-filter-toolbar>select{flex:0 1 165px}.youth-date-range{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.youth-date-range[hidden]{display:none!important}.youth-date-range input{width:150px}.youth-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 0 2px}.pagination-buttons{display:flex;gap:6px;flex-wrap:wrap}.pagination-buttons .btn[disabled]{opacity:.5;cursor:not-allowed}@media(max-width:767px){.youth-filter-toolbar>*{width:100%!important;flex:1 1 100%!important}.youth-date-range{width:100%}.youth-date-range input{width:100%;flex:1 1 100%}.youth-date-range span{display:none}.youth-pagination{align-items:stretch}.pagination-buttons{width:100%;justify-content:center}}
+.page-toolbar-filters>.youth-date-range{display:flex;align-items:center;gap:7px;flex:0 1 330px}.youth-date-range[hidden]{display:none!important}.youth-date-range input{flex:1 1 0;min-width:0}.youth-pagination{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 0 2px}.pagination-buttons{display:flex;gap:6px;flex-wrap:wrap}.pagination-buttons .btn[disabled]{opacity:.5;cursor:not-allowed}@media(max-width:600px){.page-toolbar-filters>.youth-date-range{grid-column:1/-1}}@media(max-width:767px){.youth-pagination{align-items:stretch}.pagination-buttons{width:100%;justify-content:center}}
 </style>
 <script>
 /* Resolved server-side to the real on-disk path of process-youth.php, so

@@ -42,9 +42,9 @@ include '../includes/sidebar.php';
       <div class="stat-card"><div class="stat-icon"><i class="fas fa-file-invoice"></i></div><div><div class="stat-number" id="statCount"><?= number_format($countYear) ?></div><div class="stat-label">Receipts This Year</div></div></div>
     </div>
 
-    <div class="card mb-3">
-      <div class="card-body toolbar-row module-toolbar">
-        <div class="search-box"><input type="text" id="titheSearch" class="form-control" placeholder="Search member, receipt, method..."></div>
+    <div class="page-toolbar">
+        <div class="page-toolbar-search"><i class="fas fa-search"></i><input type="text" id="titheSearch" class="form-control" placeholder="Search member, receipt, method..."></div>
+        <div class="page-toolbar-filters">
         <select id="filterMember" class="form-control">
           <option value="0">All Members</option>
           <?php while ($m = $members ? $members->fetch_assoc() : null): ?>
@@ -52,9 +52,9 @@ include '../includes/sidebar.php';
           <?php endwhile; ?>
         </select>
         <select id="filterMonth" class="form-control"><option value="0">All Months</option><?php for ($i=1;$i<=12;$i++): ?><option value="<?= $i ?>"><?= date('F', mktime(0,0,0,$i,1)) ?></option><?php endfor; ?></select>
-        <input type="number" id="filterYear" class="form-control" value="<?= (int)$year ?>" min="2000" max="2100">
-        <button type="button" class="btn btn-secondary" id="btnRefreshTithe"><i class="fas fa-sync-alt"></i> Refresh</button>
-      </div>
+        <input type="number" id="filterYear" class="form-control" value="<?= (int)$year ?>" min="2000" max="2100" title="Year" aria-label="Year">
+        </div>
+        <div class="page-toolbar-actions"><button type="button" class="btn btn-outline-primary page-toolbar-refresh" id="btnRefreshTithe"><i class="fas fa-rotate-right"></i> Refresh</button></div>
     </div>
 
     <div id="titheAlert" class="ajax-alert"></div>

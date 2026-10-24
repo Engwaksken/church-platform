@@ -32,12 +32,10 @@ require_once __DIR__ . '/../includes/sidebar.php';
   </div>
   <?php endforeach; ?>
 </div>
+<div class="page-toolbar"><div class="page-toolbar-search"><i class="fas fa-search"></i><input type="search" data-member-search placeholder="Search announcements..." aria-label="Search announcements"></div><div class="page-toolbar-filters"><select data-member-filter="priority" aria-label="Priority"><option value="">All Priorities</option><option>Normal</option><option>Important</option><option>Urgent</option></select><select data-member-filter="audience" aria-label="Audience"><option value="">All Audiences</option><option>All Members</option><option>Selected Departments</option></select></div><div class="page-toolbar-actions"><a class="btn btn-outline-primary page-toolbar-refresh" href="announcements.php"><i class="fas fa-rotate-right"></i> Refresh</a></div></div>
 <div class="member-module-card">
   <div class="member-module-card-head"><h3><i class="fas fa-bullhorn"></i> Announcements</h3><span class="member-module-count"><?= count($rows) ?> records</span></div>
   <div class="member-module-body">
-    <div class="member-module-toolbar"><div class="member-module-search"><i class="fas fa-search"></i><input class="form-control" data-member-search placeholder="Search announcements..."></div>
-<select class="form-control" data-member-filter="priority"><option value="">All Priorities</option><option>Normal</option><option>Important</option><option>Urgent</option></select>
-<select class="form-control" data-member-filter="audience"><option value="">All Audiences</option><option>All Members</option><option>Selected Departments</option></select></div>
     <div class="member-module-table-wrap">
       <table class="member-module-table"><thead><tr><th>#</th><th>Title</th><th>Message</th><th>Priority</th><th>Audience</th><th>Published</th><th>Action</th></tr></thead><tbody>
       <?php if(!$rows):?><tr><td colspan="7"><div class="member-empty"><i class="fas fa-bell-slash"></i>No announcements are currently available.</div></td></tr><?php else:foreach($rows as $i=>$r):
