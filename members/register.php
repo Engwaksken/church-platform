@@ -195,7 +195,6 @@ if($_SERVER['REQUEST_METHOD']==='POST' && !$invalidInvite){
     if(trim((string)($_POST['website']??''))!=='') $errors[]='Unable to process this registration.';
 
     $fullName=member_full_name($_POST);
-    [$first,$last]=member_split_full_name($fullName);
     $gender=sr_clean($_POST['gender']??'');
     $dob=sr_clean($_POST['date_of_birth']??'');
     $phone=sr_clean($_POST['phone']??'');
@@ -253,16 +252,16 @@ if($_SERVER['REQUEST_METHOD']==='POST' && !$invalidInvite){
             $dobDb=$dob!==''?$dob:null; $baptismDb=$baptism!==''?$baptism:null;
             if(sr_column_exists($conn,'members','church_zone_id')){
                 $mst=$conn->prepare("INSERT INTO members
-                    (user_id,member_no,full_name,first_name,last_name,gender,date_of_birth,phone,email,address,marital_status,occupation,department,dept_id,church_zone_id,joined_date,baptism_date,status,notes)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+                    (user_id,member_no,full_name,gender,date_of_birth,phone,email,address,marital_status,occupation,department,dept_id,church_zone_id,joined_date,baptism_date,status,notes)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
                 if(!$mst) throw new RuntimeException('Unable to prepare member registration.');
-                $mst->bind_param('issssssssssssiissss',$userId,$memberNo,$fullName,$first,$last,$gender,$dobDb,$phone,$email,$address,$marital,$occupation,$department,$deptId,$zoneId,$joined,$baptismDb,$status,$notes);
+                $mst->bind_param('issssssssssiissss',$userId,$memberNo,$fullName,$gender,$dobDb,$phone,$email,$address,$marital,$occupation,$department,$deptId,$zoneId,$joined,$baptismDb,$status,$notes);
             } else {
                 $mst=$conn->prepare("INSERT INTO members
-                    (user_id,member_no,full_name,first_name,last_name,gender,date_of_birth,phone,email,address,marital_status,occupation,department,dept_id,joined_date,baptism_date,status,notes)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+                    (user_id,member_no,full_name,gender,date_of_birth,phone,email,address,marital_status,occupation,department,dept_id,joined_date,baptism_date,status,notes)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
                 if(!$mst) throw new RuntimeException('Unable to prepare member registration.');
-                $mst->bind_param('issssssssssssissss',$userId,$memberNo,$fullName,$first,$last,$gender,$dobDb,$phone,$email,$address,$marital,$occupation,$department,$deptId,$joined,$baptismDb,$status,$notes);
+                $mst->bind_param('issssssssssissss',$userId,$memberNo,$fullName,$gender,$dobDb,$phone,$email,$address,$marital,$occupation,$department,$deptId,$joined,$baptismDb,$status,$notes);
             }
             if(!$mst->execute()) throw new RuntimeException('Unable to save your member details: '.$mst->error);
             $memberId=(int)$conn->insert_id; $mst->close();

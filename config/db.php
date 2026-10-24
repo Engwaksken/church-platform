@@ -10,7 +10,7 @@ if ($conn->connect_error) {
 }
 $conn->set_charset("utf8mb4");
 
-// members.full_name holds the member's name (first_name/last_name are legacy); add and backfill it once.
+// members.full_name holds the member's name; add and backfill it once from the legacy name columns.
 $fullNameCol = $conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='members' AND COLUMN_NAME='full_name'");
 $hasMembers  = $conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='members'");
 if ($fullNameCol && !$fullNameCol->num_rows && $hasMembers && $hasMembers->num_rows) {
@@ -22,4 +22,10 @@ if ($fullNameCol && !$fullNameCol->num_rows && $hasMembers && $hasMembers->num_r
         unset($middle, $parts);
     } catch (Throwable $e) { error_log('Could not add members.full_name: ' . $e->getMessage()); }
 }
-unset($fullNameCol, $hasMembers);
+// The legacy name columns are no longer written; let them be NULL until they are dropped.
+$legacyNames = $conn->query("SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='members' AND COLUMN_NAME IN ('first_name','middle_name','last_name') AND IS_NULLABLE='NO'");
+while ($legacyNames && $col = $legacyNames->fetch_assoc()) {
+    try { $conn->query("ALTER TABLE members MODIFY `{$col['COLUMN_NAME']}` {$col['COLUMN_TYPE']} NULL DEFAULT NULL"); }
+    catch (Throwable $e) { error_log("Could not make members.{$col['COLUMN_NAME']} nullable: " . $e->getMessage()); }
+}
+unset($fullNameCol, $hasMembers, $legacyNames, $col);

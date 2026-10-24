@@ -253,7 +253,6 @@ function create_member_login(mysqli $conn,string $fullName,string $memberNo,stri
 function insert_member(mysqli $conn, array $data): array
 {
     $fullName     = member_full_name($data);
-    [$firstName, $lastName] = member_split_full_name($fullName);
     $gender       = clean_value($data['gender']        ?? '');
     $dob          = clean_value($data['date_of_birth'] ?? '');
     $phone        = clean_value($data['phone']         ?? '');
@@ -294,24 +293,24 @@ function insert_member(mysqli $conn, array $data): array
     if (column_exists($conn, 'members', 'church_zone_id')) {
         $stmt = $conn->prepare("
             INSERT INTO members
-                (user_id,member_no,full_name,first_name,last_name,gender,date_of_birth,phone,email,address,
+                (user_id,member_no,full_name,gender,date_of_birth,phone,email,address,
                  marital_status,occupation,department,dept_id,church_zone_id,joined_date,
                  baptism_date,status,notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ");
-        $stmt->bind_param('issssssssssssiissss',
-            $userId,$memberNo,$fullName,$firstName,$lastName,$gender,$dobParam,$phone,$email,$address,
+        $stmt->bind_param('issssssssssiissss',
+            $userId,$memberNo,$fullName,$gender,$dobParam,$phone,$email,$address,
             $marital,$occupation,$department,$deptId,$churchZoneId,$joinedDate,$baptismParam,$status,$notes
         );
     } else {
         $stmt = $conn->prepare("
             INSERT INTO members
-                (user_id,member_no,full_name,first_name,last_name,gender,date_of_birth,phone,email,address,
+                (user_id,member_no,full_name,gender,date_of_birth,phone,email,address,
                  marital_status,occupation,department,dept_id,joined_date,baptism_date,status,notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ");
-        $stmt->bind_param('issssssssssssissss',
-            $userId,$memberNo,$fullName,$firstName,$lastName,$gender,$dobParam,$phone,$email,$address,
+        $stmt->bind_param('issssssssssissss',
+            $userId,$memberNo,$fullName,$gender,$dobParam,$phone,$email,$address,
             $marital,$occupation,$department,$deptId,$joinedDate,$baptismParam,$status,$notes
         );
     }
@@ -990,7 +989,6 @@ try {
     if ($action === 'update') {
         $id        = (int)($_POST['id'] ?? 0);
         $fullName  = member_full_name($_POST);
-        [$firstName, $lastName] = member_split_full_name($fullName);
         $email     = clean_value($_POST['email']      ?? '');
 
         if ($id <= 0)        json_out(['success' => false, 'message' => 'Invalid member ID.']);
@@ -1033,24 +1031,24 @@ try {
         if (column_exists($conn, 'members', 'church_zone_id')) {
             $stmt = $conn->prepare("
                 UPDATE members SET
-                    member_no=?,full_name=?,first_name=?,last_name=?,gender=?,date_of_birth=?,
+                    member_no=?,full_name=?,gender=?,date_of_birth=?,
                     phone=?,email=?,address=?,marital_status=?,occupation=?,
                     department=?,dept_id=?,church_zone_id=?,joined_date=?,baptism_date=?,
                     status=?,notes=?
                 WHERE id=?");
-            $stmt->bind_param('ssssssssssssiissssi',
-                $memberNo,$fullName,$firstName,$lastName,$gender,$dobParam,$phone,$email,$address,
+            $stmt->bind_param('ssssssssssiissssi',
+                $memberNo,$fullName,$gender,$dobParam,$phone,$email,$address,
                 $marital,$occupation,$department,$deptId,$churchZoneId,$joinedDate,$baptismParam,$status,$notes,$id
             );
         } else {
             $stmt = $conn->prepare("
                 UPDATE members SET
-                    member_no=?,full_name=?,first_name=?,last_name=?,gender=?,date_of_birth=?,
+                    member_no=?,full_name=?,gender=?,date_of_birth=?,
                     phone=?,email=?,address=?,marital_status=?,occupation=?,
                     department=?,dept_id=?,joined_date=?,baptism_date=?,status=?,notes=?
                 WHERE id=?");
-            $stmt->bind_param('ssssssssssssissssi',
-                $memberNo,$fullName,$firstName,$lastName,$gender,$dobParam,$phone,$email,$address,
+            $stmt->bind_param('ssssssssssissssi',
+                $memberNo,$fullName,$gender,$dobParam,$phone,$email,$address,
                 $marital,$occupation,$department,$deptId,$joinedDate,$baptismParam,$status,$notes,$id
             );
         }

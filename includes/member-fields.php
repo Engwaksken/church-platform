@@ -14,16 +14,6 @@ function member_fields_column_exists(mysqli $conn, string $table, string $column
     return (int)($row['c'] ?? 0) > 0;
 }
 
-/**
- * members.full_name is the member's name. The legacy first_name/last_name columns are
- * still filled on save: the first word becomes first_name, the rest last_name.
- */
-function member_split_full_name(string $fullName): array
-{
-    $parts = preg_split('/\s+/', trim($fullName), 2) ?: [];
-    return [$parts[0] ?? '', $parts[1] ?? ''];
-}
-
 /** Submitted full name, falling back to first_name/last_name (e.g. older CSV files). */
 function member_full_name(array $data): string
 {
