@@ -5,6 +5,7 @@ $pageTitle = 'My Profile';
 
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/_helpers.php';
+require_once __DIR__ . '/../includes/member-fields.php';
 
 require_permission('member.profile.view');
 
@@ -27,6 +28,9 @@ if (empty($_SESSION['member_profile_csrf'])) {
 }
 
 $csrfToken = (string) $_SESSION['member_profile_csrf'];
+
+// Schema check runs before any transaction, since ALTER TABLE implicitly commits.
+$hasServiceColumn = member_fields_ensure($conn);
 
 /*
 |--------------------------------------------------------------------------
@@ -139,6 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'update_profile') {
         $email  = strtolower(profilePostValue('email'));
         $phone  = profilePostValue('phone');
+        $serviceAttended = mb_substr(profilePostValue('service_attended'), 0, 120, 'UTF-8');
         $zoneId = filter_input(
             INPUT_POST,
             'church_zone_id',
@@ -257,6 +262,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $memberUpdates[] = 'church_zone_id = ?';
                 $memberTypes    .= 'i';
                 $memberValues[]  = $zoneId;
+            }
+
+            if (in_array('service_attended', $memberColumns, true)) {
+                $memberUpdates[] = 'service_attended = ?';
+                $memberTypes    .= 's';
+                $memberValues[]  = $serviceAttended !== '' ? $serviceAttended : null;
             }
 
             if ($memberUpdates !== []) {
@@ -839,6 +850,20 @@ include __DIR__ . '/../includes/sidebar.php';
                         <strong><?= mp_h($zoneName) ?></strong>
                     </div>
 
+                    <?php if (!empty($profile['pledge_no'])): ?>
+                        <div>
+                            <span>Pledge number</span>
+                            <strong><?= mp_h((string) $profile['pledge_no']) ?></strong>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if (!empty($profile['service_attended'])): ?>
+                        <div>
+                            <span>Service</span>
+                            <strong><?= mp_h((string) $profile['service_attended']) ?></strong>
+                        </div>
+                    <?php endif; ?>
+
                     <?php if (!empty($profile['joined_date'])): ?>
                         <div>
                             <span>Member since</span>
@@ -991,6 +1016,65 @@ include __DIR__ . '/../includes/sidebar.php';
                                         >
                                     </div>
                                 </div>
+
+                                <?php if ($hasServiceColumn): ?>
+                                    <div class="form-group">
+                                        <label>Pledge Number</label>
+
+                                        <div class="input-with-icon read-only-input">
+                                            <i class="fas fa-hand-holding-heart"></i>
+
+                                            <input
+                                                type="text"
+                                                class="form-control"
+                                                value="<?= mp_h(
+                                                    (string) (
+                                                        $profile['pledge_no']
+                                                        ?? ''
+                                                    )
+                                                ) ?>"
+                                                placeholder="Not assigned"
+                                                readonly
+                                            >
+                                        </div>
+
+                                        <small>
+                                            Assigned by the church administrator.
+                                        </small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="serviceAttended">
+                                            Service You Attend
+                                        </label>
+
+                                        <div class="input-with-icon">
+                                            <i class="fas fa-church"></i>
+
+                                            <input
+                                                type="text"
+                                                id="serviceAttended"
+                                                name="service_attended"
+                                                class="form-control"
+                                                list="serviceAttendedOptions"
+                                                value="<?= mp_h(
+                                                    (string) (
+                                                        $profile['service_attended']
+                                                        ?? ''
+                                                    )
+                                                ) ?>"
+                                                maxlength="120"
+                                                placeholder="e.g. First Service"
+                                            >
+                                        </div>
+
+                                        <datalist id="serviceAttendedOptions">
+                                            <?php foreach (member_fields_service_options($conn) as $serviceOption): ?>
+                                                <option value="<?= mp_h($serviceOption) ?>">
+                                            <?php endforeach; ?>
+                                        </datalist>
+                                    </div>
+                                <?php endif; ?>
 
                                 <div class="form-group">
                                     <label for="profileEmail">

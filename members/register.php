@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/member-fields.php';
 
 if (!isset($conn) || !($conn instanceof mysqli)) {
     http_response_code(500);
@@ -184,6 +185,9 @@ if($zoneTable){
     if($r) while($row=$r->fetch_assoc()) $zones[]=$row;
 }
 
+$hasServiceCol=member_fields_ensure($conn);
+$serviceOptions=$hasServiceCol?member_fields_service_options($conn):[];
+
 $errors=[]; $success=false; $newMemberNo=''; $newUsername='';
 if($_SERVER['REQUEST_METHOD']==='POST' && !$invalidInvite){
     $postedCsrf=(string)($_POST['csrf_token']??'');
@@ -200,6 +204,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && !$invalidInvite){
     $marital=sr_clean($_POST['marital_status']??'');
     $occupation=sr_clean($_POST['occupation']??'');
     $baptism=sr_clean($_POST['baptism_date']??'');
+    $serviceAttended=mb_substr(sr_clean($_POST['service_attended']??''),0,120,'UTF-8');
     $requestedUsername=sr_clean($_POST['login_username']??'');
     $password=(string)($_POST['login_password']??'');
     $confirm=(string)($_POST['confirm_password']??'');
@@ -262,6 +267,10 @@ if($_SERVER['REQUEST_METHOD']==='POST' && !$invalidInvite){
             }
             if(!$mst->execute()) throw new RuntimeException('Unable to save your member details: '.$mst->error);
             $memberId=(int)$conn->insert_id; $mst->close();
+            if($hasServiceCol && $serviceAttended!==''){
+                $sst=$conn->prepare('UPDATE members SET service_attended=? WHERE id=?');
+                $sst->bind_param('si',$serviceAttended,$memberId); $sst->execute(); $sst->close();
+            }
             sr_sync_department($conn,$memberId,$deptId,$joined);
 
             $newUsed=(int)$locked['used_count']+1;
@@ -355,6 +364,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && !$invalidInvite){
                     <div class="reg-group"><label>Occupation</label><input type="text" name="occupation" maxlength="150" value="<?= sr_h($_POST['occupation']??'') ?>"></div>
                     <?php if($departments): ?><div class="reg-group"><label>Department</label><select name="dept_id"><option value="">- None -</option><?php foreach($departments as $d): ?><option value="<?= (int)$d['id'] ?>" <?= ((int)($_POST['dept_id']??0)===(int)$d['id'])?'selected':'' ?>><?= sr_h($d['name']) ?></option><?php endforeach; ?></select></div><?php endif; ?>
                     <?php if($zones): ?><div class="reg-group"><label>Church Zone</label><select name="church_zone_id"><option value="">- None -</option><?php foreach($zones as $z): ?><option value="<?= (int)$z['id'] ?>" <?= ((int)($_POST['church_zone_id']??0)===(int)$z['id'])?'selected':'' ?>><?= sr_h($z['zone_name']) ?></option><?php endforeach; ?></select></div><?php endif; ?>
+                    <?php if($hasServiceCol): ?><div class="reg-group"><label>Service You Attend</label><input type="text" name="service_attended" list="regServiceOptions" maxlength="120" placeholder="e.g. First Service" value="<?= sr_h($_POST['service_attended']??'') ?>"><datalist id="regServiceOptions"><?php foreach($serviceOptions as $so): ?><option value="<?= sr_h($so) ?>"><?php endforeach; ?></datalist></div><?php endif; ?>
                     <div class="reg-group"><label>Baptism Date</label><input type="date" name="baptism_date" value="<?= sr_h($_POST['baptism_date']??'') ?>"></div>
                     <div class="reg-group reg-span-2"><label>Address</label><textarea name="address" rows="2" maxlength="500"><?= sr_h($_POST['address']??'') ?></textarea></div>
                     <div class="reg-group"><label>Username <small style="font-weight:400;color:#64748b">(optional)</small></label><input type="text" name="login_username" maxlength="50" placeholder="Leave blank to generate one" value="<?= sr_h($_POST['login_username']??'') ?>"></div>

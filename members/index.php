@@ -2,6 +2,7 @@
 $pageTitle = 'Members';
 require_once '../includes/header.php';
 require_once '../includes/sidebar.php';
+require_once '../includes/member-fields.php';
 
 if (!isset($conn) || !($conn instanceof mysqli)) die('Database connection not found.');
 $conn->set_charset('utf8mb4');
@@ -54,6 +55,9 @@ function member_ensure_zone_col(mysqli $conn): bool {
 }
 
 $hasZoneCol    = member_ensure_zone_col($conn);
+$hasExtraCols  = member_fields_ensure($conn);
+$extraSelectSql= $hasExtraCols ? ", m.pledge_no, m.service_attended" : ", '' AS pledge_no, '' AS service_attended";
+$serviceOptions= member_fields_service_options($conn);
 $zoneTable     = member_zone_table($conn);
 $zoneNameCol   = $zoneTable ? member_zone_name_col($conn,$zoneTable) : '';
 $zoneSelectSql = ($hasZoneCol&&$zoneTable) ? ", m.church_zone_id, COALESCE(z.`$zoneNameCol`,'') AS zone_name" : ", NULL AS church_zone_id, '' AS zone_name";
@@ -65,6 +69,7 @@ $status  = trim((string)($_GET['status']??''));
 $dateFrom = trim((string)($_GET['date_from']??''));
 $dateTo   = trim((string)($_GET['date_to']??''));
 $zoneId   = max(0,(int)($_GET['zone_id']??0));
+$service  = trim((string)($_GET['service']??''));
 $page    = max(1,(int)($_GET['page']??1));
 $pp      = [10,25,50,100];
 $perPage = (int)($_GET['per_page']??10);
@@ -79,12 +84,14 @@ if($search!==''){
     $baseWhere.=" AND (m.first_name LIKE ? OR m.last_name LIKE ? OR CONCAT_WS(' ',m.first_name,m.last_name) LIKE ? OR m.member_no LIKE ? OR m.phone LIKE ? OR m.email LIKE ? OR m.occupation LIKE ? OR m.department LIKE ? OR d.name LIKE ?";
     $like='%'.$search.'%';
     for($i=0;$i<9;$i++){$baseParams[]=$like;$baseTypes.='s';}
+    if($hasExtraCols){$baseWhere.=" OR m.pledge_no LIKE ? OR m.service_attended LIKE ?";$baseParams[]=$like;$baseParams[]=$like;$baseTypes.='ss';}
     if($hasZoneCol&&$zoneTable){$baseWhere.=" OR z.`$zoneNameCol` LIKE ?";$baseParams[]=$like;$baseTypes.='s';}
     $baseWhere.=")";
 }
 if($status!==''){$baseWhere.=' AND m.status=?';$baseParams[]=$status;$baseTypes.='s';}
 if($dateFrom!==''){$baseWhere.=' AND DATE(m.joined_date)>=?';$baseParams[]=$dateFrom;$baseTypes.='s';}
 if($dateTo!==''){$baseWhere.=' AND DATE(m.joined_date)<=?';$baseParams[]=$dateTo;$baseTypes.='s';}
+if($service!=='' && $hasExtraCols){$baseWhere.=' AND m.service_attended=?';$baseParams[]=$service;$baseTypes.='s';}
 
 /* The full filter includes the selected zone. The base filter is reused to
    calculate each zone's count without limiting every card to one zone. */
@@ -103,6 +110,7 @@ $listSql="
            m.phone,m.email,m.address,m.marital_status,m.occupation,m.department,
            m.dept_id,m.joined_date,m.baptism_date,m.status,m.photo,m.notes,m.created_at,
            COALESCE(d.name,m.department,'') AS dept_name
+           $extraSelectSql
            $zoneSelectSql
     FROM members m
     LEFT JOIN departments d ON d.id=m.dept_id
@@ -168,6 +176,7 @@ $endRow=min($offset+$perPage,$totalRows);
 /* -- JSON blobs for JS -- */
 $deptJson = json_encode(array_map(fn($d)=>['id'=>(int)$d['id'],'name'=>$d['name']],$departments));
 $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_name']],$zones));
+$exportQuery = http_build_query(array_filter(['search'=>$search,'status'=>$status,'date_from'=>$dateFrom,'date_to'=>$dateTo,'zone_id'=>$zoneId>0?$zoneId:'','service'=>$service],fn($v)=>$v!==''));
 ?>
 
 <div class="main-content">
@@ -184,11 +193,11 @@ $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_
         <div class="module-actions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <!-- Export buttons -->
             <div class="btn-group" style="display:flex;gap:6px">
-                <a href="process-member.php?action=export_csv<?= $search!==''?'&search='.urlencode($search):'' ?><?= $status!==''?'&status='.urlencode($status):'' ?><?= $dateFrom!==''?'&date_from='.urlencode($dateFrom):'' ?><?= $dateTo!==''?'&date_to='.urlencode($dateTo):'' ?><?= $zoneId>0?'&zone_id='.$zoneId:'' ?>"
+                <a href="process-member.php?action=export_csv<?= $exportQuery!==''?'&'.h($exportQuery):'' ?>"
                    class="btn btn-outline btn-sm" title="Download all members as CSV">
                     <i class="fas fa-file-csv"></i> Export CSV
                 </a>
-                <a href="process-member.php?action=export_pdf<?= $search!==''?'&search='.urlencode($search):'' ?><?= $status!==''?'&status='.urlencode($status):'' ?><?= $dateFrom!==''?'&date_from='.urlencode($dateFrom):'' ?><?= $dateTo!==''?'&date_to='.urlencode($dateTo):'' ?><?= $zoneId>0?'&zone_id='.$zoneId:'' ?>"
+                <a href="process-member.php?action=export_pdf<?= $exportQuery!==''?'&'.h($exportQuery):'' ?>"
                    class="btn btn-outline btn-sm" title="Download members list as PDF"
                    target="_blank">
                     <i class="fas fa-file-pdf"></i> Export PDF
@@ -220,7 +229,7 @@ $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_
     .zone-stat{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:#fff;border:1px solid var(--border,#e5e7eb);border-radius:12px;text-decoration:none;color:inherit}
     .zone-stat.active,.zone-stat:hover{border-color:#2e3192;background:rgba(46,49,146,.04)}
     .zone-stat b{font-size:18px;color:#2e3192}.zone-stat small{display:block;color:#6b7280;margin-top:2px}
-    .module-filter-form.filter-expanded{display:grid;grid-template-columns:minmax(220px,2fr) repeat(5,minmax(130px,1fr)) auto auto;gap:10px;align-items:end}
+    .module-filter-form.filter-expanded{display:grid;grid-template-columns:minmax(220px,2fr) repeat(6,minmax(130px,1fr)) auto auto;gap:10px;align-items:end}
     @media(max-width:1100px){.member-stats-grid{grid-template-columns:repeat(2,1fr)}.module-filter-form.filter-expanded{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:620px){.member-stats-grid{grid-template-columns:1fr}.module-filter-form.filter-expanded{grid-template-columns:1fr}#memberRegistrationLinkModal .form-grid{grid-template-columns:1fr!important}#memberRegistrationLinkModal .modal-body>div[style*="grid-template-columns:minmax"]{grid-template-columns:1fr!important}}
     </style>
@@ -251,7 +260,7 @@ $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_
             <div class="module-search-box">
                 <i class="fas fa-search"></i>
                 <input type="text" name="search" value="<?= h($search) ?>"
-                       placeholder="Search member...">
+                       placeholder="Search name, member/pledge no...">
             </div>
             <select name="status" class="form-control">
                 <option value="">All Status</option>
@@ -262,6 +271,12 @@ $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_
             <select name="zone_id" class="form-control">
                 <option value="">All Zones</option>
                 <?php foreach($zones as $z): ?><option value="<?= (int)$z['id'] ?>" <?= $zoneId===(int)$z['id']?'selected':'' ?>><?= h($z['zone_name']) ?></option><?php endforeach; ?>
+            </select>
+            <?php endif; ?>
+            <?php if($hasExtraCols): ?>
+            <select name="service" class="form-control">
+                <option value="">All Services</option>
+                <?php foreach($serviceOptions as $so): ?><option value="<?= h($so) ?>" <?= $service===$so?'selected':'' ?>><?= h($so) ?></option><?php endforeach; ?>
             </select>
             <?php endif; ?>
             <input type="date" name="date_from" class="form-control" value="<?= h($dateFrom) ?>" title="Joined from">
@@ -300,9 +315,11 @@ $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_
                         <th>#</th>
                         <th>Member</th>
                         <th>Member No</th>
+                        <th>Pledge No</th>
                         <th>Gender</th>
                         <th>Department</th>
                         <th>Zone</th>
+                        <th>Service</th>
                         <th>Phone</th>
                         <th>Occupation</th>
                         <th>Status</th>
@@ -326,9 +343,11 @@ $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_
                             </div>
                         </td>
                         <td><span class="badge badge-primary"><i class="fas fa-id-card"></i> <?= h($m['member_no']??'-') ?></span></td>
+                        <td><?= h(($m['pledge_no']??'')?:'-') ?></td>
                         <td><?= h($m['gender']??'-') ?></td>
                         <td><?= h($m['dept_name']??'-') ?></td>
                         <td><?= h($m['zone_name']??'-') ?></td>
+                        <td><?= h(($m['service_attended']??'')?:'-') ?></td>
                         <td><?= h($m['phone']??'-') ?></td>
                         <td><?= h($m['occupation']??'-') ?></td>
                         <td>
@@ -357,7 +376,7 @@ $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_
                     </tr>
                 <?php endwhile; else: ?>
                     <tr>
-                        <td colspan="11">
+                        <td colspan="13">
                             <div class="empty-state">
                                 <div class="icon"><i class="fas fa-users"></i></div>
                                 <p>No members found.</p>
@@ -385,6 +404,10 @@ $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_
         <?php endif; ?>
     </div><!-- /.module-card -->
 
+
+    <datalist id="memberServiceOptions">
+        <?php foreach($serviceOptions as $so): ?><option value="<?= h($so) ?>"><?php endforeach; ?>
+    </datalist>
 
     <!-- --------------------------------------------------------
          MODAL: Import CSV
@@ -420,7 +443,8 @@ $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_
                             Optional: <code>phone</code>, <code>email</code>, <code>occupation</code>,
                             <code>marital_status</code>, <code>date_of_birth</code>,
                             <code>joined_date</code>, <code>baptism_date</code>,
-                            <code>address</code>, <code>notes</code>, <code>status</code>.
+                            <code>address</code>, <code>notes</code>, <code>status</code>,
+                            <code>pledge_no</code>, <code>service_attended</code>.
                         </small>
                     </div>
 
@@ -482,7 +506,7 @@ $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_
                             <i class="fas fa-sliders-h"></i> Defaults applied to all members below
                             <small class="text-muted" style="font-weight:400;margin-left:6px">(override per-row if needed)</small>
                         </div>
-                        <div class="form-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">
+                        <div class="form-grid" style="grid-template-columns:repeat(5,minmax(0,1fr));gap:12px">
                             <div class="form-group" style="margin:0">
                                 <label>Joined Date</label>
                                 <input type="date" id="bulkJoinedDate" class="form-control"
@@ -507,6 +531,10 @@ $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_
                                 </select>
                             </div>
                             <div class="form-group" style="margin:0">
+                                <label>Service Attended</label>
+                                <input type="text" id="bulkService" class="form-control" list="memberServiceOptions" placeholder="e.g. First Service">
+                            </div>
+                            <div class="form-group" style="margin:0">
                                 <label>Status</label>
                                 <select id="bulkStatus" class="form-control">
                                     <option value="Active">Active</option>
@@ -524,7 +552,7 @@ $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_
                     <!-- Column headers -->
                     <div id="memberRowsHeader" style="
                         display:grid;
-                        grid-template-columns:24px 1fr 1fr 90px 110px 110px 110px 90px 36px;
+                        grid-template-columns:24px 1fr 1fr 90px 100px 110px 110px 110px 120px 90px 36px;
                         gap:6px;align-items:center;
                         padding:8px 20px;
                         background:#f5f1ff;
@@ -535,9 +563,11 @@ $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_
                         <div><i class="fas fa-user"></i> First Name *</div>
                         <div><i class="fas fa-user"></i> Last Name *</div>
                         <div><i class="fas fa-venus-mars"></i> Gender *</div>
+                        <div><i class="fas fa-hand-holding-heart"></i> Pledge No</div>
                         <div><i class="fas fa-phone"></i> Phone</div>
                         <div><i class="fas fa-envelope"></i> Email</div>
                         <div><i class="fas fa-briefcase"></i> Occupation</div>
+                        <div><i class="fas fa-church"></i> Service</div>
                         <div><i class="fas fa-toggle-on"></i> Status</div>
                         <div></div>
                     </div>
@@ -593,6 +623,8 @@ $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_
                 <input type="hidden" name="id"     value="0">
                 <div class="modal-body">
                     <div class="member-form-grid">
+                        <div class="form-group"><label>Member No</label><input class="form-control" name="member_no" placeholder="Auto-generated if blank"></div>
+                        <div class="form-group"><label>Pledge No</label><input class="form-control" name="pledge_no" maxlength="50" placeholder="e.g. P-001"></div>
                         <div class="form-group"><label>First Name <span class="req">*</span></label><input class="form-control" name="first_name" required></div>
                         <div class="form-group"><label>Last Name <span class="req">*</span></label><input class="form-control" name="last_name" required></div>
                         <div class="form-group"><label>Gender <span class="req">*</span></label><select class="form-control" name="gender" required><option value="">Select</option><option>Male</option><option>Female</option></select></div>
@@ -606,6 +638,7 @@ $zoneJson = json_encode(array_map(fn($z)=>['id'=>(int)$z['id'],'name'=>$z['zone_
                         <div class="form-group"><label>Joined Date</label><input type="date" class="form-control" name="joined_date" value="<?= h(date('Y-m-d')) ?>"></div>
                         <div class="form-group"><label>Baptism Date</label><input type="date" class="form-control" name="baptism_date"></div>
                         <div class="form-group"><label>Church Zone</label><select class="form-control" name="church_zone_id"><option value="">None</option><?php foreach($zones as $z): ?><option value="<?= (int)$z['id'] ?>"><?= h($z['zone_name']) ?></option><?php endforeach; ?></select></div>
+                        <div class="form-group"><label>Service Attended</label><input class="form-control" name="service_attended" list="memberServiceOptions" maxlength="120" placeholder="e.g. First Service"></div>
                         <div class="form-group"><label>Status</label><select class="form-control" name="status"><option>Active</option><option>Inactive</option></select></div>
                     </div>
                     <div class="form-group"><label>Address</label><textarea class="form-control" name="address" rows="3"></textarea></div>
@@ -951,7 +984,7 @@ window.MEMBER_MODULE = {
         row.dataset.idx = idx;
         row.style.cssText = `
             display:grid;
-            grid-template-columns:24px 1fr 1fr 90px 110px 110px 110px 90px 36px;
+            grid-template-columns:24px 1fr 1fr 90px 100px 110px 110px 110px 120px 90px 36px;
             gap:6px;align-items:start;
             padding:8px 0;
             border-bottom:1px solid #f0ecfa;
@@ -974,6 +1007,10 @@ window.MEMBER_MODULE = {
                 </select>
             </div>
             <div class="form-group" style="margin:0">
+                <input type="text" name="members[${idx}][pledge_no]"
+                       class="form-control form-control-sm" placeholder="Pledge no">
+            </div>
+            <div class="form-group" style="margin:0">
                 <input type="text" name="members[${idx}][phone]"
                        class="form-control form-control-sm" placeholder="Phone">
             </div>
@@ -984,6 +1021,11 @@ window.MEMBER_MODULE = {
             <div class="form-group" style="margin:0">
                 <input type="text" name="members[${idx}][occupation]"
                        class="form-control form-control-sm" placeholder="Occupation">
+            </div>
+            <div class="form-group" style="margin:0">
+                <input type="text" name="members[${idx}][service_attended]" list="memberServiceOptions"
+                       class="form-control form-control-sm" placeholder="Service"
+                       value="${esc(document.getElementById('bulkService')?.value || '')}">
             </div>
             <div class="form-group" style="margin:0">
                 <select name="members[${idx}][status]" class="form-control form-control-sm">
@@ -1037,10 +1079,12 @@ window.MEMBER_MODULE = {
         const deptId     = document.getElementById('bulkDeptId')?.value     || '';
         const zoneId     = document.getElementById('bulkZoneId')?.value     || '';
         const status     = document.getElementById('bulkStatus')?.value     || 'Active';
+        const service    = document.getElementById('bulkService')?.value.trim() || '';
 
         getAllRows().forEach(row => {
             const sel = (name) => row.querySelector(`[name$="[${name}]"]`);
             if (sel('status')) sel('status').value = status;
+            if (service && sel('service_attended')) sel('service_attended').value = service;
         });
     });
 
@@ -1096,6 +1140,7 @@ window.MEMBER_MODULE = {
         const sharedDept   = document.getElementById('bulkDeptId')?.value     || '';
         const sharedZone   = document.getElementById('bulkZoneId')?.value     || '';
         const sharedStatus = document.getElementById('bulkStatus')?.value     || 'Active';
+        const sharedService= document.getElementById('bulkService')?.value.trim() || '';
 
         const fd = new FormData();
         fd.append('action', 'bulk_create');
@@ -1105,6 +1150,8 @@ window.MEMBER_MODULE = {
             fd.append(`members[${i}][first_name]`,  g('first_name'));
             fd.append(`members[${i}][last_name]`,   g('last_name'));
             fd.append(`members[${i}][gender]`,      g('gender'));
+            fd.append(`members[${i}][pledge_no]`,   g('pledge_no'));
+            fd.append(`members[${i}][service_attended]`, g('service_attended') || sharedService);
             fd.append(`members[${i}][phone]`,       g('phone'));
             fd.append(`members[${i}][email]`,       g('email'));
             fd.append(`members[${i}][occupation]`,  g('occupation'));
@@ -1152,7 +1199,7 @@ window.MEMBER_MODULE = {
             const res = await post('get', {id});
             if (!res.success) throw new Error(res.message || 'Failed to load member.');
             const m = res.member || {};
-            ['first_name','last_name','gender','date_of_birth','phone','email','address',
+            ['member_no','pledge_no','service_attended','first_name','last_name','gender','date_of_birth','phone','email','address',
              'marital_status','occupation','dept_id','dept_role','joined_date','baptism_date',
              'church_zone_id','status','notes'].forEach(k => setVal(k, m[k]));
             setVal('action','update'); setVal('id', m.id || id);
@@ -1216,6 +1263,8 @@ window.MEMBER_MODULE = {
                     </span>
                 </div>
                 <div class="member-view-card">
+                    ${row('Pledge No',m.pledge_no)}
+                    ${row('Service Attended',m.service_attended)}
                     ${row('Gender',m.gender)}
                     ${row('Date of Birth',m.date_of_birth_formatted)}
                     ${row('Phone',m.phone)}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 ob_start();
 
 require_once __DIR__ . '/../config/config.php';
+require_once __DIR__ . '/../includes/member-fields.php';
 
 if (session_status() !== PHP_SESSION_ACTIVE) session_start();
 
@@ -169,6 +170,21 @@ function member_no_exists(mysqli $conn, string $memberNo, int $excludeId = 0): b
     return $found;
 }
 
+function save_member_extras(mysqli $conn, int $memberId, array $data): void
+{
+    if (!member_fields_ensure($conn)) return;
+    $pledgeNo = clean_value($data['pledge_no'] ?? '');
+    $service  = clean_value($data['service_attended'] ?? '');
+    if (member_fields_pledge_taken($conn, $pledgeNo, $memberId))
+        throw new Exception("Pledge number {$pledgeNo} is already assigned to another member.");
+    $pledgeParam  = $pledgeNo !== '' ? $pledgeNo : null;
+    $serviceParam = $service  !== '' ? $service  : null;
+    $stmt = $conn->prepare("UPDATE members SET pledge_no=?, service_attended=? WHERE id=?");
+    $stmt->bind_param('ssi', $pledgeParam, $serviceParam, $memberId);
+    if (!$stmt->execute()) throw new Exception($stmt->error);
+    $stmt->close();
+}
+
 function department_name(mysqli $conn, ?int $deptId): string
 {
     if (!$deptId || !table_exists($conn, 'departments')) return '';
@@ -262,6 +278,10 @@ function insert_member(mysqli $conn, array $data): array
 
     if ($memberNo === '') $memberNo = generate_member_no($conn);
 
+    $pledgeNo = clean_value($data['pledge_no'] ?? '');
+    if (member_fields_ensure($conn) && member_fields_pledge_taken($conn, $pledgeNo))
+        throw new Exception("Pledge number {$pledgeNo} is already assigned to another member.");
+
     $dobParam     = $dob        !== '' ? $dob        : null;
     $baptismParam = $baptismDate !== '' ? $baptismDate : null;
 
@@ -300,6 +320,7 @@ function insert_member(mysqli $conn, array $data): array
     $newId = (int)$conn->insert_id;
     $stmt->close();
 
+    save_member_extras($conn, $newId, $data);
     sync_department_member($conn, $newId, $deptId, $deptRole, $joinedDate);
     $emailSent = send_registration_email($conn, $email, $firstName, $lastName, $memberNo, $joinedDate);
 
@@ -313,8 +334,10 @@ function insert_member(mysqli $conn, array $data): array
 /**
  * Fetch all members matching optional search/status filters (no pagination).
  */
-function fetch_all_members(mysqli $conn, string $search = '', string $status = '', string $dateFrom = '', string $dateTo = '', int $zoneId = 0): array
+function fetch_all_members(mysqli $conn, string $search = '', string $status = '', string $dateFrom = '', string $dateTo = '', int $zoneId = 0, string $service = ''): array
 {
+    $hasExtras = member_fields_ensure($conn);
+    $extraSelect = $hasExtras ? 'm.pledge_no, m.service_attended,' : "'' AS pledge_no, '' AS service_attended,";
     $zt = zone_table($conn);
     $zoneSelect = "'' AS zone_name";
     $zoneJoin   = '';
@@ -334,6 +357,10 @@ function fetch_all_members(mysqli $conn, string $search = '', string $status = '
                      OR m.member_no LIKE ? OR m.phone LIKE ? OR m.email LIKE ?
                      OR m.occupation LIKE ? OR m.department LIKE ? OR d.name LIKE ?";
         for ($i = 0; $i < 9; $i++) { $params[] = $like; $types .= 's'; }
+        if ($hasExtras) {
+            $where .= ' OR m.pledge_no LIKE ? OR m.service_attended LIKE ?';
+            $params[] = $like; $params[] = $like; $types .= 'ss';
+        }
         if ($zt && column_exists($conn, 'members', 'church_zone_id')) {
             $zn2 = zone_name_column($conn, $zt);
             $where .= " OR z.`$zn2` LIKE ?";
@@ -357,9 +384,13 @@ function fetch_all_members(mysqli $conn, string $search = '', string $status = '
         $where .= ' AND m.church_zone_id=?';
         $params[] = $zoneId; $types .= 'i';
     }
+    if ($service !== '' && $hasExtras) {
+        $where .= ' AND m.service_attended=?';
+        $params[] = $service; $types .= 's';
+    }
 
     $sql = "
-        SELECT m.id, m.member_no, m.first_name, m.last_name, m.gender,
+        SELECT m.id, m.member_no, $extraSelect m.first_name, m.last_name, m.gender,
                m.date_of_birth, m.phone, m.email, m.address,
                m.marital_status, m.occupation,
                COALESCE(d.name, m.department, '') AS dept_name,
@@ -390,14 +421,15 @@ function build_csv_rows(array $members): array
 {
     $rows   = [];
     $rows[] = [
-        'Member No', 'First Name', 'Last Name', 'Gender',
+        'Member No', 'Pledge No', 'First Name', 'Last Name', 'Gender',
         'Date of Birth', 'Phone', 'Email', 'Address',
-        'Marital Status', 'Occupation', 'Department', 'Zone',
+        'Marital Status', 'Occupation', 'Department', 'Zone', 'Service Attended',
         'Joined Date', 'Baptism Date', 'Status', 'Notes',
     ];
     foreach ($members as $m) {
         $rows[] = [
             $m['member_no']    ?? '',
+            $m['pledge_no']    ?? '',
             $m['first_name']   ?? '',
             $m['last_name']    ?? '',
             $m['gender']       ?? '',
@@ -409,6 +441,7 @@ function build_csv_rows(array $members): array
             $m['occupation']   ?? '',
             $m['dept_name']    ?? '',
             $m['zone_name']    ?? '',
+            $m['service_attended'] ?? '',
             $m['joined_date']  ?? '',
             $m['baptism_date'] ?? '',
             $m['status']       ?? '',
@@ -438,9 +471,11 @@ function build_pdf_html(array $members, string $search, string $status): string
             <td style="text-align:center">' . $i . '</td>
             <td>' . $full . '</td>
             <td>' . htmlspecialchars((string)($m['member_no']??'-'), ENT_QUOTES) . '</td>
+            <td>' . htmlspecialchars((string)(($m['pledge_no']??'') ?: '-'), ENT_QUOTES) . '</td>
             <td>' . htmlspecialchars((string)($m['gender']??'-'), ENT_QUOTES) . '</td>
             <td>' . htmlspecialchars((string)($m['dept_name']??'-'), ENT_QUOTES) . '</td>
             <td>' . htmlspecialchars((string)($m['zone_name']??'-'), ENT_QUOTES) . '</td>
+            <td>' . htmlspecialchars((string)(($m['service_attended']??'') ?: '-'), ENT_QUOTES) . '</td>
             <td>' . htmlspecialchars((string)($m['phone']??'-'), ENT_QUOTES) . '</td>
             <td>' . htmlspecialchars((string)($m['occupation']??'-'), ENT_QUOTES) . '</td>
             <td style="text-align:center">' . $sTag . '</td>
@@ -476,9 +511,11 @@ function build_pdf_html(array $members, string $search, string $status): string
       <th style="width:22px">#</th>
       <th>Full Name</th>
       <th>Member No</th>
+      <th>Pledge No</th>
       <th>Gender</th>
       <th>Department</th>
       <th>Zone</th>
+      <th>Service</th>
       <th>Phone</th>
       <th>Occupation</th>
       <th>Status</th>
@@ -558,6 +595,11 @@ function normalise_csv_row(array $row): array
         'notes'          => 'notes',
         'remarks'        => 'notes',
         'status'         => 'status',
+        'pledge_no'      => 'pledge_no',
+        'pledge_number'  => 'pledge_no',
+        'pledge'         => 'pledge_no',
+        'service'        => 'service_attended',
+        'service_attended' => 'service_attended',
     ];
     $out = [];
     foreach ($row as $key => $val) {
@@ -623,6 +665,8 @@ function current_user_id_for_registration_link(): ?int
 try {
     if (!table_exists($conn, 'members'))
         json_out(['success' => false, 'message' => 'members table does not exist.']);
+    // Run schema changes before any transaction: ALTER TABLE would implicitly commit it.
+    member_fields_ensure($conn);
 
     $action = clean_value($_REQUEST['action'] ?? 'list');
 
@@ -689,13 +733,13 @@ try {
         $template = [
             ['first_name','last_name','gender','phone','email','occupation',
              'marital_status','date_of_birth','joined_date','baptism_date',
-             'address','notes','status'],
+             'address','notes','status','pledge_no','service_attended'],
             ['John','Doe','Male','+256700000001','john@example.com','Teacher',
              'Married','1985-06-15','2020-01-10','2019-12-25',
-             '123 Main St, Kampala','Choir leader','Active'],
+             '123 Main St, Kampala','Choir leader','Active','P-001','First Service'],
             ['Jane','Smith','Female','+256700000002','jane@example.com','Nurse',
              'Single','1992-03-22','2021-05-01','',
-             '45 Church Road','','Active'],
+             '45 Church Road','','Active','','Second Service'],
         ];
         csv_out('members_import_template.csv', $template);
     }
@@ -709,9 +753,10 @@ try {
         $dateFrom = clean_value($_GET['date_from'] ?? '');
         $dateTo   = clean_value($_GET['date_to'] ?? '');
         $zoneId   = max(0, (int)($_GET['zone_id'] ?? 0));
+        $service  = clean_value($_GET['service'] ?? '');
         if (!in_array($status, ['Active','Inactive',''], true)) $status = '';
 
-        $members  = fetch_all_members($conn, $search, $status, $dateFrom, $dateTo, $zoneId);
+        $members  = fetch_all_members($conn, $search, $status, $dateFrom, $dateTo, $zoneId, $service);
         $csvRows  = build_csv_rows($members);
         $filename = 'members_export_' . date('Ymd_His') . '.csv';
         csv_out($filename, $csvRows);
@@ -726,9 +771,10 @@ try {
         $dateFrom = clean_value($_GET['date_from'] ?? '');
         $dateTo   = clean_value($_GET['date_to'] ?? '');
         $zoneId   = max(0, (int)($_GET['zone_id'] ?? 0));
+        $service  = clean_value($_GET['service'] ?? '');
         if (!in_array($status, ['Active','Inactive',''], true)) $status = '';
 
-        $members  = fetch_all_members($conn, $search, $status, $dateFrom, $dateTo, $zoneId);
+        $members  = fetch_all_members($conn, $search, $status, $dateFrom, $dateTo, $zoneId, $service);
         $html     = build_pdf_html($members, $search, $status);
         $filename = 'members_report_' . date('Ymd_His') . '.pdf';
         pdf_out($filename, $html);
@@ -985,6 +1031,9 @@ try {
         if ($memberNo === '') $memberNo = generate_member_no($conn);
         if (member_no_exists($conn, $memberNo, $id))
             json_out(['success' => false, 'message' => 'Member number already exists.']);
+        $pledgeNo = clean_value($_POST['pledge_no'] ?? '');
+        if (member_fields_ensure($conn) && member_fields_pledge_taken($conn, $pledgeNo, $id))
+            json_out(['success' => false, 'message' => 'Pledge number already assigned to another member.']);
 
         $dobParam     = $dob         !== '' ? $dob         : null;
         $baptismParam = $baptismDate !== '' ? $baptismDate : null;
@@ -1016,6 +1065,7 @@ try {
         if (!$stmt->execute()) throw new Exception($stmt->error);
         $stmt->close();
 
+        save_member_extras($conn, $id, $_POST);
         sync_department_member($conn, $id, $deptId, $deptRole, $joinedDate);
         $fullName = trim($firstName.' '.$lastName);
         $userStatus = $status === 'Active' ? 'Active' : 'Inactive';
