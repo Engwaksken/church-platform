@@ -1,6 +1,7 @@
 <?php
 require_once '../config/config.php';
 if (function_exists('requireLogin')) requireLogin();
+require_once __DIR__ . '/../includes/receipt-branding.php';
 
 if (!isset($conn) || !($conn instanceof mysqli)) {
     die('Database connection not found.');
@@ -19,21 +20,6 @@ function cr_autoload_path() {
     ];
     foreach ($paths as $path) {
         if ($path && is_file($path)) return $path;
-    }
-    return '';
-}
-function cr_logo_data_uri() {
-    $paths = [
-        __DIR__ . '/../assets/img/logo.png',
-        __DIR__ . '/../../assets/img/logo.png',
-        dirname(__DIR__) . '/assets/img/logo.png',
-        $_SERVER['DOCUMENT_ROOT'] . '/assets/img/logo.png',
-    ];
-    foreach ($paths as $path) {
-        if ($path && is_file($path)) {
-            $type = pathinfo($path, PATHINFO_EXTENSION) ?: 'png';
-            return 'data:image/' . $type . ';base64,' . base64_encode(file_get_contents($path));
-        }
     }
     return '';
 }
@@ -73,7 +59,6 @@ if (!class_exists('Dompdf\\Dompdf')) {
     die('Dompdf class not found. Please confirm dompdf/dompdf is installed.');
 }
 
-$logo = cr_logo_data_uri();
 $receiptNo = $receipt['receipt_no'] ?: ('CONTR-' . str_pad((string)$receipt['id'], 5, '0', STR_PAD_LEFT));
 $date = !empty($receipt['contributed_on']) ? date('d M Y', strtotime($receipt['contributed_on'])) : date('d M Y');
 $issued = date('d M Y h:i A');
@@ -116,16 +101,16 @@ body { font-family: DejaVu Sans, Arial, sans-serif; color:#111827; font-size:12p
 .sig { display:table-cell; width:50%; padding-right:30px; }
 .line { border-top:1px solid #111827; padding-top:6px; font-weight:700; }
 .footer { position:absolute; bottom:18px; left:22px; right:22px; border-top:1px solid #e5e7eb; padding-top:8px; font-size:10px; color:#6b7280; text-align:center; }
-</style>
+' . receipt_brand_css() . '</style>
 </head>
 <body>
+' . receipt_watermark_html($conn) . '
 <div class="receipt">
-  <div class="watermark">RECEIVED</div>
   <div class="content">
     <div class="header">
-      <div class="logo">' . ($logo ? '<img src="' . $logo . '">' : '') . '</div>
+      <div class="logo">' . receipt_logo_html($conn) . '</div>
       <div class="org">
-        <h1>Rongoro COU Church</h1>
+        <h1>' . cr_h(receipt_brand($conn)['name']) . '</h1>
         <p>Church Contributions Management</p>
         <p>Official contribution receipt</p>
       </div>

@@ -1,6 +1,7 @@
 <?php
 require_once '../config/config.php';
 if (function_exists('requireLogin')) { requireLogin(); }
+require_once __DIR__ . '/../includes/receipt-branding.php';
 
 if (!isset($conn) || !($conn instanceof mysqli)) die('Database connection not found.');
 $conn->set_charset('utf8mb4');
@@ -55,15 +56,14 @@ if (!$loaded || !class_exists('Dompdf\\Dompdf')) die('Dompdf autoload not found.
 use Dompdf\Dompdf;
 use Dompdf\Options;
 
-$logo = realpath(__DIR__.'/../assets/img/logo.png');
-$logoHtml = $logo ? '<img src="'.e($logo).'" style="height:70px;object-fit:contain;">' : '';
+$logoHtml = receipt_logo_html($conn);
 $amount = (float)($rec['amount'] ?? $rec['subscription'] ?? 0);
 $receiptNo = (string)($rec['receipt_no'] ?? ('MU-RCPT-' . str_pad((string)($rec['payment_id'] ?? $rec['id']), 5, '0', STR_PAD_LEFT)));
 $date = (string)($rec['payment_date'] ?? $rec['date_joined'] ?? date('Y-m-d'));
 $method = (string)($rec['payment_method'] ?? 'Cash');
 
 $html = '<!doctype html><html><head><meta charset="utf-8"><style>
-body{font-family:DejaVu Sans,Arial,sans-serif;color:#111827;font-size:13px}.receipt{border:1px solid #e5e7eb;padding:24px;border-radius:12px}.header{text-align:center;border-bottom:2px solid #111827;padding-bottom:12px;margin-bottom:18px}.title{font-size:24px;font-weight:bold}.muted{color:#6b7280}.row{display:flex;justify-content:space-between;margin:8px 0}.box{background:#f9fafb;border:1px solid #e5e7eb;padding:12px;margin-top:12px}.amount{font-size:22px;font-weight:bold}.footer{margin-top:40px;display:flex;justify-content:space-between}.line{border-top:1px solid #111;width:220px;text-align:center;padding-top:6px}</style></head><body><div class="receipt"><div class="header">'.$logoHtml.'<div class="title">MOTHERS\' UNION RECEIPT</div><div class="muted">Subscription / Payment Receipt</div></div><div class="box"><div class="row"><strong>Receipt No:</strong><span>'.e($receiptNo).'</span></div><div class="row"><strong>MU No:</strong><span>'.e($rec['mu_no']).'</span></div><div class="row"><strong>Date:</strong><span>'.e($date).'</span></div><div class="row"><strong>Payment Method:</strong><span>'.e($method).'</span></div></div><div class="box"><div class="row"><strong>Received From:</strong><span>'.e($rec['full_name']).'</span></div><div class="row"><strong>Member No:</strong><span>'.e($rec['member_no']).'</span></div><div class="row"><strong>Phone:</strong><span>'.e($rec['phone']).'</span></div><div class="row"><strong>Position:</strong><span>'.e($rec['position']).'</span></div></div><div class="box"><div class="row"><strong>Description:</strong><span>Mothers\' Union Payment</span></div><div class="row amount"><strong>Amount:</strong><span>UGX '.number_format($amount).'</span></div><div class="row"><strong>Status:</strong><span>'.e($rec['status']).'</span></div></div><div class="footer"><div class="line">Received By</div><div class="line">Authorized Signature</div></div></div></body></html>';
+body{font-family:DejaVu Sans,Arial,sans-serif;color:#111827;font-size:13px}.receipt{border:1px solid #e5e7eb;padding:24px;border-radius:12px}.header{text-align:center;border-bottom:2px solid #111827;padding-bottom:12px;margin-bottom:18px}.title{font-size:24px;font-weight:bold}.muted{color:#6b7280}.row{display:flex;justify-content:space-between;margin:8px 0}.box{background:#f9fafb;border:1px solid #e5e7eb;padding:12px;margin-top:12px}.amount{font-size:22px;font-weight:bold}.footer{margin-top:40px;display:flex;justify-content:space-between}.line{border-top:1px solid #111;width:220px;text-align:center;padding-top:6px}'.receipt_brand_css().'</style></head><body>'.receipt_watermark_html($conn).'<div class="receipt"><div class="header">'.$logoHtml.'<div class="title">MOTHERS\' UNION RECEIPT</div><div class="muted">Subscription / Payment Receipt</div></div><div class="box"><div class="row"><strong>Receipt No:</strong><span>'.e($receiptNo).'</span></div><div class="row"><strong>MU No:</strong><span>'.e($rec['mu_no']).'</span></div><div class="row"><strong>Date:</strong><span>'.e($date).'</span></div><div class="row"><strong>Payment Method:</strong><span>'.e($method).'</span></div></div><div class="box"><div class="row"><strong>Received From:</strong><span>'.e($rec['full_name']).'</span></div><div class="row"><strong>Member No:</strong><span>'.e($rec['member_no']).'</span></div><div class="row"><strong>Phone:</strong><span>'.e($rec['phone']).'</span></div><div class="row"><strong>Position:</strong><span>'.e($rec['position']).'</span></div></div><div class="box"><div class="row"><strong>Description:</strong><span>Mothers\' Union Payment</span></div><div class="row amount"><strong>Amount:</strong><span>UGX '.number_format($amount).'</span></div><div class="row"><strong>Status:</strong><span>'.e($rec['status']).'</span></div></div><div class="footer"><div class="line">Received By</div><div class="line">Authorized Signature</div></div></div></body></html>';
 
 $options = new Options();
 $options->set('isRemoteEnabled', true);

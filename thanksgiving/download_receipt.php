@@ -6,6 +6,7 @@
 
 require_once '../config/config.php';
 if (function_exists('requireLogin')) { requireLogin(); }
+require_once __DIR__ . '/../includes/receipt-branding.php';
 
 $autoloadPaths = [
     __DIR__ . '/../vendor/autoload.php',
@@ -45,11 +46,6 @@ function tr_col_exists(mysqli $conn, string $table, string $column): bool {
     $stmt->close();
     return $cache[$key] = ((int)($row['c'] ?? 0) > 0);
 }
-function tr_img_data_uri(string $path): string {
-    if (!is_file($path)) return '';
-    $type = mime_content_type($path) ?: 'image/png';
-    return 'data:' . $type . ';base64,' . base64_encode((string)file_get_contents($path));
-}
 
 $id = (int)($_GET['id'] ?? 0);
 if ($id <= 0) die('Invalid thanksgiving receipt.');
@@ -69,14 +65,13 @@ if (!$receipt) die('Thanksgiving receipt not found.');
 $receiptNo = $receipt['receipt_no'] ?: ('TGV-' . str_pad((string)$receipt['id'], 5, '0', STR_PAD_LEFT));
 $giver = trim((string)($receipt['member_name'] ?? ''));
 if ($giver === '') $giver = trim((string)($receipt['giver_name'] ?? 'Anonymous'));
-$logo = tr_img_data_uri(__DIR__ . '/../assets/img/logo.png');
-$churchName = defined('APP_NAME') ? APP_NAME : 'Church Management System';
+$churchName = receipt_brand($conn)['name'];
 $amountWords = '';
 
 $html = '<!doctype html><html><head><meta charset="utf-8"><style>
 @page{margin:28px 32px}body{font-family:DejaVu Sans,Arial,sans-serif;color:#111827;font-size:12px}.receipt{border:2px solid #111827;padding:22px;position:relative}.watermark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.05;font-size:70px;font-weight:900;transform:rotate(-25deg);z-index:0}.content{position:relative;z-index:1}.top{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #111827;padding-bottom:14px}.logo{width:82px;height:82px;object-fit:contain}.title{text-align:right}.title h1{margin:0;font-size:24px}.title h2{margin:5px 0 0;font-size:16px;color:#92400e}.meta{margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.box{border:1px solid #d1d5db;border-radius:8px;padding:10px;background:#f9fafb}.label{font-size:10px;color:#6b7280;text-transform:uppercase;font-weight:700}.value{font-size:13px;font-weight:700;margin-top:3px}.amount{font-size:24px;color:#166534}.section-title{margin:18px 0 8px;font-weight:900;color:#111827;border-bottom:1px solid #e5e7eb;padding-bottom:5px}.notes{min-height:46px}.signatures{margin-top:38px;display:grid;grid-template-columns:1fr 1fr;gap:50px}.sig{border-top:1px solid #111827;padding-top:6px;text-align:center;font-size:11px}.footer{margin-top:20px;text-align:center;color:#6b7280;font-size:10px}.badge{display:inline-block;padding:5px 9px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:800}
-</style></head><body><div class="receipt"><div class="watermark">RECEIPT</div><div class="content">
-<div class="top"><div>' . ($logo ? '<img class="logo" src="' . $logo . '">' : '') . '</div><div class="title"><h1>' . tr_h($churchName) . '</h1><h2>THANKSGIVING RECEIPT</h2><div class="badge">' . tr_h($receiptNo) . '</div></div></div>
+' . receipt_brand_css() . '</style></head><body>' . receipt_watermark_html($conn) . '<div class="receipt"><div class="content">
+<div class="top"><div>' . receipt_logo_html($conn) . '</div><div class="title"><h1>' . tr_h($churchName) . '</h1><h2>THANKSGIVING RECEIPT</h2><div class="badge">' . tr_h($receiptNo) . '</div></div></div>
 <div class="meta">
 <div class="box"><div class="label">Received From</div><div class="value">' . tr_h($giver) . '</div></div>
 <div class="box"><div class="label">Receipt Date</div><div class="value">' . tr_h($receipt['thanksgiving_date'] ?? date('Y-m-d')) . '</div></div>
