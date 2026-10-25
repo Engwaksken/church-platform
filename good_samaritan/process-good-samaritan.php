@@ -73,7 +73,8 @@ try {
         $receipt = mb_substr(gs_post('receipt_no', ''), 0, 40);
         $notes = gs_post('notes', '');
 
-        if ($member_id <= 0) gs_json(false, 'Please select a member.');
+        // No member means a general collection, e.g. one basket for the whole congregation.
+        $member_id = $member_id > 0 ? $member_id : null;
         if ($amount <= 0) gs_json(false, 'Please enter a valid amount.');
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) gs_json(false, 'Invalid date.');
         if ($receipt === '') $receipt = gs_receipt_no($conn);

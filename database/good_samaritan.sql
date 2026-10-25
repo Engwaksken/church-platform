@@ -1,11 +1,11 @@
 -- GOOD SAMARITAN COLLECTIONS (good_samaritan/)
--- Staff record each member's Good Samaritan contribution; members see their own records under My Giving
+-- Staff record Good Samaritan collections, from one member or a general basket; members see their own records under My Giving
 -- on the website and in the member app. Back up the database first, then run this file once. It is safe to re-run.
 
 CREATE TABLE IF NOT EXISTS good_samaritan (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     receipt_no VARCHAR(40) NOT NULL,
-    member_id INT NOT NULL,
+    member_id INT NULL,  -- NULL for a general (basket) collection
     amount DECIMAL(12,2) NOT NULL,
     payment_method VARCHAR(40) NOT NULL DEFAULT 'Cash',
     given_on DATE NOT NULL,
