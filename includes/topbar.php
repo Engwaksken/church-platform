@@ -114,6 +114,8 @@ $directoryTitles = [
 
     'contributions'     => 'Contributions',
 
+    'good_samaritan'    => 'Good Samaritan',
+
 
     /* --------------------------------------------------------
      * Projects
@@ -352,6 +354,8 @@ $queryTitles = [
         'pledges'       => 'My Pledges',
 
         'contributions' => 'My Contributions',
+
+        'good_samaritan' => 'My Good Samaritan',
     ],
 ];
 

@@ -1333,6 +1333,19 @@ $memberId =
             'contributions'
         );
 
+        navLink(
+            $sidebarBaseUrl .
+            'member/giving.php?tab=good_samaritan',
+            'fa-hands-helping',
+            'My Good Samaritan',
+            $dir,
+            $cur,
+            'giving.php',
+            'member.giving.view',
+            'tab',
+            'good_samaritan'
+        );
+
         ?>
 
 
@@ -1900,6 +1913,17 @@ $memberId =
             $cur,
             'contributions',
             'contributions.view'
+        );
+
+        navLink(
+            $sidebarBaseUrl .
+            'good_samaritan/',
+            'fa-hands-helping',
+            'Good Samaritan',
+            $dir,
+            $cur,
+            'good_samaritan',
+            'good_samaritan.view'
         );
 
         navLink(

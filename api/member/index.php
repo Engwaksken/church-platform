@@ -26,6 +26,9 @@ try {
         case 'logout':          mapi_action_logout($conn); break;
         case 'me':              mapi_action_me($conn); break;
         case 'change_password': mapi_action_change_password($conn); break;
+        case 'zones':           mapi_action_zones($conn); break;
+        case 'update_profile':  mapi_action_update_profile($conn); break;
+        case 'update_photo':    mapi_action_update_photo($conn); break;
         case 'dashboard':       mapi_action_dashboard($conn); break;
         case 'giving':          mapi_action_giving($conn); break;
         case 'pledges':         mapi_action_pledges($conn); break;
@@ -120,6 +123,118 @@ function mapi_action_change_password(mysqli $conn): never
     mapi_ok(['message' => 'Your password was changed. Use it for the app and the website.']);
 }
 
+/** Church zones a member can choose on their profile. */
+function mapi_action_zones(mysqli $conn): never
+{
+    mapi_auth($conn);
+    $source = mapi_zone_source($conn);
+    if (!$source) mapi_ok(['items' => []]);
+    [$table, $nameCol] = $source;
+    $items = mapi_rows($conn, "SELECT id, `$nameCol` AS name FROM `$table` ORDER BY `$nameCol`");
+    foreach ($items as &$item) $item['id'] = (int)$item['id'];
+    unset($item);
+    mapi_ok(['items' => $items]);
+}
+
+/** Contact details and church zone, with the same rules as the web portal (member/profile.php). */
+function mapi_action_update_profile(mysqli $conn): never
+{
+    mapi_require_method('POST');
+    $auth = mapi_auth($conn);
+    $input = mapi_input();
+    $email = mb_strtolower(mapi_str($input, 'email', 120));
+    $phone = mapi_str($input, 'phone', 25);
+    $service = mapi_str($input, 'service_attended', 120);
+    $zoneId = (int)($input['church_zone_id'] ?? 0);
+    $zoneId = $zoneId > 0 ? $zoneId : null;
+
+    $errors = [];
+    if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Enter a valid email address.';
+    if ($phone === '') $errors[] = 'Phone number is required.';
+    elseif (!preg_match('/^[0-9+\-\s()]{7,25}$/', $phone)) $errors[] = 'Enter a valid phone number.';
+    $source = mapi_zone_source($conn);
+    if ($zoneId !== null && $source) {
+        [$table] = $source;
+        if (!mapi_row($conn, "SELECT id FROM `$table` WHERE id=? LIMIT 1", 'i', [$zoneId])) $errors[] = 'The selected church zone is invalid.';
+    }
+    if ($email !== '' && mapi_row($conn, 'SELECT id FROM users WHERE email=? AND id<>? LIMIT 1', 'si', [$email, $auth['user_id']])) {
+        $errors[] = 'That email address is already being used by another account.';
+    }
+    if ($errors) mapi_fail(422, implode(' ', $errors));
+
+    $conn->begin_transaction();
+    try {
+        $stmt = $conn->prepare('UPDATE users SET email=?, phone=? WHERE id=?');
+        $stmt->bind_param('ssi', $email, $phone, $auth['user_id']);
+        $stmt->execute();
+        $stmt->close();
+
+        $sets = [];
+        $types = '';
+        $values = [];
+        foreach (['email' => ['s', $email], 'phone' => ['s', $phone], 'church_zone_id' => ['i', $zoneId], 'service_attended' => ['s', $service !== '' ? $service : null]] as $col => [$type, $value]) {
+            if (!mapi_column($conn, 'members', $col)) continue;
+            $sets[] = "`$col`=?";
+            $types .= $type;
+            $values[] = $value;
+        }
+        if ($sets) {
+            $types .= 'i';
+            $values[] = $auth['member_id'];
+            $stmt = $conn->prepare('UPDATE members SET ' . implode(', ', $sets) . ' WHERE id=?');
+            $stmt->bind_param($types, ...$values);
+            $stmt->execute();
+            $stmt->close();
+        }
+        $conn->commit();
+    } catch (Throwable $e) {
+        $conn->rollback();
+        throw $e;
+    }
+    mapi_ok(['message' => 'Your profile was updated.', 'member' => mapi_member_profile($conn, $auth['member_id'])]);
+}
+
+/** Profile photo upload (multipart field "photo"), with the same rules as the web portal. */
+function mapi_action_update_photo(mysqli $conn): never
+{
+    mapi_require_method('POST');
+    $auth = mapi_auth($conn);
+    if (!mapi_column($conn, 'members', 'photo')) mapi_fail(422, 'Profile photos are not available.');
+    $photo = $_FILES['photo'] ?? null;
+    if (!is_array($photo) || ($photo['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        $tooLarge = in_array($photo['error'] ?? null, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true);
+        mapi_fail(422, $tooLarge ? 'The selected photo is too large.' : 'Select a profile photo to upload.');
+    }
+    if ((int)($photo['size'] ?? 0) > 5 * 1024 * 1024) mapi_fail(422, 'The profile photo must not exceed 5 MB.');
+    $tmp = (string)($photo['tmp_name'] ?? '');
+    if ($tmp === '' || !is_uploaded_file($tmp)) mapi_fail(422, 'The uploaded photo is invalid.');
+
+    $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+    $mime = (string)(new finfo(FILEINFO_MIME_TYPE))->file($tmp);
+    if (!isset($allowed[$mime])) mapi_fail(422, 'Upload a JPG, PNG, or WEBP profile photo.');
+    if (@getimagesize($tmp) === false) mapi_fail(422, 'The selected file is not a valid image.');
+
+    $dir = __DIR__ . '/../../assets/uploads/members';
+    if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) throw new RuntimeException('Cannot create ' . $dir);
+    $file = sprintf('member_%d_%s.%s', $auth['member_id'], bin2hex(random_bytes(12)), $allowed[$mime]);
+    $relative = 'assets/uploads/members/' . $file;
+    if (!move_uploaded_file($tmp, $dir . '/' . $file)) throw new RuntimeException('Cannot save the uploaded photo.');
+
+    $old = trim((string)(mapi_row($conn, 'SELECT photo FROM members WHERE id=?', 'i', [$auth['member_id']])['photo'] ?? ''));
+    $stmt = $conn->prepare('UPDATE members SET photo=? WHERE id=?');
+    $stmt->bind_param('si', $relative, $auth['member_id']);
+    $stmt->execute();
+    $stmt->close();
+
+    // Remove the previous member-uploaded photo, never anything outside the members upload folder.
+    if ($old !== '' && str_starts_with($old, 'assets/uploads/members/')) {
+        $oldPath = realpath(__DIR__ . '/../../' . $old);
+        $root = realpath($dir);
+        if ($oldPath !== false && $root !== false && str_starts_with($oldPath, $root) && is_file($oldPath)) @unlink($oldPath);
+    }
+    mapi_ok(['message' => 'Your profile photo was updated.', 'member' => mapi_member_profile($conn, $auth['member_id'])]);
+}
+
 /* ------------------------------------------------------------------ home */
 
 function mapi_action_dashboard(mysqli $conn): never
@@ -154,6 +269,7 @@ function mapi_action_giving(mysqli $conn): never
         'tithe'         => ['tithe', 'tithe_date', 'amount', 'receipt_no', "CONCAT_WS(' ', 'Tithe', period_month, period_year)"],
         'thanksgiving'  => ['thanksgiving', 'thanksgiving_date', 'amount', 'receipt_no', 'COALESCE(NULLIF(reason,\'\'), item_description)'],
         'contributions' => ['contributions', 'contributed_on', 'amount', 'receipt_no', 'notes'],
+        'good_samaritan' => ['good_samaritan', 'given_on', 'amount', 'receipt_no', 'notes'],
     ];
     $type = (string)($_GET['type'] ?? 'offertory');
     if (!isset($types[$type])) mapi_fail(422, 'Unknown giving type.');
