@@ -22,6 +22,11 @@ function pj(bool $success, string $message = '', array $extra = []): void {
     echo json_encode(array_merge(['success' => $success, 'message' => $message], $extra));
     exit;
 }
+if (PHP_SAPI !== 'cli') {
+    require_once __DIR__ . '/../includes/access.php';
+    if (empty($_SESSION['user_id'])) pj(false, 'Your session has expired. Please sign in again.');
+    if (is_member_user() || !current_user_can('pledges.view')) pj(false, 'Access denied.');
+}
 function clean($v): string { return trim((string)($v ?? '')); }
 function hsql(string $v): string { global $conn; return $conn->real_escape_string($v); }
 function table_exists(string $table): bool {
@@ -62,6 +67,18 @@ function many(string $sql): array {
 }
 function next_no(string $prefix): string {
     return $prefix . '-' . date('Ymd-His') . '-' . random_int(100, 999);
+}
+/** Sets amount_paid from the pledge's payments and updates the status; a cancelled pledge stays cancelled. */
+function recalc_pledge(int $pledgeId): void {
+    global $conn;
+    $p = one("SELECT amount_pledged, status FROM pledges WHERE id=$pledgeId LIMIT 1");
+    if (!$p) return;
+    $paid = (float)(one("SELECT COALESCE(SUM(amount),0) t FROM pledge_payments WHERE pledge_id=$pledgeId")['t'] ?? 0);
+    $status = $p['status'] === 'Cancelled' ? 'Cancelled' : ($paid >= (float)$p['amount_pledged'] ? 'Fulfilled' : ($paid > 0 ? 'Partial' : 'Pending'));
+    $stmt = $conn->prepare('UPDATE pledges SET amount_paid=?, status=? WHERE id=?');
+    $stmt->bind_param('dsi', $paid, $status, $pledgeId);
+    $stmt->execute();
+    $stmt->close();
 }
 /** The pledge number assigned to the member in the members table ('' when none is set). */
 function member_pledge_no(int $memberId): string {
@@ -221,6 +238,39 @@ try {
             'receipt_url' => 'receipt.php?payment_id=' . $paymentId,
             'email_sent' => $emailSent
         ]);
+    }
+
+    if ($action === 'update_payment') {
+        $paymentId = (int)($_POST['payment_id'] ?? 0);
+        $amount = (float)($_POST['amount'] ?? 0);
+        $date = clean($_POST['paid_on'] ?? '');
+        $method = clean($_POST['method'] ?? 'Cash') ?: 'Cash';
+        $notes = clean($_POST['notes'] ?? '');
+        $pay = $paymentId > 0 ? one("SELECT * FROM pledge_payments WHERE id=$paymentId LIMIT 1") : null;
+        if (!$pay) pj(false, 'Payment not found.');
+        if ($amount <= 0) pj(false, 'Payment amount must be greater than zero.');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) pj(false, 'Enter a valid payment date.');
+        $pledgeId = (int)$pay['pledge_id'];
+        $p = one("SELECT amount_pledged FROM pledges WHERE id=$pledgeId LIMIT 1");
+        if (!$p) pj(false, 'Pledge not found.');
+        $others = (float)(one("SELECT COALESCE(SUM(amount),0) t FROM pledge_payments WHERE pledge_id=$pledgeId AND id<>$paymentId")['t'] ?? 0);
+        $max = (float)$p['amount_pledged'] - $others;
+        if ($amount > $max + 0.005) pj(false, 'Payments cannot exceed the amount pledged. The most this payment can be is UGX ' . number_format(max(0, $max)) . '.');
+        $stmt = $conn->prepare('UPDATE pledge_payments SET amount=?, paid_on=?, method=?, notes=? WHERE id=?');
+        $stmt->bind_param('dsssi', $amount, $date, $method, $notes, $paymentId);
+        $stmt->execute();
+        $stmt->close();
+        recalc_pledge($pledgeId);
+        pj(true, 'Payment updated. Receipt ' . ($pay['receipt_no'] ?: $paymentId) . ' now shows the corrected details.', ['pledge_id' => $pledgeId]);
+    }
+
+    if ($action === 'delete_payment') {
+        $paymentId = (int)($_POST['payment_id'] ?? 0);
+        $pay = $paymentId > 0 ? one("SELECT pledge_id, receipt_no FROM pledge_payments WHERE id=$paymentId LIMIT 1") : null;
+        if (!$pay) pj(false, 'Payment not found.');
+        $conn->query("DELETE FROM pledge_payments WHERE id=$paymentId");
+        recalc_pledge((int)$pay['pledge_id']);
+        pj(true, 'Payment ' . ($pay['receipt_no'] ?: $paymentId) . ' deleted.', ['pledge_id' => (int)$pay['pledge_id']]);
     }
 
     if ($action === 'send_receipt') {
