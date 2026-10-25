@@ -1,0 +1,5 @@
+# Member mobile app API. These rules replace the site-wide rewrites, so API URLs are never
+# redirected, and pass the Authorization header through to PHP (some Apache/CGI setups drop it).
+RewriteEngine On
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
