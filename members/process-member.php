@@ -181,8 +181,22 @@ function save_member_extras(mysqli $conn, int $memberId, array $data): void
     $serviceParam = $service  !== '' ? $service  : null;
     $stmt = $conn->prepare("UPDATE members SET pledge_no=?, service_attended=? WHERE id=?");
     $stmt->bind_param('ssi', $pledgeParam, $serviceParam, $memberId);
-    if (!$stmt->execute()) throw new Exception($stmt->error);
+    try {
+        $stmt->execute();
+    } catch (mysqli_sql_exception $e) {
+        // members.pledge_no is unique; another save may have taken the number since the check above.
+        if ($e->getCode() === 1062) throw new Exception("Pledge number {$pledgeNo} is already assigned to another member.");
+        throw $e;
+    }
     $stmt->close();
+
+    // A member has one pledge number, so keep their pledges on the current one.
+    if ($pledgeParam !== null && table_exists($conn, 'pledges')) {
+        $stmt = $conn->prepare("UPDATE pledges SET pledge_no=? WHERE member_id=?");
+        $stmt->bind_param('si', $pledgeParam, $memberId);
+        $stmt->execute();
+        $stmt->close();
+    }
 }
 
 function department_name(mysqli $conn, ?int $deptId): string

@@ -137,11 +137,13 @@ $total_ss        = numRows("SELECT id FROM sunday_school_pupils WHERE status='Ac
 $fu_count        = numRows("SELECT id FROM fathers_union WHERE status='Active'");
 $mu_count        = numRows("SELECT id FROM mothers_union WHERE status='Active'");
 $recent_members = mysqli_query($conn,"SELECT * FROM members ORDER BY created_at DESC LIMIT 6");
+require_once 'includes/member-content-functions.php';
+$dailyVerse = mc_dashboard_verses($conn, 1)[0] ?? null;
 include 'includes/header.php';
 include 'includes/sidebar.php';
 ?>
 <div class="main-content"><?php include 'includes/topbar.php'; ?><div class="content-area"><?= showFlash(); ?>
-<div style="background:linear-gradient(135deg,#4a1e8f,#7b3fcf);border-radius:12px;color:#fff;padding:18px 24px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;"><div><h4 style="margin:0;font-weight:700;">Welcome back, <?= h(explode(' ', $_SESSION['full_name'] ?? 'Admin')[0]) ?></h4><small><?= date('l, d F Y') ?></small></div><i class="fas fa-church" style="font-size:42px;opacity:.25;"></i></div>
+<div style="background:linear-gradient(135deg,#4a1e8f,#7b3fcf);border-radius:12px;color:#fff;padding:18px 24px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;"><div><h4 style="margin:0;font-weight:700;">Welcome back, <?= h(explode(' ', $_SESSION['full_name'] ?? 'Admin')[0]) ?></h4><small><?= date('l, d F Y') ?></small><?php if ($dailyVerse): ?><blockquote style="margin:10px 0 0;padding-left:12px;border-left:3px solid rgba(255,255,255,.5);font-style:italic;white-space:pre-wrap;max-width:720px;"><?= h((string)$dailyVerse['verse_text']) ?><footer style="margin-top:4px;font-style:normal;font-weight:700;font-size:13px;"><?= h((string)$dailyVerse['reference']) ?> <span style="font-weight:400;opacity:.8;">(<?= h((string)$dailyVerse['translation']) ?>)</span></footer></blockquote><?php endif; ?></div><i class="fas fa-church" style="font-size:42px;opacity:.25;"></i></div>
 <div class="dashboard-stat-grid">
 <?php foreach ([[$total_members,'Members','fa-users','#4a1e8f'],[$total_youth,'Youth','fa-user-friends','#6f42c1'],[$total_baptisms,'Baptisms','fa-water','#007bff'],[$total_ss,'Pupils','fa-child','#17a2b8'],[$fu_count,'Fathers','fa-male','#20c997'],[$mu_count,'Mothers','fa-female','#e83e8c']] as $stat): ?>
 <div class="stat-card"><div class="stat-icon"><i class="fas <?= h($stat[2]) ?>"></i></div><div><div class="stat-number"><?= (int)$stat[0] ?></div><div class="stat-label"><?= h($stat[1]) ?></div></div></div>
