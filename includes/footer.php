@@ -34,7 +34,7 @@
     </div>
   </section>
 </div>
-<script src="<?= BASE_URL ?>assets/js/main.js"></script>
+<script src="<?= BASE_URL ?>assets/js/main.js?v=<?= (int) @filemtime(__DIR__ . '/../assets/js/main.js') ?>"></script>
 <script src="<?= BASE_URL ?>assets/js/accessibility.js?v=3"></script>
 <script src="<?= BASE_URL ?>assets/js/bulk-delete.js?v=1"></script>
 </body>

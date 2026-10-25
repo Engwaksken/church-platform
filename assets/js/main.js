@@ -169,9 +169,10 @@
     function initSharedUI() {
         /* Sidebar is controlled once by initMobileSidebar() below. */
 
-        /* Auto-dismiss flash alerts after 5 s */
-        $$('.alert').forEach(el => {
-            if (el.dataset.autoDismiss) return;
+        /* Auto-dismiss flash alerts after 5 s. Only flash messages (showFlash() adds .alert-dismissible):
+           other .alert boxes, such as notes or a form's running total, must stay on the page. */
+        $$('.alert.alert-dismissible').forEach(el => {
+            if (el.dataset.autoDismiss || el.closest('.modal, .ajax-modal, .app-modal, [role="dialog"]')) return;
             el.dataset.autoDismiss = '1';
             setTimeout(() => {
                 el.style.cssText += 'opacity:0;transform:translateY(-8px);transition:all .5s ease';
