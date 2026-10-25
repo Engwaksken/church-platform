@@ -1176,6 +1176,58 @@ $memberId =
 
         navLink(
             $sidebarBaseUrl .
+            'member/order-of-service.php',
+            'fa-list-ol',
+            'Order of Service',
+            $dir,
+            $cur,
+            'order-of-service.php',
+            'member.worship.view'
+        );
+
+
+        navLink(
+            $sidebarBaseUrl .
+            'member/hymns.php',
+            'fa-music',
+            'Church Hymns',
+            $dir,
+            $cur,
+            'hymns.php',
+            'member.worship.view'
+        );
+
+
+        navLink(
+            $sidebarBaseUrl .
+            'member/tips.php?dept=health',
+            'fa-heart-pulse',
+            'Health Tips',
+            $dir,
+            $cur,
+            'tips.php',
+            'member.tips.view',
+            'dept',
+            'health'
+        );
+
+
+        navLink(
+            $sidebarBaseUrl .
+            'member/tips.php?dept=education',
+            'fa-graduation-cap',
+            'Education Tips',
+            $dir,
+            $cur,
+            'tips.php',
+            'member.tips.view',
+            'dept',
+            'education'
+        );
+
+
+        navLink(
+            $sidebarBaseUrl .
             'member/notebook.php',
             'fa-book',
             'My Notebook',
@@ -1687,6 +1739,94 @@ $memberId =
         );
 
         ?>
+
+
+
+        <!-- ==================================================
+             MEMBER CONTENT
+             ================================================== -->
+
+        <?php if (
+            sidebar_can('health_tips.manage')
+            || sidebar_can('education_tips.manage')
+            || sidebar_can('bible_verses.manage')
+            || sidebar_can('order_of_service.manage')
+            || sidebar_can('hymns.manage')
+        ): ?>
+
+        <?php sidebar_section(
+            'Member Content'
+        ); ?>
+
+
+        <?php
+
+        navLink(
+            $sidebarBaseUrl .
+            'department_tips/index.php?dept=health',
+            'fa-heart-pulse',
+            'Health Tips',
+            $dir,
+            $cur,
+            'department_tips',
+            'health_tips.manage',
+            'dept',
+            'health'
+        );
+
+
+        navLink(
+            $sidebarBaseUrl .
+            'department_tips/index.php?dept=education',
+            'fa-graduation-cap',
+            'Education Tips',
+            $dir,
+            $cur,
+            'department_tips',
+            'education_tips.manage',
+            'dept',
+            'education'
+        );
+
+
+        navLink(
+            $sidebarBaseUrl .
+            'worship_resources/verses.php',
+            'fa-book-bible',
+            'Bible Verses',
+            $dir,
+            $cur,
+            'verses.php',
+            'bible_verses.manage'
+        );
+
+
+        navLink(
+            $sidebarBaseUrl .
+            'worship_resources/order-of-service.php',
+            'fa-list-ol',
+            'Order of Service',
+            $dir,
+            $cur,
+            'order-of-service.php',
+            'order_of_service.manage'
+        );
+
+
+        navLink(
+            $sidebarBaseUrl .
+            'worship_resources/hymns.php',
+            'fa-music',
+            'Church Hymns',
+            $dir,
+            $cur,
+            'hymns.php',
+            'hymns.manage'
+        );
+
+        ?>
+
+        <?php endif; ?>
 
 
 
