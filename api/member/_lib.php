@@ -218,9 +218,13 @@ function mapi_auth(mysqli $conn): array
 /** Member profile returned by the API. */
 function mapi_member_profile(mysqli $conn, int $memberId): array
 {
+    // first_name/last_name are legacy columns that may already be dropped (database/members_full_name.sql).
+    $legacy = mapi_column($conn, 'members', 'first_name') && mapi_column($conn, 'members', 'last_name')
+        ? "TRIM(CONCAT_WS(' ', m.first_name, m.last_name))"
+        : "''";
     $name = mapi_column($conn, 'members', 'full_name')
-        ? "COALESCE(NULLIF(TRIM(m.full_name),''), TRIM(CONCAT_WS(' ', m.first_name, m.last_name)))"
-        : "TRIM(CONCAT_WS(' ', m.first_name, m.last_name))";
+        ? "COALESCE(NULLIF(TRIM(m.full_name),''), $legacy)"
+        : $legacy;
     $optional = [];
     foreach (['pledge_no', 'service_attended', 'gender', 'phone', 'email', 'address', 'joined_date', 'department'] as $col) {
         $optional[] = mapi_column($conn, 'members', $col) ? "m.`$col`" : "NULL AS `$col`";
