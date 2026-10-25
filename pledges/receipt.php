@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once '../config/config.php';
 requireLogin();
 require_once __DIR__ . '/../includes/receipt-branding.php';
+require_once __DIR__ . '/../includes/pledge-types.php';
 if (!isset($conn) || !($conn instanceof mysqli)) { die('Database connection not found.'); }
 $conn->set_charset('utf8mb4');
 
@@ -19,13 +20,14 @@ if ($payment_id <= 0 && $pledge_id > 0) {
 }
 if ($payment_id <= 0) { die('Invalid payment ID. Open receipt from a payment row, not the pledge row.'); }
 
+[$typeSelect, $typeJoin] = pledge_purpose_sql($conn);
 $payment = r_one($conn, "SELECT pp.*, p.pledge_no, p.amount_pledged, p.amount_paid, p.pledge_reason, p.due_date, p.status,
         m.full_name AS full_name,
-        m.member_no, m.phone, m.email, pr.name AS project_name
+        m.member_no, m.phone, m.email, pr.name AS project_name $typeSelect
     FROM pledge_payments pp
     JOIN pledges p ON p.id = pp.pledge_id
     LEFT JOIN members m ON m.id = p.member_id
-    LEFT JOIN projects pr ON pr.id = p.project_id
+    LEFT JOIN projects pr ON pr.id = p.project_id $typeJoin
     WHERE pp.id = $payment_id LIMIT 1");
 if (!$payment) { die('Payment not found.'); }
 receipt_clip_fields($payment);
@@ -37,7 +39,7 @@ if (!$loaded || !class_exists('Dompdf\\Dompdf')) { die('Dompdf not found. Instal
 
 $logoHtml = receipt_logo_html($conn);
 $balance = max(0, (float)$payment['amount_pledged'] - (float)$payment['amount_paid']);
-$purpose = $payment['project_name'] ?: ($payment['pledge_reason'] ?: 'General Pledge');
+$purpose = pledge_purpose($payment);
 $receiptNo = $payment['receipt_no'] ?: ('RCP-' . $payment_id);
 
 $html = '<!doctype html><html><head><meta charset="utf-8"><style>

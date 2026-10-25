@@ -11,6 +11,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/member-content-functions.php';
 require_once __DIR__ . '/_lib.php';
+require_once __DIR__ . '/../../includes/pledge-types.php';
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 $conn->set_charset('utf8mb4');
@@ -297,9 +298,10 @@ function mapi_action_pledges(mysqli $conn): never
     if (!mapi_table($conn, 'pledges')) mapi_ok(['items' => []]);
     $projectJoin = mapi_table($conn, 'projects') ? 'LEFT JOIN projects pr ON pr.id=p.project_id' : '';
     $projectName = $projectJoin ? 'pr.name' : 'NULL';
-    $items = mapi_rows($conn, "SELECT p.id, p.pledge_no, COALESCE($projectName, NULLIF(p.pledge_reason,''), 'General Pledge') AS purpose,
+    [$typeSelect, $typeJoin] = pledge_purpose_sql($conn);
+    $items = mapi_rows($conn, "SELECT p.id, p.pledge_no, p.pledge_reason, $projectName AS project_name $typeSelect,
             p.amount_pledged, p.amount_paid, p.pledge_date, p.due_date, p.status
-        FROM pledges p $projectJoin WHERE p.member_id=? ORDER BY p.pledge_date DESC, p.id DESC", 'i', [$auth['member_id']]);
+        FROM pledges p $projectJoin $typeJoin WHERE p.member_id=? ORDER BY p.pledge_date DESC, p.id DESC", 'i', [$auth['member_id']]);
 
     $payments = [];
     if ($items && mapi_table($conn, 'pledge_payments')) {
@@ -308,6 +310,7 @@ function mapi_action_pledges(mysqli $conn): never
         foreach ($rows as $r) $payments[(int)$r['pledge_id']][] = ['amount' => (float)$r['amount'], 'paid_on' => $r['paid_on'], 'method' => $r['method'], 'receipt_no' => $r['receipt_no']];
     }
     foreach ($items as &$p) {
+        $p['purpose'] = pledge_purpose($p);
         $p['id'] = (int)$p['id'];
         $p['amount_pledged'] = (float)$p['amount_pledged'];
         $p['amount_paid'] = (float)$p['amount_paid'];

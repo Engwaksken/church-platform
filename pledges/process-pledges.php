@@ -27,6 +27,7 @@ if (PHP_SAPI !== 'cli') {
     if (empty($_SESSION['user_id'])) pj(false, 'Your session has expired. Please sign in again.');
     if (is_member_user() || !current_user_can('pledges.view')) pj(false, 'Access denied.');
 }
+require_once __DIR__ . '/../includes/pledge-types.php';
 function clean($v): string { return trim((string)($v ?? '')); }
 function hsql(string $v): string { global $conn; return $conn->real_escape_string($v); }
 function table_exists(string $table): bool {
@@ -98,17 +99,18 @@ function member_name(array $r): string {
 function send_pledge_receipt_email(int $paymentId): bool {
     global $conn;
     if (!function_exists('sendSystemEmail')) return false;
+    [$typeSelect, $typeJoin] = pledge_purpose_sql($conn);
     $payment = one("SELECT pp.*, p.pledge_no, p.amount_pledged, p.amount_paid, p.pledge_reason, p.status, p.due_date,
                     m.full_name AS full_name,
-                    m.email, m.member_no, pr.name AS project_name
+                    m.email, m.member_no, pr.name AS project_name $typeSelect
                     FROM pledge_payments pp
                     JOIN pledges p ON p.id = pp.pledge_id
                     LEFT JOIN members m ON m.id = p.member_id
-                    LEFT JOIN projects pr ON pr.id = p.project_id
+                    LEFT JOIN projects pr ON pr.id = p.project_id $typeJoin
                     WHERE pp.id = " . (int)$paymentId . " LIMIT 1");
     if (!$payment || empty($payment['email']) || !filter_var($payment['email'], FILTER_VALIDATE_EMAIL)) return false;
     $name = member_name($payment);
-    $purpose = $payment['project_name'] ?: ($payment['pledge_reason'] ?: 'General Pledge');
+    $purpose = pledge_purpose($payment);
     $amount = 'UGX ' . number_format((float)$payment['amount']);
     $receiptNo = htmlspecialchars((string)$payment['receipt_no'], ENT_QUOTES, 'UTF-8');
     $html = "<div style='font-family:Arial,sans-serif;background:#f6f7fb;padding:20px'>
@@ -130,7 +132,7 @@ function send_pledge_reminder(array $pledge): array {
     global $conn;
     $name = member_name($pledge);
     $balance = max(0, (float)$pledge['amount_pledged'] - (float)$pledge['amount_paid']);
-    $purpose = $pledge['project_name'] ?: ($pledge['pledge_reason'] ?: 'General Pledge');
+    $purpose = pledge_purpose($pledge);
     $msg = "Dear {$name}, this is a reminder for your unpaid pledge {$pledge['pledge_no']} ({$purpose}). Balance: UGX " . number_format($balance) . ". Thank you.";
     $emailSent = false;
     $smsSent = false;
@@ -151,19 +153,23 @@ try {
     if ($action === 'options') {
         pj(true, '', [
             'members' => many("SELECT id, member_no, full_name FROM members ORDER BY full_name"),
-            'projects' => table_exists('projects') ? many("SELECT id, name FROM projects WHERE COALESCE(status,'Active')='Active' ORDER BY name") : []
+            'projects' => table_exists('projects') ? many("SELECT id, name FROM projects WHERE COALESCE(status,'Active')='Active' ORDER BY name") : [],
+            'events' => table_exists('events') ? many("SELECT id, title, event_date FROM events ORDER BY event_date DESC") : []
         ]);
     }
 
     if ($action === 'list') {
         $status = clean($_GET['status'] ?? '');
         $where = $status !== '' ? "WHERE p.status='".hsql($status)."'" : '';
-        $rows = many("SELECT p.*, m.full_name AS full_name, m.member_no, m.email, m.phone, pr.name AS project_name
+        [$typeSelect, $typeJoin] = pledge_purpose_sql($conn);
+        $rows = many("SELECT p.*, m.full_name AS full_name, m.member_no, m.email, m.phone, pr.name AS project_name $typeSelect
             FROM pledges p
             LEFT JOIN members m ON m.id=p.member_id
-            LEFT JOIN projects pr ON pr.id=p.project_id
+            LEFT JOIN projects pr ON pr.id=p.project_id $typeJoin
             $where
             ORDER BY p.pledge_date DESC, p.id DESC");
+        foreach ($rows as &$r) $r['purpose'] = pledge_purpose($r);
+        unset($r);
         $stats = one("SELECT COALESCE(SUM(amount_pledged),0) total, COALESCE(SUM(amount_paid),0) paid,
             SUM(CASE WHEN status='Pending' THEN 1 ELSE 0 END) pending,
             SUM(CASE WHEN status='Partial' THEN 1 ELSE 0 END) partial,
@@ -176,9 +182,11 @@ try {
     if ($action === 'get') {
         $id = (int)($_GET['id'] ?? 0);
         if ($id <= 0) pj(false, 'Invalid pledge ID.');
-        $row = one("SELECT p.*, m.full_name AS full_name, m.member_no, m.email, m.phone, pr.name AS project_name
-            FROM pledges p LEFT JOIN members m ON m.id=p.member_id LEFT JOIN projects pr ON pr.id=p.project_id WHERE p.id=$id LIMIT 1");
+        [$typeSelect, $typeJoin] = pledge_purpose_sql($conn);
+        $row = one("SELECT p.*, m.full_name AS full_name, m.member_no, m.email, m.phone, pr.name AS project_name $typeSelect
+            FROM pledges p LEFT JOIN members m ON m.id=p.member_id LEFT JOIN projects pr ON pr.id=p.project_id $typeJoin WHERE p.id=$id LIMIT 1");
         if (!$row) pj(false, 'Pledge not found.');
+        $row['purpose'] = pledge_purpose($row);
         $payments = table_exists('pledge_payments') ? many("SELECT * FROM pledge_payments WHERE pledge_id=$id ORDER BY paid_on DESC,id DESC") : [];
         pj(true, '', ['item' => $row, 'payments' => $payments]);
     }
@@ -195,6 +203,20 @@ try {
         $notes = clean($_POST['notes'] ?? '');
         if ($member_id <= 0) pj(false, 'Please select a member.');
         if ($amount <= 0) pj(false, 'Amount pledged must be greater than zero.');
+        $typeSet = '';
+        if (pledge_types_ready($conn)) {
+            $type = clean($_POST['pledge_type'] ?? '');
+            if (!in_array($type, pledge_types(), true)) pj(false, 'Please choose what the pledge is for.');
+            $event_id = (int)($_POST['event_id'] ?? 0);
+            $year = (int)($_POST['pledge_year'] ?? 0);
+            if ($type === 'Project' && (int)$project_id <= 0) pj(false, 'Please select the project.');
+            if ($type === 'Event' && $event_id <= 0) pj(false, 'Please select the event.');
+            if ($type === 'Annual' && ($year < 2000 || $year > 2100)) pj(false, 'Please enter the year of the annual pledge.');
+            if ($type === 'Harvest Items' && $reason === '') pj(false, 'Please describe the harvest items pledged.');
+            if ($type === 'Other' && $reason === '') pj(false, 'Please specify what the pledge is for.');
+            if ($type !== 'Project') $project_id = '';
+            $typeSet = "pledge_type='" . hsql($type) . "', pledge_year=" . ($type === 'Annual' ? $year : 'NULL') . ", event_id=" . ($type === 'Event' ? $event_id : 'NULL');
+        }
         $pidSql = $project_id !== '' ? (string)(int)$project_id : 'NULL';
         $dueSql = $due !== '' ? "'".hsql($due)."'" : 'NULL';
         // The pledge number comes from the member's record, not a generated sequence.
@@ -204,11 +226,14 @@ try {
         if ($id > 0) {
             $ok = $conn->query("UPDATE pledges SET pledge_no='$no', member_id=$member_id, project_id=$pidSql, pledge_reason='".hsql($reason)."', amount_pledged=$amount, pledge_date='".hsql($pledge_date)."', due_date=$dueSql, status='".hsql($status)."', notes='".hsql($notes)."' WHERE id=$id");
             if (!$ok) pj(false, 'Update failed: '.$conn->error);
+            if ($typeSet !== '') $conn->query("UPDATE pledges SET $typeSet WHERE id=$id");
             pj(true, 'Pledge updated successfully.');
         }
         $ok = $conn->query("INSERT INTO pledges (pledge_no,member_id,project_id,pledge_reason,amount_pledged,amount_paid,pledge_date,due_date,status,notes) VALUES ('$no',$member_id,$pidSql,'".hsql($reason)."',$amount,0,'".hsql($pledge_date)."',$dueSql,'".hsql($status)."','".hsql($notes)."')");
         if (!$ok) pj(false, 'Insert failed: '.$conn->error);
-        pj(true, 'Pledge recorded successfully.', ['id' => $conn->insert_id, 'pledge_no' => $memberPledgeNo]);
+        $newId = (int)$conn->insert_id;
+        if ($typeSet !== '') $conn->query("UPDATE pledges SET $typeSet WHERE id=$newId");
+        pj(true, 'Pledge recorded successfully.', ['id' => $newId, 'pledge_no' => $memberPledgeNo]);
     }
 
     if ($action === 'pay') {
@@ -281,10 +306,11 @@ try {
     }
 
     if ($action === 'send_reminders') {
-        $rows = many("SELECT p.*, m.full_name AS full_name, m.email, m.phone, m.member_no, pr.name AS project_name
+        [$typeSelect, $typeJoin] = pledge_purpose_sql($conn);
+        $rows = many("SELECT p.*, m.full_name AS full_name, m.email, m.phone, m.member_no, pr.name AS project_name $typeSelect
             FROM pledges p
             LEFT JOIN members m ON m.id=p.member_id
-            LEFT JOIN projects pr ON pr.id=p.project_id
+            LEFT JOIN projects pr ON pr.id=p.project_id $typeJoin
             WHERE p.status IN('Pending','Partial') AND (p.amount_pledged - p.amount_paid) > 0");
         $emailCount = 0; $smsCount = 0;
         foreach ($rows as $r) {
