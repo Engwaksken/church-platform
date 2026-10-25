@@ -1,6 +1,7 @@
 <?php
 require_once '../config/config.php';
 requireLogin();
+require_once __DIR__ . '/../includes/service-options.php';
 header('Content-Type: application/json; charset=utf-8');
 ini_set('display_errors','0'); error_reporting(E_ALL);
 function oj($ok,$msg='',$extra=[]){ echo json_encode(array_merge(['success'=>$ok,'message'=>$msg],$extra)); exit; }
@@ -28,12 +29,15 @@ try{
    $id=(int)($_POST['id']??0); $date=s($_POST['service_date']??date('Y-m-d')); $type=s($_POST['service_type']??'Sunday Service');
    $env=(float)($_POST['envelope_total']??0); $loose=(float)($_POST['loose_total']??0); $extra=(float)($_POST['extra']??0); $total=$env+$loose+$extra;
    $counted=s($_POST['counted_by']??''); $witness=s($_POST['witnessed_by']??''); $notes=s($_POST['notes']??'');
+   // First, second, ... service; saved once database/service_session.sql has added the column.
+   $session=trim((string)($_POST['service_session']??'')); $session=in_array($session,service_session_options(),true)?$session:'';
+   $hasSession=service_column_exists($conn,'offertory','service_session'); $sessionSql=$session!==''?"'".s($session)."'":'NULL';
    if($total<=0) oj(false,'Total offertory amount must be greater than zero.');
    if($id>0){
-    $ok=mysqli_query($conn,"UPDATE offertory SET service_date='$date',service_type='$type',envelope_total=$env,loose_total=$loose,total_amount=$total,counted_by='$counted',witnessed_by='$witness',notes='$notes' WHERE id=$id");
+    $ok=mysqli_query($conn,"UPDATE offertory SET service_date='$date',service_type='$type',".($hasSession?"service_session=$sessionSql,":'')."envelope_total=$env,loose_total=$loose,total_amount=$total,counted_by='$counted',witnessed_by='$witness',notes='$notes' WHERE id=$id");
     if(!$ok) oj(false,'Update failed: '.mysqli_error($conn)); oj(true,'Offertory updated successfully.');
    } else {
-    $ok=mysqli_query($conn,"INSERT INTO offertory (service_date,service_type,envelope_total,loose_total,total_amount,counted_by,witnessed_by,notes) VALUES ('$date','$type',$env,$loose,$total,'$counted','$witness','$notes')");
+    $ok=mysqli_query($conn,"INSERT INTO offertory (service_date,service_type,".($hasSession?'service_session,':'')."envelope_total,loose_total,total_amount,counted_by,witnessed_by,notes) VALUES ('$date','$type',".($hasSession?"$sessionSql,":'')."$env,$loose,$total,'$counted','$witness','$notes')");
     if(!$ok) oj(false,'Insert failed: '.mysqli_error($conn)); oj(true,'Offertory recorded successfully.',['id'=>mysqli_insert_id($conn)]);
    }
  }

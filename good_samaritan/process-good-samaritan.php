@@ -5,6 +5,7 @@ header('Content-Type: application/json; charset=utf-8');
 require_once '../config/config.php';
 requireLogin();
 enforce_current_page_permission();
+require_once __DIR__ . '/../includes/service-options.php';
 
 if (!isset($conn) || !($conn instanceof mysqli)) {
     gs_json(false, 'Database connection not found.');
@@ -31,6 +32,10 @@ function gs_receipt_no(mysqli $conn) {
     $start = strlen($prefix) + 1;
     $stmt->bind_param('is', $start, $prefix); $stmt->execute(); $row = $stmt->get_result()->fetch_assoc(); $stmt->close();
     return $prefix . str_pad(((int)($row['n'] ?? 0)) + 1, 4, '0', STR_PAD_LEFT);
+}
+function gs_save_service(mysqli $conn, int $id, ?string $type, ?string $session) {
+    $stmt = $conn->prepare("UPDATE good_samaritan SET service_type=?, service_session=? WHERE id=?");
+    $stmt->bind_param('ssi', $type, $session, $id); $stmt->execute(); $stmt->close();
 }
 function gs_select_sql() {
     return "SELECT g.*, m.full_name, m.member_no
@@ -72,6 +77,12 @@ try {
         $date = gs_post('given_on', date('Y-m-d')) ?: date('Y-m-d');
         $receipt = mb_substr(gs_post('receipt_no', ''), 0, 40);
         $notes = gs_post('notes', '');
+        // Optional service; saved once database/service_session.sql has added the columns.
+        $serviceType = gs_post('service_type', '');
+        $serviceType = in_array($serviceType, service_type_options(), true) ? $serviceType : null;
+        $session = gs_post('service_session', '');
+        $session = in_array($session, service_session_options(), true) ? $session : null;
+        $hasService = service_column_exists($conn, 'good_samaritan', 'service_session');
 
         // No member means a general collection, e.g. one basket for the whole congregation.
         $member_id = $member_id > 0 ? $member_id : null;
@@ -88,6 +99,7 @@ try {
             $stmt = $conn->prepare("INSERT INTO good_samaritan (receipt_no, member_id, amount, payment_method, given_on, notes, recorded_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
             $stmt->bind_param('sidsssi', $receipt, $member_id, $amount, $method, $date, $notes, $by);
             $stmt->execute(); $newId = $stmt->insert_id; $stmt->close();
+            if ($hasService) gs_save_service($conn, $newId, $serviceType, $session);
             gs_json(true, 'Good Samaritan collection recorded. Receipt: ' . $receipt, ['id' => $newId]);
         }
 
@@ -95,6 +107,7 @@ try {
         $stmt = $conn->prepare("UPDATE good_samaritan SET receipt_no=?, member_id=?, amount=?, payment_method=?, given_on=?, notes=? WHERE id=?");
         $stmt->bind_param('sidsssi', $receipt, $member_id, $amount, $method, $date, $notes, $id);
         $stmt->execute(); $stmt->close();
+        if ($hasService) gs_save_service($conn, $id, $serviceType, $session);
         gs_json(true, 'Good Samaritan collection updated.');
     }
 

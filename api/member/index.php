@@ -271,6 +271,8 @@ function mapi_action_giving(mysqli $conn): never
         'contributions' => ['contributions', 'contributed_on', 'amount', 'receipt_no', 'notes'],
         'good_samaritan' => ['good_samaritan', 'given_on', 'amount', 'receipt_no', 'notes'],
     ];
+    // "Sunday Service · First Service" once database/service_session.sql has added the column.
+    if (mapi_column($conn, 'offertory', 'service_session')) $types['offertory'][4] = "CONCAT_WS(' · ', service_type, NULLIF(service_session,''))";
     $type = (string)($_GET['type'] ?? 'offertory');
     if (!isset($types[$type])) mapi_fail(422, 'Unknown giving type.');
     [$table, $date, $amount, $reference, $description] = $types[$type];
