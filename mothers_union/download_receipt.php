@@ -47,6 +47,7 @@ if ($paymentId > 0 && table_exists($conn, 'mothers_union_payments')) {
 }
 
 if (!$rec) die('Invalid receipt/payment ID.');
+receipt_clip_fields($rec);
 
 $autoloads = [__DIR__.'/../vendor/autoload.php', __DIR__.'/../../vendor/autoload.php', dirname(__DIR__).'/vendor/autoload.php'];
 $loaded = false;

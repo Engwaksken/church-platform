@@ -48,6 +48,7 @@ $receipt = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$receipt) die('Contribution not found.');
+receipt_clip_fields($receipt);
 
 $autoload = cr_autoload_path();
 if ($autoload === '') {

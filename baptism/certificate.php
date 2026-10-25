@@ -325,10 +325,30 @@ h1{
         display:none !important;
     }
 
+    /* One printed A4 page: a fixed-size frame (281mm is the page minus the 8mm margins) and the PDF's text sizes. */
     .cert{
         margin:0 auto;
         box-shadow:none;
+        width:190mm;
+        height:279mm;
+        min-height:0;
+        padding:6mm;
+        overflow:hidden;
     }
+    .cert-inner{height:100%;min-height:0;padding:5mm}
+    .certificate-logo{max-width:150px;max-height:95px;margin:6mm auto 6px}
+    .church-name{font-size:21px}
+    h1{font-size:32px;margin:8px 0}
+    .diocese{font-size:13px;margin-bottom:8px}
+    .subtitle{font-size:16px;margin-bottom:10px}
+    .candidate{font-size:30px;margin-bottom:12px;padding-bottom:6px}
+    .cert-body{font-size:17px;line-height:1.6;margin-bottom:12px}
+    .details{margin-top:10px;margin-bottom:12px}
+    .details td{padding:8px 6px}
+    .value{font-size:15px}
+    .signatures{margin-top:18mm}
+    .signature-image,.signature-space{height:60px}
+    .signatory-name,.sig-line{font-size:13px}
 }
 
 body.certificate-pdf .cert{
@@ -338,31 +358,33 @@ body.certificate-pdf .cert{
     break-before:avoid;
     break-after:avoid;
     break-inside:auto;
+    /* One A4 page: 297mm minus the 8mm @page margins leaves 281mm; the frame stays well inside it. */
     width:190mm;
-    height:260mm;
+    height:262mm;
     min-height:0;
-    margin:10mm auto;
-    padding:7mm;
+    margin:0 auto;
+    padding:6mm;
     overflow:hidden;
 }
 body.certificate-pdf .cert-inner{
-    height:100%;
+    /* Explicit height (not 100%) so the gold frame closes inside the outer one even without box-sizing support. */
+    height:240mm;
     min-height:0;
     padding:5mm;
 }
-body.certificate-pdf .certificate-logo{max-width:105px;max-height:55px;margin-bottom:4px}
-body.certificate-pdf .church-name{font-size:16px;letter-spacing:.5px}
-body.certificate-pdf h1{font-size:22px;margin:3px 0}
-body.certificate-pdf .diocese{font-size:11px;margin-bottom:4px}
-body.certificate-pdf .subtitle{font-size:13px;margin-bottom:5px}
-body.certificate-pdf .candidate{font-size:24px;margin-bottom:5px;padding-bottom:3px}
-body.certificate-pdf .cert-body{font-size:15px;line-height:1.25;margin-bottom:5px}
-body.certificate-pdf .details{margin-top:2px;margin-bottom:5px}
-body.certificate-pdf .details td{padding:3px}
-body.certificate-pdf .value{font-size:13px}
-body.certificate-pdf .signatures{margin-top:6px}
-body.certificate-pdf .signature-image,body.certificate-pdf .signature-space{height:38px}
-body.certificate-pdf .signatory-name,body.certificate-pdf .sig-line{font-size:11px}
+body.certificate-pdf .certificate-logo{max-width:150px;max-height:95px;margin:6mm auto 6px}
+body.certificate-pdf .church-name{font-size:21px;letter-spacing:.5px}
+body.certificate-pdf h1{font-size:32px;margin:8px 0}
+body.certificate-pdf .diocese{font-size:13px;margin-bottom:8px}
+body.certificate-pdf .subtitle{font-size:16px;margin-bottom:10px}
+body.certificate-pdf .candidate{font-size:30px;margin-bottom:12px;padding-bottom:6px}
+body.certificate-pdf .cert-body{font-size:17px;line-height:1.6;margin-bottom:12px}
+body.certificate-pdf .details{margin-top:10px;margin-bottom:12px}
+body.certificate-pdf .details td{padding:8px 6px}
+body.certificate-pdf .value{font-size:15px}
+body.certificate-pdf .signatures{margin-top:22mm}
+body.certificate-pdf .signature-image,body.certificate-pdf .signature-space{height:60px}
+body.certificate-pdf .signatory-name,body.certificate-pdf .sig-line{font-size:13px}
 body.certificate-pdf .footer-note{bottom:4mm}
 </style>
 

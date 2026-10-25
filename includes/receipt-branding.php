@@ -82,3 +82,15 @@ function receipt_watermark_html(mysqli $conn): string
     $logo = receipt_brand($conn)['logo'];
     return $logo === '' ? '' : '<div class="receipt-watermark"><img src="' . $logo . '" alt=""></div>';
 }
+
+/**
+ * Shortens free-text fields (notes, descriptions) in a receipt's record so the receipt stays on one page.
+ * Fields that are missing or short are left alone.
+ */
+function receipt_clip_fields(array &$row, array $fields = ['notes', 'payment_notes', 'item_description', 'reason'], int $max = 300): void
+{
+    foreach ($fields as $field) {
+        $text = trim((string)($row[$field] ?? ''));
+        if (mb_strlen($text) > $max) $row[$field] = rtrim(mb_substr($text, 0, $max - 1)) . '…';
+    }
+}

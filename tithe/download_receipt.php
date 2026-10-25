@@ -9,6 +9,7 @@ $row = null;
 $st = $conn->prepare("SELECT t.*, m.full_name, m.member_no, m.phone FROM tithe t LEFT JOIN members m ON m.id=t.member_id WHERE t.id=? LIMIT 1");
 $st->bind_param('i',$id); $st->execute(); $row=$st->get_result()->fetch_assoc(); $st->close();
 if(!$row){ die('Receipt not found.'); }
+receipt_clip_fields($row);
 $autoloads = [__DIR__.'/../vendor/autoload.php', __DIR__.'/../../vendor/autoload.php', dirname(__DIR__).'/vendor/autoload.php'];
 $loaded = false; foreach($autoloads as $a){ if(file_exists($a)){ require_once $a; $loaded=true; break; } }
 if(!$loaded || !class_exists('Dompdf\\Dompdf')) { die('Dompdf not found. Run composer require dompdf/dompdf and ensure vendor/autoload.php exists.'); }

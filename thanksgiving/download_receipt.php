@@ -61,6 +61,7 @@ $stmt->execute();
 $receipt = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 if (!$receipt) die('Thanksgiving receipt not found.');
+receipt_clip_fields($receipt);
 
 $receiptNo = $receipt['receipt_no'] ?: ('TGV-' . str_pad((string)$receipt['id'], 5, '0', STR_PAD_LEFT));
 $giver = trim((string)($receipt['member_name'] ?? ''));

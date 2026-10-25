@@ -34,6 +34,7 @@ $stmt->execute();
 $receipt = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 if (!$receipt) { die('Receipt not found.'); }
+receipt_clip_fields($receipt);
 
 $autoload = fr_find_autoload();
 if (!$autoload) { die('Dompdf autoload not found. Please install Dompdf using Composer and keep vendor/autoload.php available.'); }

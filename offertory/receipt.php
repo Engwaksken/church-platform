@@ -6,6 +6,7 @@ $id = intval($_GET['id'] ?? 0);
 if ($id <= 0) { die('Invalid offertory ID.'); }
 $rec = fetchOne("SELECT * FROM offertory WHERE id = $id");
 if (!$rec) { die('Offertory record not found.'); }
+receipt_clip_fields($rec);
 $autoloads = [__DIR__ . '/../vendor/autoload.php', __DIR__ . '/../../vendor/autoload.php', dirname(__DIR__) . '/vendor/autoload.php', $_SERVER['DOCUMENT_ROOT'] . '/vendor/autoload.php'];
 $loaded = false;
 foreach ($autoloads as $file) { if (is_file($file)) { require_once $file; $loaded = true; break; } }

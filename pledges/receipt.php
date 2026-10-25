@@ -28,6 +28,7 @@ $payment = r_one($conn, "SELECT pp.*, p.pledge_no, p.amount_pledged, p.amount_pa
     LEFT JOIN projects pr ON pr.id = p.project_id
     WHERE pp.id = $payment_id LIMIT 1");
 if (!$payment) { die('Payment not found.'); }
+receipt_clip_fields($payment);
 
 $autoloads = [__DIR__.'/../vendor/autoload.php', __DIR__.'/../../vendor/autoload.php', dirname(__DIR__).'/vendor/autoload.php', $_SERVER['DOCUMENT_ROOT'].'/vendor/autoload.php'];
 $loaded = false;
