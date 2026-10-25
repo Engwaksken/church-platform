@@ -40,7 +40,7 @@ include '../includes/sidebar.php';
     <div class="page-toolbar">
       <div class="page-toolbar-search"><i class="fas fa-search"></i><input type="text" class="form-control" id="pledgeSearch" placeholder="Search pledge, member, project..."></div>
       <div class="page-toolbar-filters">
-      <div class="d-flex gap-2 flex-wrap" style="flex:0 0 auto;min-width:0" role="group" aria-label="Pledge status">
+      <div class="toolbar-chip-group" role="group" aria-label="Pledge status">
         <button type="button" class="btn btn-sm btn-primary pledge-filter" data-status="">All</button>
         <?php foreach(['Pending','Partial','Fulfilled','Cancelled'] as $s): ?>
           <button type="button" class="btn btn-sm btn-outline pledge-filter" data-status="<?= ph($s) ?>"><?= ph($s) ?></button>

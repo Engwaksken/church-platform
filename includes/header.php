@@ -128,7 +128,7 @@ $pageTitleText = isset($pageTitle) && trim((string)$pageTitle) !== ''
 <meta property="og:image" content="<?= h($logoUrl) ?>">
 <?php endif; ?>
 
-<link rel="stylesheet" href="<?= h(BASE_URL . 'assets/css/style.css') ?>">
+<link rel="stylesheet" href="<?= h(BASE_URL . 'assets/css/style.css?v=' . (int) @filemtime(__DIR__ . '/../assets/css/style.css')) ?>">
 <link rel="manifest" href="<?= h(BASE_URL . 'manifest.webmanifest') ?>">
 <meta name="theme-color" content="#4a1e8f">
 <meta name="mobile-web-app-capable" content="yes">

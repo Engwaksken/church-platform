@@ -730,13 +730,16 @@ textarea.form-control { resize: vertical; min-height: 88px; }
   box-shadow: 0 0 0 3px rgba(74,30,143,.10);
 }
 
-/* Standard page toolbar: search | filters | Filter + Refresh, on one row.
+/* Standard page toolbar: search | filters | actions, on one row when they fit.
    <div|form class="page-toolbar">
      <div class="page-toolbar-search"><i class="fas fa-search"></i><input ...></div>
      <div class="page-toolbar-filters"><select class="form-control">…</select>…</div>
      <div class="page-toolbar-actions"><button class="btn btn-primary">Filter</button>
        <button|a class="btn btn-outline-primary page-toolbar-refresh">Refresh</…></div>
-   </div> */
+   </div>
+   Selects and inputs in .page-toolbar-filters get a standard size. Any other child (a button
+   group, tabs, a date range) keeps its natural width; pages can size it with their own rules,
+   which win because the defaults here use :where() to stay low in specificity. */
 .page-toolbar {
   display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
   background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
@@ -746,18 +749,16 @@ textarea.form-control { resize: vertical; min-height: 88px; }
 /* Inside a card that also holds the table: no second card frame. */
 .card-body > .page-toolbar,
 .church-card > .page-toolbar { border: 0; box-shadow: none; padding: 0; border-radius: 0; background: transparent; }
-.page-toolbar-search { position: relative; flex: 1 1 220px; min-width: 160px; max-width: none; margin: 0; }
+
+.page-toolbar-search { position: relative; flex: 1 1 260px; min-width: 200px; margin: 0; }
 .page-toolbar-search > i {
   position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
   color: var(--text-muted); font-size: 13px; pointer-events: none;
 }
-/* Wide screens: one row; filters shrink before anything wraps. */
-.page-toolbar { flex-wrap: nowrap; }
-.page-toolbar-filters { display: flex; align-items: center; flex-wrap: nowrap; gap: 10px; flex: 0 1 auto; min-width: 0; }
-/* .page-toolbar prefix outranks `.page-toolbar select` so each filter keeps its size. */
-/* An explicit width sets each filter's natural size; flex-shrink handles crowded rows. */
-.page-toolbar .page-toolbar-filters > * { flex: 0 1 150px; width: 150px; min-width: 88px; margin: 0; }
-.page-toolbar .page-toolbar-filters > input[type="date"] { flex-basis: 140px; width: 140px; min-width: 125px; }
+.page-toolbar-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; flex: 0 1 auto; min-width: 0; }
+.page-toolbar .page-toolbar-filters > :is(select, input) { flex: 1 1 150px; width: 150px; min-width: 120px; max-width: 220px; margin: 0; }
+.page-toolbar .page-toolbar-filters > input[type="date"] { flex-basis: 145px; min-width: 135px; }
+:where(.page-toolbar-filters) > :where(:not(select, input)) { flex: 0 0 auto; max-width: 100%; }
 .page-toolbar-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; margin-left: auto; }
 
 .page-toolbar input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
@@ -774,26 +775,30 @@ textarea.form-control { resize: vertical; min-height: 88px; }
   border-color: var(--primary); box-shadow: 0 0 0 3px rgba(74,30,143,.10);
 }
 .page-toolbar .btn { height: 40px; padding: 0 14px; justify-content: center; white-space: nowrap; }
+.page-toolbar .btn-sm { height: 34px; padding: 0 12px; }
 .page-toolbar label { margin: 0; }
 
-/* Medium screens: search on its own row, filters + buttons share the next. */
-@media (max-width: 1199px) {
-  .page-toolbar { flex-wrap: wrap; }
+/* Tablets: search gets its own row; filters share the next row with the buttons and stretch to fill it. */
+@media (max-width: 991px) {
   .page-toolbar-search { flex-basis: 100%; }
-  .page-toolbar-filters { flex: 1 1 0; flex-wrap: wrap; }
-  .page-toolbar .page-toolbar-filters > *,
-  .page-toolbar .page-toolbar-filters > input[type="date"] { flex: 1 1 130px; width: auto; max-width: 240px; }
+  .page-toolbar-filters { flex: 1 1 auto; }
+  .page-toolbar .page-toolbar-filters > :is(select, input) { max-width: none; }
 }
-/* Phones: filters in two columns, buttons full width. */
+/* Phones: filters in two columns, groups and buttons full width. */
 @media (max-width: 600px) {
   .page-toolbar { padding: 12px; }
   .page-toolbar-search { min-width: 0; }
   .page-toolbar-filters { flex: 1 1 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .page-toolbar .page-toolbar-filters > *,
+  .page-toolbar .page-toolbar-filters > :is(select, input),
   .page-toolbar .page-toolbar-filters > input[type="date"] { min-width: 0; width: 100%; }
+  :where(.page-toolbar-filters) > :where(:not(select, input)) { grid-column: 1 / -1; }
   .page-toolbar-actions { flex: 1 1 100%; margin-left: 0; }
   .page-toolbar-actions > * { flex: 1 1 0; }
 }
+/* Row of filter buttons (e.g. pledge status) inside .page-toolbar-filters: one line that scrolls sideways when crowded; wraps on phones. */
+.toolbar-chip-group { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; overflow-x: auto; min-width: 0; scrollbar-width: thin; }
+.toolbar-chip-group > .btn { flex: 0 0 auto; }
+@media (max-width: 600px) { .toolbar-chip-group { flex-wrap: wrap; overflow-x: visible; } }
 
 /* Action button groups in tables */
 .action-buttons,
