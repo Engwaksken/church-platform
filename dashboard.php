@@ -46,6 +46,9 @@ if ($isMember) {
         if ($stmt) { $stmt->bind_param('i', $memberId); $stmt->execute(); $eventCertificateCount = (int)($stmt->get_result()->fetch_assoc()['total'] ?? 0); $stmt->close(); }
     }
 
+    require_once 'includes/member-content-functions.php';
+    $dashboardVerses = mc_dashboard_verses($conn);
+
     include 'includes/header.php';
     include 'includes/sidebar.php';
     ?>
@@ -61,6 +64,18 @@ if ($isMember) {
                 <i class="fas fa-church"></i>
             </div>
 
+            <?php if ($dashboardVerses): ?>
+                <div class="member-verses">
+                    <?php foreach ($dashboardVerses as $i => $verse): ?>
+                        <figure class="member-verse<?= $i === 0 ? ' featured' : '' ?>">
+                            <?php if ($i === 0): ?><small><i class="fas fa-book-bible"></i> <?= $verse['display_date'] === date('Y-m-d') ? 'Verse of the Day' : 'Bible Verse' ?></small><?php endif; ?>
+                            <blockquote><?= h((string)$verse['verse_text']) ?></blockquote>
+                            <figcaption><?= h((string)$verse['reference']) ?> <span>(<?= h((string)$verse['translation']) ?>)</span></figcaption>
+                        </figure>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
             <div class="stats-grid module-stats-grid">
                 <div class="stat-card"><span class="stat-icon"><i class="fas fa-sitemap"></i></span><div><strong class="stat-value"><?= number_format($activeDepartmentCount) ?></strong><span class="stat-label">Active Departments</span></div></div>
                 <div class="stat-card"><span class="stat-icon"><i class="fas fa-calendar-days"></i></span><div><strong class="stat-value"><?= number_format($upcomingProgramCount) ?></strong><span class="stat-label">Upcoming Programs</span></div></div>
@@ -74,6 +89,10 @@ if ($isMember) {
                 <a href="<?= h(BASE_URL.'member/events.php') ?>"><i class="fas fa-calendar-alt"></i><span>Church Events</span></a>
                 <a href="<?= h(BASE_URL.'member/event-certificates.php') ?>"><i class="fas fa-certificate"></i><span>Event Certificates (<?= number_format($eventCertificateCount) ?>)</span></a>
                 <a href="<?= h(BASE_URL.'member/projects.php') ?>"><i class="fas fa-project-diagram"></i><span>Projects</span></a>
+                <a href="<?= h(BASE_URL.'member/order-of-service.php') ?>"><i class="fas fa-list-ol"></i><span>Order of Service</span></a>
+                <a href="<?= h(BASE_URL.'member/hymns.php') ?>"><i class="fas fa-music"></i><span>Church Hymns</span></a>
+                <a href="<?= h(BASE_URL.'member/tips.php?dept=health') ?>"><i class="fas fa-heart-pulse"></i><span>Health Tips</span></a>
+                <a href="<?= h(BASE_URL.'member/tips.php?dept=education') ?>"><i class="fas fa-graduation-cap"></i><span>Education Tips</span></a>
                 <a href="<?= h(BASE_URL.'member/profile.php') ?>"><i class="fas fa-user-circle"></i><span>My Profile</span></a>
             </div>
 
@@ -105,7 +124,7 @@ if ($isMember) {
         </div>
     </div>
     <style>
-    .member-welcome{display:flex;justify-content:space-between;align-items:center;padding:22px 24px;border-radius:14px;background:linear-gradient(135deg,#4a1e8f,#7b3fcf);color:#fff;margin-bottom:20px}.member-welcome h3{margin:0 0 5px}.member-welcome p{margin:0}.member-welcome i{font-size:48px;opacity:.28}.member-quick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.member-quick-grid a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;min-height:105px;border:1px solid #e1e4e8;border-radius:12px;background:#fff;text-decoration:none;color:#222;box-shadow:0 4px 12px rgba(20,30,40,.04)}.member-quick-grid a:hover{border-color:#4a1e8f;color:#4a1e8f}.member-quick-grid i{font-size:24px}.dashboard-gateway-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.dashboard-gateway{position:relative;padding:15px;border:1px solid #e1e4e8;border-radius:10px;background:#fafafa}.dashboard-gateway small,.dashboard-gateway span{display:block;color:#68707d}.dashboard-gateway strong{display:block;margin:4px 0 8px}.dashboard-gateway em{position:absolute;right:12px;top:12px;font-style:normal;font-weight:700;color:#4a1e8f}
+    .member-welcome{display:flex;justify-content:space-between;align-items:center;padding:22px 24px;border-radius:14px;background:linear-gradient(135deg,#4a1e8f,#7b3fcf);color:#fff;margin-bottom:20px}.member-welcome h3{margin:0 0 5px}.member-welcome p{margin:0}.member-welcome i{font-size:48px;opacity:.28}.member-quick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.member-quick-grid a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;min-height:105px;border:1px solid #e1e4e8;border-radius:12px;background:#fff;text-decoration:none;color:#222;box-shadow:0 4px 12px rgba(20,30,40,.04)}.member-quick-grid a:hover{border-color:#4a1e8f;color:#4a1e8f}.member-quick-grid i{font-size:24px}.dashboard-gateway-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.dashboard-gateway{position:relative;padding:15px;border:1px solid #e1e4e8;border-radius:10px;background:#fafafa}.dashboard-gateway small,.dashboard-gateway span{display:block;color:#68707d}.dashboard-gateway strong{display:block;margin:4px 0 8px}.dashboard-gateway em{position:absolute;right:12px;top:12px;font-style:normal;font-weight:700;color:#4a1e8f}.member-verses{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:20px}.member-verse{margin:0;padding:16px 18px;border:1px solid #e1e4e8;border-left:4px solid #4a1e8f;border-radius:12px;background:#fff}.member-verse.featured{grid-column:1/-1;background:#f7f3fd}.member-verse small{display:block;margin-bottom:6px;color:#4a1e8f;font-weight:700;text-transform:uppercase;font-size:11px}.member-verse blockquote{margin:0 0 8px;white-space:pre-wrap;font-size:15px;line-height:1.6;font-style:italic}.member-verse.featured blockquote{font-size:17px}.member-verse figcaption{font-weight:700;color:#333}.member-verse figcaption span{font-weight:400;color:#68707d}
     </style>
     <?php require_once 'includes/footer.php';
     exit;

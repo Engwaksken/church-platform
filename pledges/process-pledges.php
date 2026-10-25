@@ -63,6 +63,17 @@ function many(string $sql): array {
 function next_no(string $prefix): string {
     return $prefix . '-' . date('Ymd-His') . '-' . random_int(100, 999);
 }
+/** The pledge number assigned to the member in the members table ('' when none is set). */
+function member_pledge_no(int $memberId): string {
+    global $conn;
+    if (!col_exists('members', 'pledge_no')) return '';
+    $stmt = $conn->prepare("SELECT pledge_no FROM members WHERE id=? LIMIT 1");
+    $stmt->bind_param('i', $memberId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return trim((string)($row['pledge_no'] ?? ''));
+}
 function member_name(array $r): string {
     $name = trim((string)($r['full_name'] ?? ''));
     return $name !== '' ? $name : 'Member';
@@ -169,15 +180,18 @@ try {
         if ($amount <= 0) pj(false, 'Amount pledged must be greater than zero.');
         $pidSql = $project_id !== '' ? (string)(int)$project_id : 'NULL';
         $dueSql = $due !== '' ? "'".hsql($due)."'" : 'NULL';
+        // The pledge number comes from the member's record, not a generated sequence.
+        $memberPledgeNo = member_pledge_no($member_id);
+        if ($memberPledgeNo === '') pj(false, 'This member has no pledge number. Set the Pledge No on the member record in Members first.');
+        $no = hsql($memberPledgeNo);
         if ($id > 0) {
-            $ok = $conn->query("UPDATE pledges SET member_id=$member_id, project_id=$pidSql, pledge_reason='".hsql($reason)."', amount_pledged=$amount, pledge_date='".hsql($pledge_date)."', due_date=$dueSql, status='".hsql($status)."', notes='".hsql($notes)."' WHERE id=$id");
+            $ok = $conn->query("UPDATE pledges SET pledge_no='$no', member_id=$member_id, project_id=$pidSql, pledge_reason='".hsql($reason)."', amount_pledged=$amount, pledge_date='".hsql($pledge_date)."', due_date=$dueSql, status='".hsql($status)."', notes='".hsql($notes)."' WHERE id=$id");
             if (!$ok) pj(false, 'Update failed: '.$conn->error);
             pj(true, 'Pledge updated successfully.');
         }
-        $no = hsql(next_no('PLG'));
         $ok = $conn->query("INSERT INTO pledges (pledge_no,member_id,project_id,pledge_reason,amount_pledged,amount_paid,pledge_date,due_date,status,notes) VALUES ('$no',$member_id,$pidSql,'".hsql($reason)."',$amount,0,'".hsql($pledge_date)."',$dueSql,'".hsql($status)."','".hsql($notes)."')");
         if (!$ok) pj(false, 'Insert failed: '.$conn->error);
-        pj(true, 'Pledge recorded successfully.', ['id' => $conn->insert_id, 'pledge_no' => $no]);
+        pj(true, 'Pledge recorded successfully.', ['id' => $conn->insert_id, 'pledge_no' => $memberPledgeNo]);
     }
 
     if ($action === 'pay') {
@@ -246,5 +260,8 @@ try {
 
     pj(false, 'Invalid request action.');
 } catch (Throwable $e) {
+    if ($e instanceof mysqli_sql_exception && $e->getCode() === 1062 && str_contains($e->getMessage(), 'pledge_no')) {
+        pj(false, 'This member already has a pledge and pledge numbers are still unique in the database. Run database/pledges_member_pledge_no.sql to allow several pledges per member.');
+    }
     pj(false, 'Server error: '.$e->getMessage());
 }
