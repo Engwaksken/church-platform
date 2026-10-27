@@ -83,6 +83,16 @@ if (bm_table_exists($conn, 'church_zones')) {
         $zones[] = $row;
     }
 }
+
+$departments = [];
+
+if (bm_table_exists($conn, 'departments') && bm_table_exists($conn, 'department_members')) {
+    $where = bm_col_exists($conn, 'departments', 'status') ? "WHERE COALESCE(status,'Active')='Active'" : '';
+    $res = $conn->query("SELECT id, name FROM departments $where ORDER BY name ASC");
+    while ($res && $row = $res->fetch_assoc()) {
+        $departments[] = $row;
+    }
+}
 ?>
 
 
@@ -93,7 +103,7 @@ if (bm_table_exists($conn, 'church_zones')) {
         <div class="page-header">
             <div>
                 <h2><i class="fas fa-paper-plane text-primary"></i> Bulk Email & SMS</h2>
-                <p>Send announcements to members, zones, youth, unions, teachers, and parents.</p>
+                <p>Send announcements to members, zones, departments, youth, unions, teachers, and parents.</p>
             </div>
         </div>
 
@@ -154,6 +164,7 @@ if (bm_table_exists($conn, 'church_zones')) {
                                 <select name="recipient_group" id="recipientGroup" class="form-control" required>
                                     <option value="all">All Active Members</option>
                                     <option value="zone">By Church Zone</option>
+                                    <option value="department">By Department</option>
                                     <option value="youth">Youth</option>
                                     <option value="mothers_union">Mothers Union</option>
                                     <option value="fathers_union">Fathers Union</option>
@@ -168,6 +179,16 @@ if (bm_table_exists($conn, 'church_zones')) {
                                     <option value="0">-- Select Zone --</option>
                                     <?php foreach ($zones as $z): ?>
                                         <option value="<?= (int)$z['id']; ?>"><?= bm_h($z['zone_name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group" id="departmentWrap" style="display:none;">
+                                <label>Department <span class="req">*</span></label>
+                                <select name="department_id" id="department_id" class="form-control">
+                                    <option value="0">-- Select Department --</option>
+                                    <?php foreach ($departments as $d): ?>
+                                        <option value="<?= (int)$d['id']; ?>"><?= bm_h($d['name']); ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
@@ -377,6 +398,11 @@ window.BulkMessagingConfig = {
         if (wrap && group) {
             wrap.style.display = group.value === 'zone' ? '' : 'none';
         }
+
+        const deptWrap = qs('#departmentWrap');
+        if (deptWrap && group) {
+            deptWrap.style.display = group.value === 'department' ? '' : 'none';
+        }
     }
 
     function recipientPayload(r) {
@@ -550,6 +576,13 @@ window.BulkMessagingConfig = {
         });
     }
 
+    const departmentSelect = qs('#department_id');
+    if (departmentSelect) {
+        departmentSelect.addEventListener('change', () => {
+            previewRecipients().catch(err => showAlert(err.message, 'error'));
+        });
+    }
+
     const btnPreview = qs('#btnPreviewRecipients');
     if (btnPreview) {
         btnPreview.addEventListener('click', () => {
@@ -597,6 +630,7 @@ window.BulkMessagingConfig = {
         const message = qs('#message')?.value.trim() || '';
         const group = qs('#recipientGroup')?.value || 'all';
         const zoneId = Number(qs('#zone_id')?.value || 0);
+        const departmentId = Number(qs('#department_id')?.value || 0);
 
         if (channel === 'email' && !subject) {
             showAlert('Email subject is required.', 'error');
@@ -610,6 +644,11 @@ window.BulkMessagingConfig = {
 
         if (group === 'zone' && zoneId <= 0) {
             showAlert('Please select a church zone.', 'error');
+            return;
+        }
+
+        if (group === 'department' && departmentId <= 0) {
+            showAlert('Please select a department.', 'error');
             return;
         }
 
