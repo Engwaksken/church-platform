@@ -345,8 +345,6 @@ $queryTitles = [
 
     'giving.php' => [
 
-        'offertory'     => 'My Offertory',
-
         'tithe'         => 'My Tithe',
 
         'thanksgiving'  => 'My Thanksgiving',
@@ -354,8 +352,6 @@ $queryTitles = [
         'pledges'       => 'My Pledges',
 
         'contributions' => 'My Contributions',
-
-        'good_samaritan' => 'My Good Samaritan',
     ],
 ];
 

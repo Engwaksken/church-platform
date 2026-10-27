@@ -1252,18 +1252,6 @@ $memberId =
 
         <?php
 
-        navLink(
-            $sidebarBaseUrl .
-            'member/giving.php?tab=offertory',
-            'fa-church',
-            'My Offertory',
-            $dir,
-            $cur,
-            'giving.php',
-            'member.giving.view',
-            'tab',
-            'offertory'
-        );
 
 
         navLink(
@@ -1333,18 +1321,6 @@ $memberId =
             'contributions'
         );
 
-        navLink(
-            $sidebarBaseUrl .
-            'member/giving.php?tab=good_samaritan',
-            'fa-hands-helping',
-            'My Good Samaritan',
-            $dir,
-            $cur,
-            'giving.php',
-            'member.giving.view',
-            'tab',
-            'good_samaritan'
-        );
 
         ?>
 

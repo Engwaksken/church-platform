@@ -266,15 +266,11 @@ function mapi_action_giving(mysqli $conn): never
     $auth = mapi_auth($conn);
     // Each giving type mapped to: table, date column, amount column, reference and description columns.
     $types = [
-        'offertory'     => ['offertory', 'service_date', 'total_amount', 'NULL', 'service_type'],
         'tithe'         => ['tithe', 'tithe_date', 'amount', 'receipt_no', "CONCAT_WS(' ', 'Tithe', period_month, period_year)"],
         'thanksgiving'  => ['thanksgiving', 'thanksgiving_date', 'amount', 'receipt_no', 'COALESCE(NULLIF(reason,\'\'), item_description)'],
         'contributions' => ['contributions', 'contributed_on', 'amount', 'receipt_no', 'notes'],
-        'good_samaritan' => ['good_samaritan', 'given_on', 'amount', 'receipt_no', 'notes'],
     ];
-    // "Sunday Service · First Service" once database/service_session.sql has added the column.
-    if (mapi_column($conn, 'offertory', 'service_session')) $types['offertory'][4] = "CONCAT_WS(' · ', service_type, NULLIF(service_session,''))";
-    $type = (string)($_GET['type'] ?? 'offertory');
+    $type = (string)($_GET['type'] ?? 'tithe');
     if (!isset($types[$type])) mapi_fail(422, 'Unknown giving type.');
     [$table, $date, $amount, $reference, $description] = $types[$type];
     if (!mapi_table($conn, $table)) mapi_ok(['type' => $type, 'total' => 0, 'items' => []]);
