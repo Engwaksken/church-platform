@@ -134,6 +134,8 @@ $directoryTitles = [
 
     'events'            => 'Events',
 
+    'missions'          => 'Missions & Outreach',
+
     'bulk_messages'     => 'Bulk Messages',
 
 
