@@ -356,8 +356,7 @@ body.cms-modal-open { overflow: hidden !important; }
 .stats-grid,
 .module-stats-grid,
 .three-per-row,
-.fu-stats-grid,
-.birds-stat-grid {
+.fu-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
@@ -629,8 +628,7 @@ textarea.form-control { resize: vertical; min-height: 88px; }
 .form-grid,
 .form-grid-2,
 .modal-form-grid,
-.member-form-grid,
-.birds-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.member-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .form-grid-3     { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .form-grid-4     { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 
@@ -665,8 +663,7 @@ textarea.form-control { resize: vertical; min-height: 88px; }
    ============================================================ */
 .module-toolbar,
 .data-toolbar,
-.toolbar,
-.birds-toolbar {
+.toolbar {
   display: flex;
   gap: 10px;
   align-items: center;
@@ -803,8 +800,7 @@ textarea.form-control { resize: vertical; min-height: 88px; }
 /* Action button groups in tables */
 .action-buttons,
 .table-actions,
-.table-action,
-.birds-row-actions { display: flex; justify-content: flex-end; gap: 6px; white-space: nowrap; flex-wrap: wrap; }
+.table-action { display: flex; justify-content: flex-end; gap: 6px; white-space: nowrap; flex-wrap: wrap; }
 
 
 /* ============================================================
@@ -829,8 +825,7 @@ textarea.form-control { resize: vertical; min-height: 88px; }
 
 /* Inline / Ajax alerts */
 .ajax-alert,
-.app-alert,
-.birds-alert {
+.app-alert {
   display: none;
   margin: 10px 0;
   padding: 10px 12px;
@@ -838,11 +833,9 @@ textarea.form-control { resize: vertical; min-height: 88px; }
   font-weight: 700;
 }
 .ajax-alert.success,
-.app-alert.success,
-.birds-alert.success { display: block; background: #dcfce7; color: #166534; }
+.app-alert.success { display: block; background: #dcfce7; color: #166534; }
 .ajax-alert.error,
-.app-alert.error,
-.birds-alert.error   { display: block; background: #fee2e2; color: #991b1b; }
+.app-alert.error { display: block; background: #fee2e2; color: #991b1b; }
 
 
 /* ============================================================
@@ -857,27 +850,23 @@ textarea.form-control { resize: vertical; min-height: 88px; }
 
 
 /* ============================================================
-   18. NAV TABS & BIRDS TABS
+   18. NAV TABS
    ============================================================ */
-.nav-tabs,
-.birds-tabs {
+.nav-tabs {
   display: flex; flex-wrap: wrap; gap: 2px;
   border-bottom: 2px solid var(--border); margin-bottom: 20px; list-style: none;
   overflow-x: auto;
 }
 .nav-item  { margin: 0; }
-.nav-link,
-.birds-tabs a {
+.nav-link {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 9px 16px; font-size: 13px; font-weight: 600; color: var(--text-muted);
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   border: 1px solid transparent; position: relative; top: 2px;
   transition: var(--transition); text-decoration: none; white-space: nowrap;
 }
-.nav-link:hover,
-.birds-tabs a:hover  { color: var(--primary); background: var(--primary-fade); }
-.nav-link.active,
-.birds-tabs a.active {
+.nav-link:hover { color: var(--primary); background: var(--primary-fade); }
+.nav-link.active {
   color: var(--primary); background: var(--white);
   border-color: var(--border); border-bottom-color: var(--white); font-weight: 700;
 }
@@ -894,8 +883,7 @@ textarea.form-control { resize: vertical; min-height: 88px; }
 /* -- Shared backdrop -- */
 .modal-overlay,
 .app-modal-backdrop,
-.ajax-modal-backdrop,
-.birds-modal {
+.ajax-modal-backdrop {
   position: fixed; inset: 0;
   background: rgba(15,23,42,.62);
   z-index: 9998;
@@ -906,7 +894,6 @@ textarea.form-control { resize: vertical; min-height: 88px; }
 .modal-overlay.show     { display: flex; }
 .app-modal-backdrop.show,
 .ajax-modal-backdrop.show { display: block; }
-.birds-modal.show        { display: block; }
 
 /* -- Shared scroll-container -- */
 .app-modal,
@@ -924,8 +911,7 @@ textarea.form-control { resize: vertical; min-height: 88px; }
 /* -- Dialog boxes -- */
 .modal,
 .app-dialog,
-.ajax-dialog,
-.birds-modal-dialog {
+.ajax-dialog {
   background: var(--white);
   border-radius: var(--radius-lg);
   box-shadow: 0 22px 60px rgba(0,0,0,.26);
@@ -943,8 +929,6 @@ textarea.form-control { resize: vertical; min-height: 88px; }
 .ajax-dialog-sm   { width: min(480px, 100%); }
 .ajax-dialog-lg   { width: min(820px, 100%); }
 .ajax-dialog-xl   { width: min(1050px, 100%); }
-/* birds */
-.birds-modal-dialog { width: min(780px, 100%); margin: 30px auto; }
 /* member overlay */
 .member-modal-overlay {
   padding: 22px 12px !important;
@@ -971,8 +955,7 @@ textarea.form-control { resize: vertical; min-height: 88px; }
 /* -- Headers -- */
 .modal-header,
 .app-modal-header,
-.ajax-modal-header,
-.birds-modal-header {
+.ajax-modal-header {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 16px 20px;
   background: var(--primary); color: #fff;
@@ -980,14 +963,12 @@ textarea.form-control { resize: vertical; min-height: 88px; }
 }
 .modal-header h4,
 .app-modal-header h3,
-.ajax-modal-header h4,
-.birds-modal-header h3 { margin: 0; font-size: 16px; font-weight: 700; color: #fff; }
+.ajax-modal-header h4 { margin: 0; font-size: 16px; font-weight: 700; color: #fff; }
 
 /* -- Bodies -- */
 .modal-body,
 .app-modal-body,
-.ajax-modal-body,
-.birds-modal-body {
+.ajax-modal-body {
   padding: 20px;
   max-height: calc(100vh - 190px);
   overflow-y: auto;
@@ -1006,16 +987,14 @@ textarea.form-control { resize: vertical; min-height: 88px; }
 .modal-footer { border-top: 1px solid var(--border); }
 
 /* Close button */
-.modal-close,
-.birds-close {
+.modal-close {
   border: 0; background: rgba(255,255,255,.15); color: #fff;
   font-size: 22px; line-height: 1; cursor: pointer;
   width: 32px; height: 32px; border-radius: 6px;
   display: inline-flex; align-items: center; justify-content: center;
   transition: background .2s;
 }
-.modal-close:hover,
-.birds-close:hover { background: rgba(255,255,255,.3); }
+.modal-close:hover { background: rgba(255,255,255,.3); }
 
 
 /* ============================================================
@@ -1159,22 +1138,6 @@ textarea.form-control { resize: vertical; min-height: 88px; }
 .detail-card { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px; }
 .detail-card.full { grid-column: 1 / -1; }
 .detail-card b { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
-
-
-/* ============================================================
-   23. BIRDS MODULE
-   ============================================================ */
-.rotation-item { display: flex; gap: 14px; margin-bottom: 18px; }
-.rotation-dot {
-  width: 38px; height: 38px; border-radius: 50%;
-  background: var(--primary);
-  display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 15px; flex-shrink: 0;
-}
-.rotation-dot.returned { background: var(--success); }
-.rotation-dot.pending  { background: var(--warning); }
-.rotation-content { flex: 1; background: #faf8ff; border-radius: var(--radius-sm); padding: 12px 16px; border-left: 3px solid var(--primary); }
-.cycle-badge { display: inline-block; background: var(--accent); color: #fff; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
 
 
 /* ============================================================
@@ -1330,14 +1293,12 @@ textarea.form-control { resize: vertical; min-height: 88px; }
 
   .stats-grid,
   .module-stats-grid,
-  .three-per-row,
-  .birds-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .three-per-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .form-grid,
   .form-grid-3,
   .modal-form-grid,
-  .member-form-grid,
-  .birds-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .member-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .form-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .profile-grid,
@@ -1400,8 +1361,6 @@ textarea.form-control { resize: vertical; min-height: 88px; }
   .stat-value { font-size: 1.35rem; }
   .card-body  { padding: 14px; }
 
-  .birds-modal { padding: 8px; }
-  .birds-modal-dialog { margin: 10px auto; }
 }
 
 
@@ -1421,7 +1380,6 @@ textarea.form-control { resize: vertical; min-height: 88px; }
   .stats-grid,
   .module-stats-grid,
   .three-per-row,
-  .birds-stat-grid,
   .fu-stats-grid { grid-template-columns: 1fr; }
 
   .form-grid,
@@ -1430,7 +1388,6 @@ textarea.form-control { resize: vertical; min-height: 88px; }
   .form-grid-4,
   .modal-form-grid,
   .member-form-grid,
-  .birds-form-grid,
   .detail-grid,
   .campaign-detail-grid { grid-template-columns: 1fr; }
 

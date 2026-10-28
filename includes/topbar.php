@@ -125,8 +125,6 @@ $directoryTitles = [
 
     'fundraising'       => 'Fundraising',
 
-    'birds'             => 'Birds Project',
-
 
     /* --------------------------------------------------------
      * Church Life

@@ -1,7 +1,7 @@
 /* Shared statistics-card system. Loaded from the common footer so it wins over
    legacy page-level declarations while leaving regular content cards alone. */
 :is(.content-area, .content-wrapper) :is(.stats-grid, .module-stats-grid, .member-stats, .three-per-row, .fu-stats-grid,
-  .birds-stat-grid, .project-stats-grid, .stats-grid-3, .member-stats-grid,
+  .project-stats-grid, .stats-grid-3, .member-stats-grid,
   .users-summary-grid, .attendance-stats-grid, .attendance-view-stats,
   .baptism-stats-grid, .contrib-stats-grid, .ev-stats-grid, .ss-stats-grid,
   .dept-stats-grid, .ce-stats, .gateway-stats-grid, .payment-stats-grid,
@@ -96,7 +96,7 @@
 
   @media (max-width: 1100px) {
   :is(.content-area, .content-wrapper) :is(.stats-grid, .module-stats-grid, .member-stats, .three-per-row, .fu-stats-grid,
-    .birds-stat-grid, .project-stats-grid, .stats-grid-3, .member-stats-grid,
+    .project-stats-grid, .stats-grid-3, .member-stats-grid,
     .users-summary-grid, .attendance-stats-grid, .attendance-view-stats,
     .baptism-stats-grid, .contrib-stats-grid, .ev-stats-grid, .ss-stats-grid,
     .dept-stats-grid, .ce-stats, .gateway-stats-grid, .payment-stats-grid,
@@ -108,7 +108,7 @@
 
 @media (max-width: 380px) {
   :is(.content-area, .content-wrapper) :is(.stats-grid, .module-stats-grid, .member-stats, .three-per-row, .fu-stats-grid,
-    .birds-stat-grid, .project-stats-grid, .stats-grid-3, .member-stats-grid,
+    .project-stats-grid, .stats-grid-3, .member-stats-grid,
     .users-summary-grid, .attendance-stats-grid, .attendance-view-stats,
     .baptism-stats-grid, .contrib-stats-grid, .ev-stats-grid, .ss-stats-grid,
     .dept-stats-grid, .ce-stats, .gateway-stats-grid, .payment-stats-grid,
