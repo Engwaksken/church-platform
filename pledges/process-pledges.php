@@ -146,9 +146,144 @@ function send_pledge_reminder(array $pledge): array {
     return ['email_sent' => $emailSent, 'sms_sent' => $smsSent];
 }
 
+/** Read the first worksheet of an Excel .xlsx workbook without third-party packages. */
+function read_bweyamo_xlsx(string $path): array {
+    if (!class_exists('ZipArchive') || !class_exists('DOMDocument')) throw new RuntimeException('Server XLSX support is not available.');
+    $zip = new ZipArchive();
+    if ($zip->open($path) !== true) throw new RuntimeException('The uploaded workbook could not be opened.');
+    try {
+        $workbook = simplexml_load_string((string)$zip->getFromName('xl/workbook.xml'));
+        $rels = simplexml_load_string((string)$zip->getFromName('xl/_rels/workbook.xml.rels'));
+        if (!$workbook || !$rels || !isset($workbook->sheets->sheet[0])) throw new RuntimeException('The workbook has no readable first worksheet.');
+        $rid = (string)$workbook->sheets->sheet[0]->attributes('http://schemas.openxmlformats.org/officeDocument/2006/relationships')->id;
+        $target = '';
+        foreach ($rels->Relationship as $rel) if ((string)$rel['Id'] === $rid) $target = (string)$rel['Target'];
+        if ($target === '') throw new RuntimeException('The first worksheet could not be located.');
+        $sheetPath = ltrim($target, '/');
+        if (strpos($sheetPath, 'xl/') !== 0) $sheetPath = 'xl/'.$sheetPath;
+        $sheet = new DOMDocument();
+        if (!$sheet->loadXML((string)$zip->getFromName($sheetPath))) throw new RuntimeException('The first worksheet is invalid.');
+        $strings = [];
+        $sharedXml = $zip->getFromName('xl/sharedStrings.xml');
+        if ($sharedXml !== false) {
+            $shared = new DOMDocument(); $shared->loadXML($sharedXml);
+            $sx = new DOMXPath($shared); $sx->registerNamespace('m', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+            foreach ($sx->query('//m:si') as $si) $strings[] = $si->textContent;
+        }
+        $xp = new DOMXPath($sheet); $xp->registerNamespace('m', 'http://schemas.openxmlformats.org/spreadsheetml/2006/main');
+        $rows = [];
+        foreach ($xp->query('//m:sheetData/m:row') as $rowNode) {
+            $row = []; foreach ($xp->query('m:c', $rowNode) as $cell) {
+                $ref = $cell->getAttribute('r'); if (!preg_match('/^([A-Z]+)/', $ref, $m)) continue;
+                $col = 0; foreach (str_split($m[1]) as $letter) $col = $col * 26 + ord($letter) - 64;
+                $v = $xp->query('m:v', $cell)->item(0); $value = $v ? $v->textContent : '';
+                if ($cell->getAttribute('t') === 's' && $value !== '') $value = $strings[(int)$value] ?? '';
+                elseif ($cell->getAttribute('t') === 'inlineStr') $value = $xp->query('m:is', $cell)->item(0)?->textContent ?? '';
+                $row[$col] = trim((string)$value);
+            }
+            $rows[(int)$rowNode->getAttribute('r')] = $row;
+        }
+        if (strtoupper(trim((string)($rows[2][2] ?? ''))) !== 'NAME' || strtoupper(trim((string)($rows[2][6] ?? ''))) !== 'PLEDGE') {
+            throw new RuntimeException('The first sheet does not look like the BWEYAMO 2025 pledge worksheet.');
+        }
+        $result = [];
+        foreach ($rows as $number => $row) {
+            if ($number <= 2) continue;
+            $name = trim((string)($row[2] ?? '')); $pledged = (float)str_replace([',', ' '], '', (string)($row[6] ?? ''));
+            if ($name === '' || $pledged <= 0) continue;
+            $payments = [];
+            for ($col = 8; $col <= 61; $col++) {
+                $amount = (float)str_replace([',', ' '], '', (string)($row[$col] ?? ''));
+                if ($amount <= 0) continue;
+                $serial = (float)($rows[2][$col] ?? 0);
+                if ($serial < 1) continue;
+                $date = (new DateTimeImmutable('1899-12-30'))->modify('+'.(int)$serial.' days')->format('Y-m-d');
+                $payments[] = ['date' => $date, 'amount' => $amount];
+            }
+            $result[] = ['row' => $number, 'name' => $name, 'phone' => trim((string)($row[4] ?? '')), 'pledged' => $pledged, 'payments' => $payments];
+        }
+        return $result;
+    } finally { $zip->close(); }
+}
+function pledge_import_name_key(string $name): string {
+    $name = preg_replace('/\s*-\s*No\s*\d+\s*$/i', '', trim($name));
+    $name = function_exists('mb_strtolower') ? mb_strtolower($name, 'UTF-8') : strtolower($name);
+    return preg_replace('/[^\pL\pN]+/u', '', $name) ?? '';
+}
+function pledge_import_phone_key(string $phone): string { return preg_replace('/\D+/', '', $phone) ?? ''; }
+
 try {
     if (!table_exists('pledges')) pj(false, 'pledges table does not exist.');
     $action = $_REQUEST['action'] ?? 'list';
+
+    if ($action === 'import_bweyamo_2025') {
+        if (!table_exists('pledge_payments')) pj(false, 'pledge_payments table does not exist.');
+        $file = $_FILES['pledge_workbook'] ?? null;
+        if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) pj(false, 'Select the BWEYAMO 2025 Excel workbook first.');
+        if (($file['size'] ?? 0) > 12 * 1024 * 1024 || strtolower(pathinfo((string)$file['name'], PATHINFO_EXTENSION)) !== 'xlsx') pj(false, 'Upload an .xlsx workbook smaller than 12 MB.');
+        try { $sourceRows = read_bweyamo_xlsx((string)$file['tmp_name']); }
+        catch (Throwable $e) { pj(false, $e->getMessage()); }
+        if (!$sourceRows) pj(false, 'No pledge rows with an amount were found on the first worksheet.');
+        $members = many("SELECT id, full_name, member_no, ".(col_exists('members','pledge_no') ? 'pledge_no' : "'' AS pledge_no").", ".(col_exists('members','phone') ? 'phone' : (col_exists('members','mobile') ? 'mobile AS phone' : "'' AS phone"))." FROM members");
+        $byName = []; $byPhone = [];
+        foreach ($members as $member) {
+            $nk = pledge_import_name_key((string)$member['full_name']); if ($nk !== '') $byName[$nk][] = $member;
+            $pk = pledge_import_phone_key((string)$member['phone']); if ($pk !== '') $byPhone[$pk][] = $member;
+        }
+        $typesReady = pledge_types_ready($conn); $marker = 'Imported from BWEYAMO 2025.xlsx';
+        $created = 0; $updated = 0; $paymentCount = 0; $skipped = [];
+        $conn->begin_transaction();
+        try {
+            foreach ($sourceRows as $source) {
+                $phoneKey = pledge_import_phone_key($source['phone']); $nameKey = pledge_import_name_key($source['name']);
+                $matches = $phoneKey !== '' && count($byPhone[$phoneKey] ?? []) === 1 ? $byPhone[$phoneKey] : ($phoneKey !== '' && isset($byPhone[$phoneKey]) ? [] : ($byName[$nameKey] ?? []));
+                if (count($matches) !== 1) { $skipped[] = 'Excel row '.$source['row'].': member not matched uniquely ('.$source['name'].')'; continue; }
+                $member = $matches[0]; $memberId = (int)$member['id']; $pledgeNo = trim((string)$member['pledge_no']);
+                if ($pledgeNo === '') { $skipped[] = 'Excel row '.$source['row'].': '.$source['name'].' has no pledge number in Members'; continue; }
+                $whereType = $typesReady ? " AND pledge_type='Annual' AND pledge_year=2025" : " AND pledge_reason='Annual Pledge 2025'";
+                $existing = one("SELECT id, amount_pledged FROM pledges WHERE member_id=$memberId$whereType AND status<>'Cancelled' ORDER BY id DESC LIMIT 1");
+                if ($existing) {
+                    $pledgeId = (int)$existing['id'];
+                    if (abs((float)$existing['amount_pledged'] - (float)$source['pledged']) > 0.005) {
+                        $stmt = $conn->prepare('UPDATE pledges SET amount_pledged=? WHERE id=?'); $stmt->bind_param('di', $source['pledged'], $pledgeId); $stmt->execute(); $stmt->close(); $updated++;
+                    }
+                } else {
+                    $reason = 'Annual Pledge 2025'; $pledgeDate = '2025-01-01'; $status = 'Pending'; $amountPaid = 0.0;
+                    if ($typesReady) {
+                        $stmt = $conn->prepare("INSERT INTO pledges (pledge_no,member_id,pledge_reason,amount_pledged,amount_paid,pledge_date,status,notes,pledge_type,pledge_year) VALUES (?,?,?,?,?,?,?,?, 'Annual',2025)");
+                    } else {
+                        $stmt = $conn->prepare('INSERT INTO pledges (pledge_no,member_id,pledge_reason,amount_pledged,amount_paid,pledge_date,status,notes) VALUES (?,?,?,?,?,?,?,?)');
+                    }
+                    $stmt->bind_param('sisddsss', $pledgeNo, $memberId, $reason, $source['pledged'], $amountPaid, $pledgeDate, $status, $marker);
+                    if (!$stmt->execute()) throw new RuntimeException('Could not create pledge for '.$source['name'].': '.$stmt->error);
+                    $pledgeId = (int)$stmt->insert_id; $stmt->close(); $created++;
+                }
+                $oldPaymentSum = (float)(one("SELECT COALESCE(SUM(amount),0) AS t FROM pledge_payments WHERE pledge_id=$pledgeId")['t'] ?? 0);
+                $sheetPaymentSum = array_sum(array_column($source['payments'], 'amount'));
+                // Existing payment history may already represent this workbook. Do not add the
+                // dated rows again when its current total already covers the workbook total.
+                if ($oldPaymentSum > 0 && $oldPaymentSum + 0.005 >= $sheetPaymentSum) {
+                    if ($sheetPaymentSum > 0) $skipped[] = $source['name'].': existing payment history already totals at least the workbook amount; payment rows were not duplicated.';
+                    recalc_pledge($pledgeId);
+                    continue;
+                }
+                foreach ($source['payments'] as $payment) {
+                    $stmt = $conn->prepare('SELECT id FROM pledge_payments WHERE pledge_id=? AND amount=? AND paid_on=? LIMIT 1');
+                    $stmt->bind_param('ids', $pledgeId, $payment['amount'], $payment['date']); $stmt->execute(); $dup = $stmt->get_result()->fetch_assoc(); $stmt->close();
+                    if ($dup) continue;
+                    $receipt = next_no('RCP'); $method = 'Cash';
+                    $stmt = $conn->prepare('INSERT INTO pledge_payments (pledge_id,amount,paid_on,method,receipt_no,notes) VALUES (?,?,?,?,?,?)');
+                    $stmt->bind_param('idssss', $pledgeId, $payment['amount'], $payment['date'], $method, $receipt, $marker);
+                    if (!$stmt->execute()) throw new RuntimeException('Payment import failed on Excel row '.$source['row'].': '.$stmt->error);
+                    $stmt->close(); $paymentCount++;
+                }
+                recalc_pledge($pledgeId);
+            }
+            $conn->commit();
+        } catch (Throwable $e) { $conn->rollback(); throw $e; }
+        $message = "BWEYAMO 2025 import complete: $created pledges created, $updated pledge amounts updated, $paymentCount dated payments recorded.";
+        pj(true, $message, ['created' => $created, 'updated' => $updated, 'payments' => $paymentCount, 'skipped' => $skipped]);
+    }
 
     if ($action === 'options') {
         pj(true, '', [
