@@ -70,8 +70,8 @@ include '../includes/sidebar.php';
 <div class="app-modal-backdrop" id="pledgeBackdrop"></div>
 
 <div class="app-modal" id="pledgeImportModal" aria-hidden="true"><div class="app-dialog"><form id="pledgeImportForm" enctype="multipart/form-data">
-  <div class="app-modal-header"><h3><i class="fas fa-file-import"></i> Import 2025 Pledges</h3><button type="button" class="modal-close" data-close-pledge>&times;</button></div>
-  <div class="app-modal-body"><div id="importAlert" class="ajax-alert"></div><p>Upload <strong>BWEYAMO 2025.xlsx</strong>. The import matches existing members by phone number or exact name, creates/updates their 2025 annual pledge, and records each dated payment separately. Re-importing the same sheet will not add the same dated payments twice.</p><div class="form-group"><label>Excel workbook (.xlsx) <span class="req">*</span></label><input type="file" name="pledge_workbook" class="form-control" accept=".xlsx" required></div></div>
+  <div class="app-modal-header"><h3><i class="fas fa-file-import"></i> Import Annual Pledges</h3><button type="button" class="modal-close" data-close-pledge>&times;</button></div>
+  <div class="app-modal-body"><div id="importAlert" class="ajax-alert"></div><p>Upload the annual pledge workbook in BWEYAMO format. The import matches existing members by phone number or exact name, creates or updates their annual pledge for the year shown in the workbook, and records each dated payment separately. Re-importing the same workbook will not add the same dated payments twice.</p><div class="form-group"><label>Excel workbook (.xlsx) <span class="req">*</span></label><input type="file" name="pledge_workbook" class="form-control" accept=".xlsx" required></div></div>
   <div class="app-modal-footer"><button type="button" class="btn btn-outline" data-close-pledge>Cancel</button><button class="btn btn-primary" id="importSubmit"><i class="fas fa-upload"></i> Import Workbook</button></div>
 </form></div></div>
 

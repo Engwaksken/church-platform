@@ -184,8 +184,10 @@ function read_bweyamo_xlsx(string $path): array {
             $rows[(int)$rowNode->getAttribute('r')] = $row;
         }
         if (strtoupper(trim((string)($rows[2][2] ?? ''))) !== 'NAME' || strtoupper(trim((string)($rows[2][6] ?? ''))) !== 'PLEDGE') {
-            throw new RuntimeException('The first sheet does not look like the BWEYAMO 2025 pledge worksheet.');
+            throw new RuntimeException('The first sheet does not look like a BWEYAMO pledge worksheet.');
         }
+        if (!preg_match('/\b(20\d{2})\b/', (string)($rows[1][2] ?? ''), $yearMatch)) throw new RuntimeException('Add the pledge year (for example, 2025) to the worksheet title in cell B1.');
+        $year = (int)$yearMatch[1];
         $result = [];
         foreach ($rows as $number => $row) {
             if ($number <= 2) continue;
@@ -202,7 +204,7 @@ function read_bweyamo_xlsx(string $path): array {
             }
             $result[] = ['row' => $number, 'name' => $name, 'phone' => trim((string)($row[4] ?? '')), 'pledged' => $pledged, 'payments' => $payments];
         }
-        return $result;
+        return ['year' => $year, 'rows' => $result];
     } finally { $zip->close(); }
 }
 function pledge_import_name_key(string $name): string {
@@ -221,8 +223,9 @@ try {
         $file = $_FILES['pledge_workbook'] ?? null;
         if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) pj(false, 'Select the BWEYAMO 2025 Excel workbook first.');
         if (($file['size'] ?? 0) > 12 * 1024 * 1024 || strtolower(pathinfo((string)$file['name'], PATHINFO_EXTENSION)) !== 'xlsx') pj(false, 'Upload an .xlsx workbook smaller than 12 MB.');
-        try { $sourceRows = read_bweyamo_xlsx((string)$file['tmp_name']); }
+        try { $workbookData = read_bweyamo_xlsx((string)$file['tmp_name']); }
         catch (Throwable $e) { pj(false, $e->getMessage()); }
+        $importYear = (int)$workbookData['year']; $sourceRows = $workbookData['rows'];
         if (!$sourceRows) pj(false, 'No pledge rows with an amount were found on the first worksheet.');
         $members = many("SELECT id, full_name, member_no, ".(col_exists('members','pledge_no') ? 'pledge_no' : "'' AS pledge_no").", ".(col_exists('members','phone') ? 'phone' : (col_exists('members','mobile') ? 'mobile AS phone' : "'' AS phone"))." FROM members");
         $byName = []; $byPhone = [];
@@ -230,7 +233,7 @@ try {
             $nk = pledge_import_name_key((string)$member['full_name']); if ($nk !== '') $byName[$nk][] = $member;
             $pk = pledge_import_phone_key((string)$member['phone']); if ($pk !== '') $byPhone[$pk][] = $member;
         }
-        $typesReady = pledge_types_ready($conn); $marker = 'Imported from BWEYAMO 2025.xlsx';
+        $typesReady = pledge_types_ready($conn); $marker = 'Imported from BWEYAMO '.$importYear.'.xlsx';
         $created = 0; $updated = 0; $paymentCount = 0; $skipped = [];
         $conn->begin_transaction();
         try {
@@ -240,7 +243,7 @@ try {
                 if (count($matches) !== 1) { $skipped[] = 'Excel row '.$source['row'].': member not matched uniquely ('.$source['name'].')'; continue; }
                 $member = $matches[0]; $memberId = (int)$member['id']; $pledgeNo = trim((string)$member['pledge_no']);
                 if ($pledgeNo === '') { $skipped[] = 'Excel row '.$source['row'].': '.$source['name'].' has no pledge number in Members'; continue; }
-                $whereType = $typesReady ? " AND pledge_type='Annual' AND pledge_year=2025" : " AND pledge_reason='Annual Pledge 2025'";
+                $whereType = $typesReady ? " AND pledge_type='Annual' AND pledge_year=$importYear" : " AND pledge_reason='Annual Pledge $importYear'";
                 $existing = one("SELECT id, amount_pledged FROM pledges WHERE member_id=$memberId$whereType AND status<>'Cancelled' ORDER BY id DESC LIMIT 1");
                 if ($existing) {
                     $pledgeId = (int)$existing['id'];
@@ -248,13 +251,14 @@ try {
                         $stmt = $conn->prepare('UPDATE pledges SET amount_pledged=? WHERE id=?'); $stmt->bind_param('di', $source['pledged'], $pledgeId); $stmt->execute(); $stmt->close(); $updated++;
                     }
                 } else {
-                    $reason = 'Annual Pledge 2025'; $pledgeDate = '2025-01-01'; $status = 'Pending'; $amountPaid = 0.0;
+                    $reason = 'Annual Pledge '.$importYear; $pledgeDate = sprintf('%04d-01-01', $importYear); $status = 'Pending'; $amountPaid = 0.0;
                     if ($typesReady) {
-                        $stmt = $conn->prepare("INSERT INTO pledges (pledge_no,member_id,pledge_reason,amount_pledged,amount_paid,pledge_date,status,notes,pledge_type,pledge_year) VALUES (?,?,?,?,?,?,?,?, 'Annual',2025)");
+                        $stmt = $conn->prepare("INSERT INTO pledges (pledge_no,member_id,pledge_reason,amount_pledged,amount_paid,pledge_date,status,notes,pledge_type,pledge_year) VALUES (?,?,?,?,?,?,?,?, 'Annual',?)");
                     } else {
                         $stmt = $conn->prepare('INSERT INTO pledges (pledge_no,member_id,pledge_reason,amount_pledged,amount_paid,pledge_date,status,notes) VALUES (?,?,?,?,?,?,?,?)');
                     }
-                    $stmt->bind_param('sisddsss', $pledgeNo, $memberId, $reason, $source['pledged'], $amountPaid, $pledgeDate, $status, $marker);
+                    if ($typesReady) $stmt->bind_param('sisddsssi', $pledgeNo, $memberId, $reason, $source['pledged'], $amountPaid, $pledgeDate, $status, $marker, $importYear);
+                    else $stmt->bind_param('sisddsss', $pledgeNo, $memberId, $reason, $source['pledged'], $amountPaid, $pledgeDate, $status, $marker);
                     if (!$stmt->execute()) throw new RuntimeException('Could not create pledge for '.$source['name'].': '.$stmt->error);
                     $pledgeId = (int)$stmt->insert_id; $stmt->close(); $created++;
                 }
@@ -281,7 +285,7 @@ try {
             }
             $conn->commit();
         } catch (Throwable $e) { $conn->rollback(); throw $e; }
-        $message = "BWEYAMO 2025 import complete: $created pledges created, $updated pledge amounts updated, $paymentCount dated payments recorded.";
+        $message = "BWEYAMO $importYear import complete: $created pledges created, $updated pledge amounts updated, $paymentCount dated payments recorded.";
         pj(true, $message, ['created' => $created, 'updated' => $updated, 'payments' => $paymentCount, 'skipped' => $skipped]);
     }
 
