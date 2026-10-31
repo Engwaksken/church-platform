@@ -9,7 +9,11 @@ if (session_status() === PHP_SESSION_NONE) session_start();
 // db.php also loads the .env file, so APP_URL below can come from there.
 require_once __DIR__ . '/db.php';
 // The live site address: APP_URL in .env (or the server environment), e.g. https://church.kemmytech.com
-define('BASE_URL', rtrim(getenv('APP_URL') ?: 'https://church.kemmytech.com', '/') . '/');
+$appUrl = rtrim(getenv('APP_URL') ?: 'https://church.kemmytech.com', '/');
+// Correct the legacy APP_URL typo so generated asset URLs stay on this host.
+$appUrl = preg_replace('~://chuerch\.kemmytech\.com(?=/|$)~i', '://church.kemmytech.com', $appUrl, 1);
+define('BASE_URL', $appUrl . '/');
+unset($appUrl);
 require_once __DIR__ . '/../includes/access.php'; 
 
 function requireLogin() {
