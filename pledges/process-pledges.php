@@ -225,10 +225,10 @@ function pledge_import_name_base_key(string $name): string {
     return preg_replace('/[^\pL\pN]+/u', '', $name) ?? '';
 }
 function pledge_import_extract_no(string $name): string {
-    return preg_match('/\bNo\.?\s*[-:]?\s*(\d+)\s*$/i', trim($name), $m) ? $m[1] : '';
+    return preg_match('/\bNo\.?\s*[-:]?\s*(\d+)\b/i', trim($name), $m) ? $m[1] : '';
 }
 function pledge_import_display_name(string $name): string {
-    return trim((string)preg_replace('/\s*-\s*No\.?\s*\d+\s*$/i', '', trim($name)));
+    return trim((string)preg_replace('/\s*-\s*No\.?\s*\d+\s*/i', ' ', trim($name)));
 }
 function pledge_import_phone_key(string $phone): string { return preg_replace('/\D+/', '', $phone) ?? ''; }
 function pledge_import_no_key(string $number): string { return strtoupper(preg_replace('/[^\pL\pN]+/u', '', trim($number)) ?? ''); }
@@ -303,11 +303,18 @@ try {
         while (($row = fgetcsv($fh)) !== false) {
             $line++;
             $value = static fn($key) => trim((string)($row[$columns[$key]] ?? ''));
-            $no = $value('pledge_no'); $year = (int)$value('pledge_year');
+            $no = $value('pledge_no');
+            if ($no === '' && isset($columns['member_name'])) $no = pledge_import_extract_no($value('member_name'));
+            $year = (int)$value('pledge_year');
             $amount = (float)str_replace([',',' '], '', $value('amount_paid'));
             $pledged = (float)str_replace([',',' '], '', $value('amount_pledged'));
             $date = $value('paid_on');
-            if ($no === '' || $year < 2000 || $year > 2100 || $amount <= 0 || $pledged <= 0 || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/', $date, $dateParts)) {
+                $day=(int)$dateParts[1]; $month=(int)$dateParts[2]; $dateYear=(int)$dateParts[3];
+                $date = checkdate($month,$day,$dateYear) ? sprintf('%04d-%02d-%02d',$dateYear,$month,$day) : '';
+            }
+            $validDate = preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $isoDate) && checkdate((int)$isoDate[2],(int)$isoDate[3],(int)$isoDate[1]);
+            if ($no === '' || $year < 2000 || $year > 2100 || $amount <= 0 || $pledged <= 0 || !$validDate) {
                 fclose($fh); pj(false, 'Invalid data on CSV line '.$line.'. Check pledge number, year, pledge/payment amounts and paid date.');
             }
             $entries[] = ['pledge_no'=>$no,'year'=>$year,'amount_pledged'=>$pledged,'paid_on'=>$date,'amount_paid'=>$amount];
