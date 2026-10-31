@@ -136,6 +136,8 @@ $pageTitleText = isset($pageTitle) && trim((string)$pageTitle) !== ''
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="<?= h(BASE_URL . 'assets/img/pwa-192.png') ?>">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<?php require_once __DIR__ . '/site-fonts.php'; ?>
+<?= site_font_css() ?>
 
 </head>
 

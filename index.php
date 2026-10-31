@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/config/config.php';
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/login.php';
+require_once __DIR__ . '/includes/site-fonts.php';
 
 if (isset($_SESSION['user_id'])) {
     redirect(BASE_URL . 'dashboard.php');
@@ -82,6 +83,7 @@ $csrfToken = login_csrf_token();
   outline: none;
 }
 </style>
+<?= site_font_css() ?>
 </head>
 
 <body>
@@ -149,6 +151,10 @@ $csrfToken = login_csrf_token();
             <i class="fa-regular fa-eye" aria-hidden="true"></i>
           </button>
         </div>
+      </div>
+
+      <div style="margin:-6px 0 14px;text-align:right;">
+        <a href="<?= h(BASE_URL . 'forgot-password.php') ?>" style="color:var(--primary);font-size:12.5px;font-weight:600;text-decoration:none;">Forgot password?</a>
       </div>
 
       <button type="submit" class="btn-login">
