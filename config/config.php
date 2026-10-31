@@ -2,12 +2,14 @@
 define('APP_NAME', 'Rongoro COU Church');
 define('APP_SHORT', 'RCOU-CMS');
 define('APP_VERSION', '1.0.0');
-define('BASE_URL', 'https://cou.kemmytech.com/');
 define('UPLOAD_PATH', __DIR__ . '/../assets/uploads/');
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 
+// db.php also loads the .env file, so APP_URL below can come from there.
 require_once __DIR__ . '/db.php';
+// The live site address: APP_URL in .env (or the server environment), e.g. https://church.kemmytech.com
+define('BASE_URL', rtrim(getenv('APP_URL') ?: 'https://church.kemmytech.com', '/') . '/');
 require_once __DIR__ . '/../includes/access.php'; 
 
 function requireLogin() {
