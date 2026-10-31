@@ -253,7 +253,7 @@ try {
                 $missingKey = $pledgeKey !== '' ? 'pledge:'.$pledgeKey : ($phoneKey !== '' ? 'phone:'.$phoneKey : 'name:'.$nameKey);
                 if (!isset($missingSeen[$missingKey])) {
                     $missingSeen[$missingKey] = true;
-                    $missingMembers[] = [$source['name'], '', $source['phone'], '', '', '', '', sprintf('%04d-01-01', $importYear), '', '', 'Prepared from BWEYAMO '.$importYear, 'Active', $source['pledge_no'], ''];
+                    $missingMembers[] = [$source['name'], 'Not Specified', $source['phone'], '', '', '', '', sprintf('%04d-01-01', $importYear), '', '', 'Prepared from BWEYAMO '.$importYear, 'Active', $source['pledge_no'], ''];
                 }
                 continue;
             }
@@ -266,60 +266,77 @@ try {
             'paid_entries' => array_merge([['member_name','phone','pledge_no','pledge_year','amount_pledged','paid_on','amount_paid']], $paidEntries),
             'skipped' => $skipped
         ]);
-        $typesReady = pledge_types_ready($conn); $marker = 'Imported from BWEYAMO '.$importYear.'.xlsx';
-        $created = 0; $updated = 0; $paymentCount = 0; $skipped = [];
+    }
+
+    if ($action === 'import_prepared_paid_csv') {
+        if (!table_exists('pledge_payments')) pj(false, 'pledge_payments table does not exist.');
+        $file = $_FILES['paid_csv'] ?? null;
+        if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) pj(false, 'Choose the prepared paid-pledges CSV file.');
+        if (($file['size'] ?? 0) > 12 * 1024 * 1024 || strtolower(pathinfo((string)$file['name'], PATHINFO_EXTENSION)) !== 'csv') pj(false, 'Upload a CSV file smaller than 12 MB.');
+        $fh = fopen((string)$file['tmp_name'], 'rb');
+        if (!$fh) pj(false, 'Could not read the uploaded CSV file.');
+        $header = fgetcsv($fh);
+        if (!$header) { fclose($fh); pj(false, 'The uploaded CSV is empty.'); }
+        $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string)$header[0]);
+        $columns = array_flip(array_map(static fn($v) => strtolower(trim((string)$v)), $header));
+        foreach (['pledge_no','pledge_year','amount_pledged','paid_on','amount_paid'] as $required) {
+            if (!isset($columns[$required])) { fclose($fh); pj(false, 'This is not a prepared paid-pledges CSV. Missing column: '.$required); }
+        }
+        $entries = []; $line = 1;
+        while (($row = fgetcsv($fh)) !== false) {
+            $line++;
+            $value = static fn($key) => trim((string)($row[$columns[$key]] ?? ''));
+            $no = $value('pledge_no'); $year = (int)$value('pledge_year');
+            $amount = (float)str_replace([',',' '], '', $value('amount_paid'));
+            $pledged = (float)str_replace([',',' '], '', $value('amount_pledged'));
+            $date = $value('paid_on');
+            if ($no === '' || $year < 2000 || $year > 2100 || $amount <= 0 || $pledged <= 0 || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                fclose($fh); pj(false, 'Invalid data on CSV line '.$line.'. Check pledge number, year, pledge/payment amounts and paid date.');
+            }
+            $entries[] = ['pledge_no'=>$no,'year'=>$year,'amount_pledged'=>$pledged,'paid_on'=>$date,'amount_paid'=>$amount];
+        }
+        fclose($fh);
+        if (!$entries) pj(false, 'No paid pledge entries were found in the CSV.');
+        $typesReady = pledge_types_ready($conn); $created = 0; $paymentsAdded = 0; $duplicates = 0;
         $conn->begin_transaction();
         try {
-            foreach ($sourceRows as $source) {
-                $phoneKey = pledge_import_phone_key($source['phone']); $nameKey = pledge_import_name_key($source['name']);
-                $matches = $phoneKey !== '' && count($byPhone[$phoneKey] ?? []) === 1 ? $byPhone[$phoneKey] : ($phoneKey !== '' && isset($byPhone[$phoneKey]) ? [] : ($byName[$nameKey] ?? []));
-                if (count($matches) !== 1) { $skipped[] = 'Excel row '.$source['row'].': member not matched uniquely ('.$source['name'].')'; continue; }
-                $member = $matches[0]; $memberId = (int)$member['id']; $pledgeNo = trim((string)$member['pledge_no']);
-                if ($pledgeNo === '') { $skipped[] = 'Excel row '.$source['row'].': '.$source['name'].' has no pledge number in Members'; continue; }
-                $whereType = $typesReady ? " AND pledge_type='Annual' AND pledge_year=$importYear" : " AND pledge_reason='Annual Pledge $importYear'";
-                $existing = one("SELECT id, amount_pledged FROM pledges WHERE member_id=$memberId$whereType AND status<>'Cancelled' ORDER BY id DESC LIMIT 1");
-                if ($existing) {
-                    $pledgeId = (int)$existing['id'];
-                    if (abs((float)$existing['amount_pledged'] - (float)$source['pledged']) > 0.005) {
-                        $stmt = $conn->prepare('UPDATE pledges SET amount_pledged=? WHERE id=?'); $stmt->bind_param('di', $source['pledged'], $pledgeId); $stmt->execute(); $stmt->close(); $updated++;
-                    }
-                } else {
-                    $reason = 'Annual Pledge '.$importYear; $pledgeDate = sprintf('%04d-01-01', $importYear); $status = 'Pending'; $amountPaid = 0.0;
+            foreach ($entries as $i => $entry) {
+                $number = hsql($entry['pledge_no']);
+                $memberMatches = many("SELECT id, pledge_no FROM members WHERE pledge_no='$number' LIMIT 2");
+                if (count($memberMatches) !== 1) throw new RuntimeException('CSV entry '.($i+1).': pledge number '.$entry['pledge_no'].' matched '.count($memberMatches).' members. Import the missing members file first and resolve duplicate pledge numbers.');
+                $member = $memberMatches[0];
+                $memberId = (int)$member['id']; $year = (int)$entry['year'];
+                $where = $typesReady ? "pledge_type='Annual' AND pledge_year=$year" : "pledge_reason='Annual Pledge $year'";
+                $pledge = one("SELECT id,amount_pledged FROM pledges WHERE member_id=$memberId AND $where AND status<>'Cancelled' ORDER BY id DESC LIMIT 1");
+                if (!$pledge) {
+                    $pledgeNo = (string)$member['pledge_no']; $reason = 'Annual Pledge '.$year; $date = sprintf('%04d-01-01',$year); $pending='Pending'; $paid=0.0; $note='Imported from prepared paid-pledges CSV';
                     if ($typesReady) {
-                        $stmt = $conn->prepare("INSERT INTO pledges (pledge_no,member_id,pledge_reason,amount_pledged,amount_paid,pledge_date,status,notes,pledge_type,pledge_year) VALUES (?,?,?,?,?,?,?,?, 'Annual',?)");
+                        $stmt=$conn->prepare("INSERT INTO pledges (pledge_no,member_id,pledge_reason,amount_pledged,amount_paid,pledge_date,status,notes,pledge_type,pledge_year) VALUES (?,?,?,?,?,?,?,?,'Annual',?)");
+                        $stmt->bind_param('sisddsssi',$pledgeNo,$memberId,$reason,$entry['amount_pledged'],$paid,$date,$pending,$note,$year);
                     } else {
-                        $stmt = $conn->prepare('INSERT INTO pledges (pledge_no,member_id,pledge_reason,amount_pledged,amount_paid,pledge_date,status,notes) VALUES (?,?,?,?,?,?,?,?)');
+                        $stmt=$conn->prepare('INSERT INTO pledges (pledge_no,member_id,pledge_reason,amount_pledged,amount_paid,pledge_date,status,notes) VALUES (?,?,?,?,?,?,?,?)');
+                        $stmt->bind_param('sisddsss',$pledgeNo,$memberId,$reason,$entry['amount_pledged'],$paid,$date,$pending,$note);
                     }
-                    if ($typesReady) $stmt->bind_param('sisddsssi', $pledgeNo, $memberId, $reason, $source['pledged'], $amountPaid, $pledgeDate, $status, $marker, $importYear);
-                    else $stmt->bind_param('sisddsss', $pledgeNo, $memberId, $reason, $source['pledged'], $amountPaid, $pledgeDate, $status, $marker);
-                    if (!$stmt->execute()) throw new RuntimeException('Could not create pledge for '.$source['name'].': '.$stmt->error);
-                    $pledgeId = (int)$stmt->insert_id; $stmt->close(); $created++;
+                    if (!$stmt->execute()) throw new RuntimeException('Could not create annual pledge for '.$entry['pledge_no'].': '.$stmt->error);
+                    $pledgeId=(int)$stmt->insert_id; $stmt->close(); $created++;
+                } else {
+                    $pledgeId=(int)$pledge['id'];
+                    if (abs((float)$pledge['amount_pledged']-(float)$entry['amount_pledged'])>0.005) {
+                        $amountPledged=(float)$entry['amount_pledged']; $stmt=$conn->prepare('UPDATE pledges SET amount_pledged=? WHERE id=?'); $stmt->bind_param('di',$amountPledged,$pledgeId); $stmt->execute(); $stmt->close();
+                    }
                 }
-                $oldPaymentSum = (float)(one("SELECT COALESCE(SUM(amount),0) AS t FROM pledge_payments WHERE pledge_id=$pledgeId")['t'] ?? 0);
-                $sheetPaymentSum = array_sum(array_column($source['payments'], 'amount'));
-                // Existing payment history may already represent this workbook. Do not add the
-                // dated rows again when its current total already covers the workbook total.
-                if ($oldPaymentSum > 0 && $oldPaymentSum + 0.005 >= $sheetPaymentSum) {
-                    if ($sheetPaymentSum > 0) $skipped[] = $source['name'].': existing payment history already totals at least the workbook amount; payment rows were not duplicated.';
-                    recalc_pledge($pledgeId);
-                    continue;
-                }
-                foreach ($source['payments'] as $payment) {
-                    $stmt = $conn->prepare('SELECT id FROM pledge_payments WHERE pledge_id=? AND amount=? AND paid_on=? LIMIT 1');
-                    $stmt->bind_param('ids', $pledgeId, $payment['amount'], $payment['date']); $stmt->execute(); $dup = $stmt->get_result()->fetch_assoc(); $stmt->close();
-                    if ($dup) continue;
-                    $receipt = next_no('RCP'); $method = 'Cash';
-                    $stmt = $conn->prepare('INSERT INTO pledge_payments (pledge_id,amount,paid_on,method,receipt_no,notes) VALUES (?,?,?,?,?,?)');
-                    $stmt->bind_param('idssss', $pledgeId, $payment['amount'], $payment['date'], $method, $receipt, $marker);
-                    if (!$stmt->execute()) throw new RuntimeException('Payment import failed on Excel row '.$source['row'].': '.$stmt->error);
-                    $stmt->close(); $paymentCount++;
-                }
-                recalc_pledge($pledgeId);
+                $dup=$conn->prepare('SELECT id FROM pledge_payments WHERE pledge_id=? AND amount=? AND paid_on=? LIMIT 1');
+                $amountPaid=(float)$entry['amount_paid']; $paidOn=$entry['paid_on']; $dup->bind_param('ids',$pledgeId,$amountPaid,$paidOn); $dup->execute(); $already=$dup->get_result()->fetch_assoc(); $dup->close();
+                if ($already) { $duplicates++; continue; }
+                $receipt=next_no('RCP'); $method='Cash'; $notes='Imported from prepared paid-pledges CSV';
+                $stmt=$conn->prepare('INSERT INTO pledge_payments (pledge_id,amount,paid_on,method,receipt_no,notes) VALUES (?,?,?,?,?,?)');
+                $stmt->bind_param('idssss',$pledgeId,$amountPaid,$paidOn,$method,$receipt,$notes);
+                if (!$stmt->execute()) throw new RuntimeException('Payment import failed for pledge '.$entry['pledge_no'].': '.$stmt->error);
+                $stmt->close(); $paymentsAdded++; recalc_pledge($pledgeId);
             }
             $conn->commit();
         } catch (Throwable $e) { $conn->rollback(); throw $e; }
-        $message = "BWEYAMO $importYear import complete: $created pledges created, $updated pledge amounts updated, $paymentCount dated payments recorded.";
-        pj(true, $message, ['created' => $created, 'updated' => $updated, 'payments' => $paymentCount, 'skipped' => $skipped]);
+        pj(true, "$paymentsAdded payment(s) imported; $created annual pledge(s) created; $duplicates duplicate payment row(s) skipped.", ['payments'=>$paymentsAdded,'created'=>$created,'duplicates'=>$duplicates]);
     }
 
     if ($action === 'options') {
@@ -333,8 +350,14 @@ try {
     if ($action === 'list') {
         $status = clean($_GET['status'] ?? '');
         $year = (int)($_GET['year'] ?? 0);
+        $type = clean($_GET['type'] ?? '');
+        $overdueOnly = (int)($_GET['overdue'] ?? 0) === 1;
         $conditions = [];
         if ($status !== '') $conditions[] = "p.status='".hsql($status)."'";
+        if ($overdueOnly) $conditions[] = "p.status IN('Pending','Partial') AND p.due_date IS NOT NULL AND p.due_date<CURDATE()";
+        if ($type !== '' && in_array($type, pledge_types(), true)) {
+            $conditions[] = pledge_types_ready($conn) ? "p.pledge_type='".hsql($type)."'" : ($type === 'Annual' ? "p.pledge_reason LIKE 'Annual Pledge %'" : '1=0');
+        }
         if ($year >= 2000 && $year <= 2100) {
             $conditions[] = pledge_types_ready($conn)
                 ? "(p.pledge_year=$year OR (p.pledge_year IS NULL AND YEAR(p.pledge_date)=$year))"
@@ -357,6 +380,10 @@ try {
             SUM(CASE WHEN status='Fulfilled' THEN 1 ELSE 0 END) fulfilled,
             SUM(CASE WHEN status IN('Pending','Partial') AND due_date IS NOT NULL AND due_date<CURDATE() THEN 1 ELSE 0 END) overdue
             FROM pledges p $statsWhere");
+        $yearColumn = pledge_types_ready($conn) ? 'COALESCE(p.pledge_year,YEAR(p.pledge_date))' : 'YEAR(p.pledge_date)';
+        $yearStats = one("SELECT COALESCE(SUM(CASE WHEN $yearColumn=".(int)date('Y')." THEN p.amount_pledged ELSE 0 END),0) this_year,
+            COALESCE(SUM(CASE WHEN $yearColumn=".((int)date('Y')-1)." THEN p.amount_pledged ELSE 0 END),0) last_year FROM pledges p");
+        $stats = array_merge($stats ?: [], $yearStats ?: []);
         pj(true, '', ['items' => $rows, 'stats' => $stats ?: []]);
     }
 

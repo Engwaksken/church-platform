@@ -19,6 +19,7 @@ include '../includes/sidebar.php';
 <div class="main-content pledges-module">
 <?php include '../includes/topbar.php'; ?>
 <div class="content-area">
+<style>.pledges-module .stat-card-click{font:inherit;text-align:left;width:100%;cursor:pointer}.pledges-module .stat-card-click:focus-visible{outline:3px solid #f0b429;outline-offset:2px}.pledges-module .stat-card-click .stat-label,.pledges-module .stat-card-click .stat-value{color:#fff}</style>
 <?php if (function_exists('showFlash')) { showFlash(); } ?>
 <div class="page-header module-page-header">
   <div>
@@ -27,6 +28,7 @@ include '../includes/sidebar.php';
   </div>
   <div class="d-flex gap-2">
     <button type="button" class="btn btn-outline-primary" id="btnImportPledges"><i class="fas fa-file-import"></i> Import Excel</button>
+    <button type="button" class="btn btn-outline-primary" id="btnUploadPaidCsv"><i class="fas fa-file-csv"></i> Upload Paid CSV</button>
     <button type="button" class="btn btn-outline" id="btnSendReminders"><i class="fas fa-bell"></i> Send Reminders</button>
     <button type="button" class="btn btn-outline-primary" id="btnBulkPledges"><i class="fas fa-layer-group"></i> Multiple Pledges</button>
     <button type="button" class="btn btn-primary" id="btnAddPledge"><i class="fas fa-plus"></i> Record Pledge</button>
@@ -34,12 +36,14 @@ include '../includes/sidebar.php';
 </div>
 
 <div class="stats-grid module-stats-grid">
-  <div class="stat-card"><div class="stat-icon"><i class="fas fa-hand-holding-heart"></i></div><div><div class="stat-value" id="stTotal">UGX 0</div><div class="stat-label">Total Pledged</div></div></div>
-  <div class="stat-card success"><div class="stat-icon"><i class="fas fa-coins"></i></div><div><div class="stat-value" id="stPaid">UGX 0</div><div class="stat-label">Total Paid</div></div></div>
-  <div class="stat-card accent"><div class="stat-icon"><i class="fas fa-clock"></i></div><div><div class="stat-value" id="stPending">0</div><div class="stat-label">Pending</div></div></div>
-  <div class="stat-card danger"><div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div><div><div class="stat-value" id="stOverdue">0</div><div class="stat-label">Overdue</div></div></div>
-  <div class="stat-card info"><div class="stat-icon"><i class="fas fa-adjust"></i></div><div><div class="stat-value" id="stPartial">0</div><div class="stat-label">Partial</div></div></div>
-  <div class="stat-card success"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div><div class="stat-value" id="stFulfilled">0</div><div class="stat-label">Fulfilled</div></div></div>
+  <button type="button" class="stat-card stat-card-click" data-stat-action="all"><div class="stat-icon"><i class="fas fa-hand-holding-heart"></i></div><div><div class="stat-value" id="stTotal">UGX 0</div><div class="stat-label">Total Pledged</div></div></button>
+  <button type="button" class="stat-card success stat-card-click" data-stat-action="all"><div class="stat-icon"><i class="fas fa-coins"></i></div><div><div class="stat-value" id="stPaid">UGX 0</div><div class="stat-label">Total Paid</div></div></button>
+  <button type="button" class="stat-card accent stat-card-click" data-stat-status="Pending"><div class="stat-icon"><i class="fas fa-clock"></i></div><div><div class="stat-value" id="stPending">0</div><div class="stat-label">Pending</div></div></button>
+  <button type="button" class="stat-card danger stat-card-click" data-stat-action="overdue"><div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div><div><div class="stat-value" id="stOverdue">0</div><div class="stat-label">Overdue</div></div></button>
+  <button type="button" class="stat-card info stat-card-click" data-stat-status="Partial"><div class="stat-icon"><i class="fas fa-adjust"></i></div><div><div class="stat-value" id="stPartial">0</div><div class="stat-label">Partial</div></div></button>
+  <button type="button" class="stat-card success stat-card-click" data-stat-status="Fulfilled"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div><div class="stat-value" id="stFulfilled">0</div><div class="stat-label">Fulfilled</div></div></button>
+  <button type="button" class="stat-card stat-card-click" data-stat-year="<?= (int)date('Y') ?>"><div class="stat-icon"><i class="fas fa-calendar-day"></i></div><div><div class="stat-value" id="stThisYear">UGX 0</div><div class="stat-label">Pledged This Year (<?= (int)date('Y') ?>)</div></div></button>
+  <button type="button" class="stat-card stat-card-click" data-stat-year="<?= (int)date('Y')-1 ?>"><div class="stat-icon"><i class="fas fa-calendar-minus"></i></div><div><div class="stat-value" id="stLastYear">UGX 0</div><div class="stat-label">Pledged Last Year (<?= (int)date('Y')-1 ?>)</div></div></button>
 </div>
 
 <div class="card">
@@ -48,12 +52,8 @@ include '../includes/sidebar.php';
       <div class="page-toolbar-search"><i class="fas fa-search"></i><input type="text" class="form-control" id="pledgeSearch" placeholder="Search pledge, member, project..."></div>
       <div class="page-toolbar-filters">
       <select id="pledgeYearFilter" class="form-control" aria-label="Filter pledges by year"><option value="">All years</option><?php for($year=(int)date('Y')+1;$year>=2000;$year--): ?><option value="<?= $year ?>"<?= $year===(int)date('Y')?' selected':'' ?>><?= $year ?></option><?php endfor; ?></select>
-      <div class="toolbar-chip-group" role="group" aria-label="Pledge status">
-        <button type="button" class="btn btn-sm btn-primary pledge-filter" data-status="">All</button>
-        <?php foreach(['Pending','Partial','Fulfilled','Cancelled'] as $s): ?>
-          <button type="button" class="btn btn-sm btn-outline pledge-filter" data-status="<?= ph($s) ?>"><?= ph($s) ?></button>
-        <?php endforeach; ?>
-      </div>
+      <select id="pledgeTypeFilter" class="form-control" aria-label="Filter by pledge type"><option value="">All pledge types</option><?php if ($typesReady): foreach(pledge_types() as $t): ?><option value="<?= ph($t) ?>"><?= ph($t==='Annual'?'Annual Pledge':$t) ?></option><?php endforeach; else: ?><option value="Annual">Annual Pledge</option><?php endif; ?></select>
+      <select id="pledgeStatusFilter" class="form-control" aria-label="Filter by pledge status"><option value="">All statuses</option><?php foreach(['Pending','Partial','Fulfilled','Cancelled'] as $s): ?><option value="<?= ph($s) ?>"><?= ph($s) ?></option><?php endforeach; ?></select>
       </div>
       <div class="page-toolbar-actions"><button type="button" class="btn btn-outline-primary page-toolbar-refresh" id="btnRefreshPledges"><i class="fas fa-rotate-right"></i> Refresh</button></div>
     </div>
@@ -75,6 +75,12 @@ include '../includes/sidebar.php';
   <div class="app-modal-header"><h3><i class="fas fa-file-export"></i> Prepare Annual Pledge Files</h3><button type="button" class="modal-close" data-close-pledge>&times;</button></div>
   <div class="app-modal-body"><div id="importAlert" class="ajax-alert"></div><p>Compare the BWEYAMO workbook against registered members. This creates reviewable CSV files for unmatched members and recorded pledge payments; it does not change the database.</p><div class="form-group"><label>Excel workbook (.xlsx) <span class="req">*</span></label><input type="file" name="pledge_workbook" class="form-control" accept=".xlsx" required></div></div>
   <div class="app-modal-footer"><button type="button" class="btn btn-outline" data-close-pledge>Cancel</button><button class="btn btn-primary" id="importSubmit"><i class="fas fa-file-download"></i> Prepare Files</button></div>
+</form></div></div>
+
+<div class="app-modal" id="paidCsvModal" aria-hidden="true"><div class="app-dialog"><form id="paidCsvForm" enctype="multipart/form-data">
+  <div class="app-modal-header"><h3><i class="fas fa-file-csv"></i> Upload Prepared Paid Pledges</h3><button type="button" class="modal-close" data-close-pledge>&times;</button></div>
+  <div class="app-modal-body"><div id="paidCsvAlert" class="ajax-alert"></div><p>Upload the <code>paid_pledges_YEAR.csv</code> file prepared from the workbook. Import missing members first so their pledge numbers exist. Existing annual pledges and payments are matched by pledge number and year; duplicate dated payments are skipped.</p><div class="form-group"><label>Prepared paid pledges CSV <span class="req">*</span></label><input type="file" name="paid_csv" class="form-control" accept=".csv,text/csv" required></div></div>
+  <div class="app-modal-footer"><button type="button" class="btn btn-outline" data-close-pledge>Cancel</button><button class="btn btn-primary" id="paidCsvSubmit"><i class="fas fa-upload"></i> Upload Payments</button></div>
 </form></div></div>
 
 <div class="app-modal" id="pledgeFormModal" aria-hidden="true"><div class="app-dialog app-dialog-lg"><form id="pledgeForm">
@@ -131,7 +137,7 @@ window.PledgesConfig = { endpoint: 'process-pledges.php' };
 (function(){
 'use strict';
 const cfg = window.PledgesConfig; if(!cfg) return;
-let rows = [], currentStatus = '', viewPledge = null, viewPayments = {};
+let rows = [], viewPledge = null, viewPayments = {}, overdueOnly = false;
 const qs=(s,r=document)=>r.querySelector(s), qsa=(s,r=document)=>Array.from(r.querySelectorAll(s));
 const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));
 const money=v=>'UGX '+Number(v||0).toLocaleString();
@@ -142,10 +148,10 @@ function closeModals(){ qsa('.app-modal,.app-modal-backdrop').forEach(x=>x.class
 async function req(url,opts={}){ const res=await fetch(url,Object.assign({headers:{'X-Requested-With':'XMLHttpRequest'}},opts)); const txt=await res.text(); try{return JSON.parse(txt)}catch(e){throw new Error('Invalid server response: '+txt.slice(0,250));} }
 async function post(form){ return req(cfg.endpoint,{method:'POST',body:new FormData(form)}); }
 function badge(s){ const map={Pending:'badge-warning',Partial:'badge-info',Fulfilled:'badge-success',Cancelled:'badge-danger'}; return `<span class="badge ${map[s]||'badge-secondary'}">${esc(s||'—')}</span>`; }
-function renderStats(st){ qs('#stTotal').textContent=money(st.total||0); qs('#stPaid').textContent=money(st.paid||0); qs('#stPending').textContent=Number(st.pending||0); qs('#stOverdue').textContent=Number(st.overdue||0); qs('#stPartial').textContent=Number(st.partial||0); qs('#stFulfilled').textContent=Number(st.fulfilled||0); }
+function renderStats(st){ qs('#stTotal').textContent=money(st.total||0); qs('#stPaid').textContent=money(st.paid||0); qs('#stPending').textContent=Number(st.pending||0); qs('#stOverdue').textContent=Number(st.overdue||0); qs('#stPartial').textContent=Number(st.partial||0); qs('#stFulfilled').textContent=Number(st.fulfilled||0); qs('#stThisYear').textContent=money(st.this_year||0); qs('#stLastYear').textContent=money(st.last_year||0); }
 function render(items){ const tb=qs('#pledgeTbody'); if(!items.length){ tb.innerHTML='<tr><td colspan="10" class="text-center text-muted">No pledges found.</td></tr>'; return; } tb.innerHTML=items.map((p,i)=>{ const balance=Number(p.amount_pledged||0)-Number(p.amount_paid||0); const purpose=p.purpose||p.project_name||p.pledge_reason||'General Pledge'; return `<tr><td>${i+1}</td><td><b>${esc(p.pledge_no)}</b></td><td>${esc(p.full_name||'—')}<br><small>${esc(p.member_no||'')}</small></td><td>${esc(purpose)}</td><td>${money(p.amount_pledged)}</td><td>${money(p.amount_paid)}</td><td>${money(balance)}</td><td>${esc(p.due_date||'—')}</td><td>${badge(p.status)}</td><td><div class="table-action"><button class="btn btn-sm btn-info btn-icon" data-action="view" data-id="${Number(p.id)}" title="View"><i class="fas fa-eye"></i></button><button class="btn btn-sm btn-primary btn-icon" data-action="edit" data-id="${Number(p.id)}" title="Edit"><i class="fas fa-edit"></i></button><button class="btn btn-sm btn-success btn-icon" data-action="pay" data-id="${Number(p.id)}" data-balance="${balance}" data-name="${esc(p.pledge_no)}" title="Pay"><i class="fas fa-coins"></i></button><a class="btn btn-sm btn-accent btn-icon" href="pledge_card.php?pledge_id=${Number(p.id)}" target="_blank" title="Pledge Card"><i class="fas fa-id-card"></i></a><button class="btn btn-sm btn-danger btn-icon" data-action="delete" data-id="${Number(p.id)}" data-name="${esc(p.pledge_no)}" title="Delete"><i class="fas fa-trash"></i></button></div></td></tr>`; }).join(''); }
 function applySearch(){ const t=(qs('#pledgeSearch').value||'').toLowerCase(); render(rows.filter(r=>Object.values(r).join(' ').toLowerCase().includes(t))); }
-async function load(){ clearAlert(qs('#pageAlert')); const d=await req(cfg.endpoint+'?action=list&status='+encodeURIComponent(currentStatus)+'&year='+encodeURIComponent(qs('#pledgeYearFilter').value)); if(!d.success) throw new Error(d.message||'Failed to load pledges.'); rows=d.items||[]; renderStats(d.stats||{}); applySearch(); }
+async function load(){ clearAlert(qs('#pageAlert')); const d=await req(cfg.endpoint+'?action=list&status='+encodeURIComponent(qs('#pledgeStatusFilter').value)+'&year='+encodeURIComponent(qs('#pledgeYearFilter').value)+'&type='+encodeURIComponent(qs('#pledgeTypeFilter').value)+'&overdue='+(overdueOnly?'1':'0')); if(!d.success) throw new Error(d.message||'Failed to load pledges.'); rows=d.items||[]; renderStats(d.stats||{}); applySearch(); }
 function showMemberPledgeNo(){ const opt=qs('#member_id').selectedOptions[0]; const no=opt&&opt.value?(opt.dataset.pledgeNo||''):''; qs('#memberPledgeNo').value=no; qs('#memberPledgeNoHelp').textContent=opt&&opt.value&&!no?'This member has no pledge number yet. Set it in Members before saving.':"Taken from the member's record."; qs('#memberPledgeNoHelp').className=opt&&opt.value&&!no?'text-danger':'text-muted'; }
 qs('#member_id').addEventListener('change',showMemberPledgeNo);
 const memberOptions=qsa('#member_id option').filter(o=>o.value);
@@ -164,7 +170,11 @@ qs('#btnAddPledge').addEventListener('click',()=>{resetForm();openModal('#pledge
  qs('#btnImportPledges').addEventListener('click',()=>{qs('#pledgeImportForm').reset();clearAlert(qs('#importAlert'));openModal('#pledgeImportModal');});
   function downloadCsv(filename,rows){const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));a.download=filename;a.click();URL.revokeObjectURL(a.href);}
   qs('#pledgeImportForm').addEventListener('submit',async e=>{e.preventDefault();const btn=qs('#importSubmit');btn.disabled=true;try{const fd=new FormData(e.currentTarget);fd.append('action','prepare_bweyamo');const d=await req(cfg.endpoint,{method:'POST',body:fd});if(!d.success)return alertBox(qs('#importAlert'),d.message,'error');const year=d.year||'annual';downloadCsv('missing_members_'+year+'.csv',d.missing_members||[]);downloadCsv('paid_pledges_'+year+'.csv',d.paid_entries||[]);closeModals();let msg=d.message||'Files prepared.';if(d.skipped&&d.skipped.length)msg+=' Review: '+d.skipped.slice(0,5).join(' | ');alertBox(qs('#pageAlert'),msg,d.skipped&&d.skipped.length?'error':'success');}catch(err){alertBox(qs('#importAlert'),err.message,'error');}finally{btn.disabled=false;}});
- qs('#pledgeSearch').addEventListener('input',applySearch); qs('#pledgeYearFilter').addEventListener('change',()=>load().catch(err=>alertBox(qs('#pageAlert'),err.message,'error'))); qs('#btnRefreshPledges').addEventListener('click',()=>{qs('#pledgeSearch').value=''; currentStatus=''; qs('#pledgeYearFilter').value=''; load().catch(err=>alertBox(qs('#pageAlert'),err.message,'error'));}); qsa('.pledge-filter').forEach(b=>b.addEventListener('click',()=>{currentStatus=b.dataset.status||''; load().catch(err=>alertBox(qs('#pageAlert'),err.message,'error'));}));
+  qs('#btnUploadPaidCsv').addEventListener('click',()=>{qs('#paidCsvForm').reset();clearAlert(qs('#paidCsvAlert'));openModal('#paidCsvModal');});
+  qs('#paidCsvForm').addEventListener('submit',async e=>{e.preventDefault();const btn=qs('#paidCsvSubmit');btn.disabled=true;try{const fd=new FormData(e.currentTarget);fd.append('action','import_prepared_paid_csv');const d=await req(cfg.endpoint,{method:'POST',body:fd});if(!d.success)return alertBox(qs('#paidCsvAlert'),d.message,'error');closeModals();alertBox(qs('#pageAlert'),d.message);await load();}catch(err){alertBox(qs('#paidCsvAlert'),err.message,'error');}finally{btn.disabled=false;}});
+ qs('#pledgeSearch').addEventListener('input',applySearch); ['#pledgeYearFilter','#pledgeTypeFilter','#pledgeStatusFilter'].forEach(s=>qs(s).addEventListener('change',()=>{overdueOnly=false;load().catch(err=>alertBox(qs('#pageAlert'),err.message,'error'));}));
+ qs('#btnRefreshPledges').addEventListener('click',()=>{qs('#pledgeSearch').value='';qs('#pledgeYearFilter').value='';qs('#pledgeTypeFilter').value='';qs('#pledgeStatusFilter').value='';overdueOnly=false;load().catch(err=>alertBox(qs('#pageAlert'),err.message,'error'));});
+ qsa('.stat-card-click').forEach(card=>card.addEventListener('click',()=>{overdueOnly=card.dataset.statAction==='overdue';if(card.dataset.statStatus)qs('#pledgeStatusFilter').value=card.dataset.statStatus;else if(card.dataset.statAction==='all'||card.dataset.statYear||overdueOnly)qs('#pledgeStatusFilter').value='';if(card.dataset.statYear){qs('#pledgeYearFilter').value=card.dataset.statYear;qs('#pledgeTypeFilter').value='';}load().catch(err=>alertBox(qs('#pageAlert'),err.message,'error'));}));
  const bulkRows=qs('#bulkPledgeRows');
  function addBulkRow(){const wrap=document.createElement('div');wrap.className='form-grid bulk-pledge-row';wrap.style.cssText='padding:12px 0;border-bottom:1px solid #e5e7eb;align-items:end';const opts=memberOptions.map(o=>`<option value="${Number(o.value)}">${esc(o.textContent)}</option>`).join('');wrap.innerHTML=`<div class="form-group"><label>Member</label><select class="form-control bulk-member" required><option value="">Select member</option>${opts}</select></div><div class="form-group"><label>Amount pledged</label><input type="number" class="form-control bulk-amount" min="0.01" step="0.01" required></div><div class="form-group"><label>Reason / purpose</label><input type="text" class="form-control bulk-reason" placeholder="General pledge"></div><div class="form-group"><label>Pledge date</label><input type="date" class="form-control bulk-date" value="${new Date().toISOString().slice(0,10)}" required></div><div class="form-group"><label>Notes</label><input type="text" class="form-control bulk-notes"></div><div><button type="button" class="btn btn-sm btn-danger bulk-remove" title="Remove entry"><i class="fas fa-trash"></i></button></div>`;wrap.querySelector('.bulk-remove').addEventListener('click',()=>{if(bulkRows.children.length>1)wrap.remove();});bulkRows.appendChild(wrap);}
  qs('#btnBulkPledges').addEventListener('click',()=>{bulkRows.innerHTML='';addBulkRow();clearAlert(qs('#bulkPledgeAlert'));openModal('#bulkPledgeModal');});
