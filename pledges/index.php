@@ -10,6 +10,8 @@ $members = $conn->query("SELECT id, member_no, full_name, " . ($hasMemberPledgeN
 $projects = $conn->query("SELECT id, name FROM projects WHERE COALESCE(status,'Active')='Active' ORDER BY name");
 require_once __DIR__ . '/../includes/pledge-types.php';
 $typesReady = pledge_types_ready($conn);
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (empty($_SESSION['csrf_token'])) { $_SESSION['csrf_token'] = bin2hex(random_bytes(32)); }
 $events = $typesReady && $conn->query("SHOW TABLES LIKE 'events'")->num_rows
     ? $conn->query("SELECT id, title, event_date FROM events ORDER BY event_date DESC")
     : null;
@@ -133,7 +135,7 @@ include '../includes/sidebar.php';
 </form></div></div>
 
 <script>
-window.PledgesConfig = { endpoint: 'process-pledges.php' };
+window.PledgesConfig = { endpoint: 'process-pledges.php', csrfToken: <?= json_encode((string)$_SESSION['csrf_token']) ?> };
 (function(){
 'use strict';
 const cfg = window.PledgesConfig; if(!cfg) return;
@@ -141,11 +143,11 @@ let rows = [], viewPledge = null, viewPayments = {}, overdueOnly = false;
 const qs=(s,r=document)=>r.querySelector(s), qsa=(s,r=document)=>Array.from(r.querySelectorAll(s));
 const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));
 const money=v=>'UGX '+Number(v||0).toLocaleString();
-function alertBox(el,msg,type='success'){ if(!el)return; el.className='ajax-alert '+(type==='error'?'error':'success'); el.textContent=msg; }
+function alertBox(el,msg,type='success'){ if(!el)return; el.className='ajax-alert '+(type==='error'?'error':'success'); el.style.whiteSpace='pre-line'; el.textContent=msg; }
 function clearAlert(el){ if(el){el.className='ajax-alert'; el.textContent='';} }
 function openModal(id){ qs('#pledgeBackdrop').classList.add('show'); qs(id).classList.add('show'); document.body.style.overflow='hidden'; }
 function closeModals(){ qsa('.app-modal,.app-modal-backdrop').forEach(x=>x.classList.remove('show')); document.body.style.overflow=''; }
-async function req(url,opts={}){ const res=await fetch(url,Object.assign({headers:{'X-Requested-With':'XMLHttpRequest'}},opts)); const txt=await res.text(); try{return JSON.parse(txt)}catch(e){throw new Error('Invalid server response: '+txt.slice(0,250));} }
+async function req(url,opts={}){ const res=await fetch(url,Object.assign({headers:{'X-Requested-With':'XMLHttpRequest','X-CSRF-Token':cfg.csrfToken||''}},opts)); const txt=await res.text(); try{return JSON.parse(txt)}catch(e){throw new Error('Invalid server response: '+txt.slice(0,250));} }
 async function post(form){ return req(cfg.endpoint,{method:'POST',body:new FormData(form)}); }
 function badge(s){ const map={Pending:'badge-warning',Partial:'badge-info',Fulfilled:'badge-success',Cancelled:'badge-danger'}; return `<span class="badge ${map[s]||'badge-secondary'}">${esc(s||'—')}</span>`; }
 function renderStats(st){ qs('#stTotal').textContent=money(st.total||0); qs('#stPaid').textContent=money(st.paid||0); qs('#stPending').textContent=Number(st.pending||0); qs('#stOverdue').textContent=Number(st.overdue||0); qs('#stPartial').textContent=Number(st.partial||0); qs('#stFulfilled').textContent=Number(st.fulfilled||0); qs('#stThisYear').textContent=money(st.this_year||0); qs('#stLastYear').textContent=money(st.last_year||0); }
@@ -171,7 +173,7 @@ qs('#btnAddPledge').addEventListener('click',()=>{resetForm();openModal('#pledge
   function downloadCsv(filename,rows){const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));a.download=filename;a.click();URL.revokeObjectURL(a.href);}
   qs('#pledgeImportForm').addEventListener('submit',async e=>{e.preventDefault();const btn=qs('#importSubmit');btn.disabled=true;try{const fd=new FormData(e.currentTarget);fd.append('action','prepare_bweyamo');const d=await req(cfg.endpoint,{method:'POST',body:fd});if(!d.success)return alertBox(qs('#importAlert'),d.message,'error');const year=d.year||'annual';downloadCsv('missing_members_'+year+'.csv',d.missing_members||[]);downloadCsv('paid_pledges_'+year+'.csv',d.paid_entries||[]);closeModals();let msg=d.message||'Files prepared.';if(d.skipped&&d.skipped.length)msg+=' Review: '+d.skipped.slice(0,5).join(' | ');alertBox(qs('#pageAlert'),msg,d.skipped&&d.skipped.length?'error':'success');}catch(err){alertBox(qs('#importAlert'),err.message,'error');}finally{btn.disabled=false;}});
   qs('#btnUploadPaidCsv').addEventListener('click',()=>{qs('#paidCsvForm').reset();clearAlert(qs('#paidCsvAlert'));openModal('#paidCsvModal');});
-  qs('#paidCsvForm').addEventListener('submit',async e=>{e.preventDefault();const btn=qs('#paidCsvSubmit');btn.disabled=true;try{const fd=new FormData(e.currentTarget);fd.append('action','import_prepared_paid_csv');const d=await req(cfg.endpoint,{method:'POST',body:fd});if(!d.success)return alertBox(qs('#paidCsvAlert'),d.message,'error');closeModals();alertBox(qs('#pageAlert'),d.message);await load();}catch(err){alertBox(qs('#paidCsvAlert'),err.message,'error');}finally{btn.disabled=false;}});
+  qs('#paidCsvForm').addEventListener('submit',async e=>{e.preventDefault();const btn=qs('#paidCsvSubmit');btn.disabled=true;try{const fd=new FormData(e.currentTarget);fd.append('action','import_prepared_paid_csv');const d=await req(cfg.endpoint,{method:'POST',body:fd});const skipped=d.skipped||[];const msg=(d.message||'')+(skipped.length?'\n\nRows not imported:\n• '+skipped.join('\n• '):'');if(!d.success)return alertBox(qs('#paidCsvAlert'),msg,'error');closeModals();alertBox(qs('#pageAlert'),msg,skipped.length?'error':'success');await load();}catch(err){alertBox(qs('#paidCsvAlert'),err.message,'error');}finally{btn.disabled=false;}});
  qs('#pledgeSearch').addEventListener('input',applySearch); ['#pledgeYearFilter','#pledgeTypeFilter','#pledgeStatusFilter'].forEach(s=>qs(s).addEventListener('change',()=>{overdueOnly=false;load().catch(err=>alertBox(qs('#pageAlert'),err.message,'error'));}));
  qs('#btnRefreshPledges').addEventListener('click',()=>{qs('#pledgeSearch').value='';qs('#pledgeYearFilter').value='';qs('#pledgeTypeFilter').value='';qs('#pledgeStatusFilter').value='';overdueOnly=false;load().catch(err=>alertBox(qs('#pageAlert'),err.message,'error'));});
  qsa('.stat-card-click').forEach(card=>card.addEventListener('click',()=>{overdueOnly=card.dataset.statAction==='overdue';if(card.dataset.statStatus)qs('#pledgeStatusFilter').value=card.dataset.statStatus;else if(card.dataset.statAction==='all'||card.dataset.statYear||overdueOnly)qs('#pledgeStatusFilter').value='';if(card.dataset.statYear){qs('#pledgeYearFilter').value=card.dataset.statYear;qs('#pledgeTypeFilter').value='';}load().catch(err=>alertBox(qs('#pageAlert'),err.message,'error'));}));
