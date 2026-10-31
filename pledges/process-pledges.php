@@ -188,6 +188,11 @@ function read_bweyamo_xlsx(string $path): array {
         }
         if (!preg_match('/\b(20\d{2})\b/', (string)($rows[1][2] ?? ''), $yearMatch)) throw new RuntimeException('Add the pledge year (for example, 2025) to the worksheet title in cell B1.');
         $year = (int)$yearMatch[1];
+        $pledgeNoCol = 0;
+        foreach (($rows[2] ?? []) as $col => $heading) {
+            $heading = strtolower(trim((string)$heading));
+            if (preg_match('/pledge\s*(?:no\.?|number|#)/', $heading)) { $pledgeNoCol = (int)$col; break; }
+        }
         $result = [];
         foreach ($rows as $number => $row) {
             if ($number <= 2) continue;
@@ -202,7 +207,7 @@ function read_bweyamo_xlsx(string $path): array {
                 $date = (new DateTimeImmutable('1899-12-30'))->modify('+'.(int)$serial.' days')->format('Y-m-d');
                 $payments[] = ['date' => $date, 'amount' => $amount];
             }
-            $result[] = ['row' => $number, 'name' => $name, 'phone' => trim((string)($row[4] ?? '')), 'pledged' => $pledged, 'payments' => $payments];
+            $result[] = ['row' => $number, 'name' => $name, 'phone' => trim((string)($row[4] ?? '')), 'pledge_no' => $pledgeNoCol ? trim((string)($row[$pledgeNoCol] ?? '')) : '', 'pledged' => $pledged, 'payments' => $payments];
         }
         return ['year' => $year, 'rows' => $result];
     } finally { $zip->close(); }
@@ -213,6 +218,7 @@ function pledge_import_name_key(string $name): string {
     return preg_replace('/[^\pL\pN]+/u', '', $name) ?? '';
 }
 function pledge_import_phone_key(string $phone): string { return preg_replace('/\D+/', '', $phone) ?? ''; }
+function pledge_import_no_key(string $number): string { return strtoupper(preg_replace('/[^\pL\pN]+/u', '', trim($number)) ?? ''); }
 
 try {
     if (!table_exists('pledges')) pj(false, 'pledges table does not exist.');
@@ -228,29 +234,36 @@ try {
         $importYear = (int)$workbookData['year']; $sourceRows = $workbookData['rows'];
         if (!$sourceRows) pj(false, 'No pledge rows with an amount were found on the first worksheet.');
         $members = many("SELECT id, full_name, member_no, ".(col_exists('members','pledge_no') ? 'pledge_no' : "'' AS pledge_no").", ".(col_exists('members','phone') ? 'phone' : (col_exists('members','mobile') ? 'mobile AS phone' : "'' AS phone"))." FROM members");
-        $byName = []; $byPhone = [];
+        $byName = []; $byPhone = []; $byPledgeNo = [];
         foreach ($members as $member) {
             $nk = pledge_import_name_key((string)$member['full_name']); if ($nk !== '') $byName[$nk][] = $member;
             $pk = pledge_import_phone_key((string)$member['phone']); if ($pk !== '') $byPhone[$pk][] = $member;
+            $pledgeKey = pledge_import_no_key((string)$member['pledge_no']); if ($pledgeKey !== '') $byPledgeNo[$pledgeKey][] = $member;
         }
         // Preparation is deliberately read-only: export only unmatched people and
         // recorded payments so they can be reviewed/imported separately.
-        $missingMembers = []; $paidEntries = []; $skipped = [];
+        $missingMembers = []; $missingSeen = []; $paidEntries = []; $skipped = [];
         foreach ($sourceRows as $source) {
-            $phoneKey = pledge_import_phone_key($source['phone']); $nameKey = pledge_import_name_key($source['name']);
-            $matches = $phoneKey !== '' && count($byPhone[$phoneKey] ?? []) === 1 ? $byPhone[$phoneKey] : ($phoneKey !== '' && isset($byPhone[$phoneKey]) ? [] : ($byName[$nameKey] ?? []));
-            foreach ($source['payments'] as $payment) $paidEntries[] = [$source['name'], $source['phone'], $importYear, $source['pledged'], $payment['date'], $payment['amount']];
+            $phoneKey = pledge_import_phone_key($source['phone']); $nameKey = pledge_import_name_key($source['name']); $pledgeKey = pledge_import_no_key($source['pledge_no'] ?? '');
+            $matches = $pledgeKey !== '' && isset($byPledgeNo[$pledgeKey]) ? $byPledgeNo[$pledgeKey] : ($phoneKey !== '' && count($byPhone[$phoneKey] ?? []) === 1 ? $byPhone[$phoneKey] : ($phoneKey !== '' && isset($byPhone[$phoneKey]) ? [] : ($byName[$nameKey] ?? [])));
+            foreach ($source['payments'] as $payment) $paidEntries[] = [$source['name'], $source['phone'], $source['pledge_no'], $importYear, $source['pledged'], $payment['date'], $payment['amount']];
             if (count($matches) !== 1) {
-                $ambiguous = ($phoneKey !== '' && count($byPhone[$phoneKey] ?? []) > 1) || count($byName[$nameKey] ?? []) > 1;
+                $ambiguous = ($pledgeKey !== '' && count($byPledgeNo[$pledgeKey] ?? []) > 1) || ($phoneKey !== '' && count($byPhone[$phoneKey] ?? []) > 1) || count($byName[$nameKey] ?? []) > 1;
                 if ($ambiguous) { $skipped[] = 'Ambiguous member match; not exported as missing: '.$source['name'].' (Excel row '.$source['row'].')'; continue; }
-                $missingMembers[] = [$source['name'], '', $source['phone'], '', '', '', '', sprintf('%04d-01-01', $importYear), '', '', 'Prepared from BWEYAMO '.$importYear, 'Active', '', ''];
+                $missingKey = $pledgeKey !== '' ? 'pledge:'.$pledgeKey : ($phoneKey !== '' ? 'phone:'.$phoneKey : 'name:'.$nameKey);
+                if (!isset($missingSeen[$missingKey])) {
+                    $missingSeen[$missingKey] = true;
+                    $missingMembers[] = [$source['name'], '', $source['phone'], '', '', '', '', sprintf('%04d-01-01', $importYear), '', '', 'Prepared from BWEYAMO '.$importYear, 'Active', $source['pledge_no'], ''];
+                }
                 continue;
             }
+            $memberPledgeNo = pledge_import_no_key((string)$matches[0]['pledge_no']);
+            if ($pledgeKey !== '' && $memberPledgeNo !== '' && $pledgeKey !== $memberPledgeNo) $skipped[] = 'Pledge number mismatch for '.$source['name'].': workbook '.$source['pledge_no'].' vs member record '.$matches[0]['pledge_no'];
         }
         pj(true, "Prepared {$importYear} review files: ".count($missingMembers)." unmatched member(s), ".count($paidEntries)." paid pledge entry/entries. Nothing was imported.", [
             'year' => $importYear,
             'missing_members' => array_merge([['full_name','gender','phone','email','occupation','marital_status','date_of_birth','joined_date','baptism_date','address','notes','status','pledge_no','service_attended']], $missingMembers),
-            'paid_entries' => array_merge([['member_name','phone','pledge_year','amount_pledged','paid_on','amount_paid']], $paidEntries),
+            'paid_entries' => array_merge([['member_name','phone','pledge_no','pledge_year','amount_pledged','paid_on','amount_paid']], $paidEntries),
             'skipped' => $skipped
         ]);
         $typesReady = pledge_types_ready($conn); $marker = 'Imported from BWEYAMO '.$importYear.'.xlsx';
