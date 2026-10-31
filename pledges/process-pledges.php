@@ -160,7 +160,7 @@ function send_pledge_reminder(array $pledge): array {
 }
 
 /** Read the first worksheet of an Excel .xlsx workbook without third-party packages. */
-function read_bweyamo_xlsx(string $path): array {
+function read_pledges_xlsx(string $path): array {
     if (!class_exists('ZipArchive') || !class_exists('DOMDocument')) throw new RuntimeException('Server XLSX support is not available.');
     $zip = new ZipArchive();
     if ($zip->open($path) !== true) throw new RuntimeException('The uploaded workbook could not be opened.');
@@ -197,7 +197,7 @@ function read_bweyamo_xlsx(string $path): array {
             $rows[(int)$rowNode->getAttribute('r')] = $row;
         }
         if (strtoupper(trim((string)($rows[2][2] ?? ''))) !== 'NAME' || strtoupper(trim((string)($rows[2][6] ?? ''))) !== 'PLEDGE') {
-            throw new RuntimeException('The first sheet does not look like a BWEYAMO pledge worksheet.');
+            throw new RuntimeException('The first sheet does not look like a pledges worksheet.');
         }
         if (!preg_match('/\b(20\d{2})\b/', (string)($rows[1][2] ?? ''), $yearMatch)) throw new RuntimeException('Add the pledge year (for example, 2025) to the worksheet title in cell B1.');
         $year = (int)$yearMatch[1];
@@ -291,12 +291,12 @@ try {
     if (!table_exists('pledges')) pj(false, 'pledges table does not exist.');
     $action = $_REQUEST['action'] ?? 'list';
 
-    if ($action === 'prepare_bweyamo') {
+    if ($action === 'prepare_pledges') {
         if (!table_exists('pledge_payments')) pj(false, 'pledge_payments table does not exist.');
         $file = $_FILES['pledge_workbook'] ?? null;
-        if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) pj(false, 'Select the BWEYAMO 2025 Excel workbook first.');
+        if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) pj(false, 'Select the pledges Excel workbook first.');
         if (($file['size'] ?? 0) > 12 * 1024 * 1024 || strtolower(pathinfo((string)$file['name'], PATHINFO_EXTENSION)) !== 'xlsx') pj(false, 'Upload an .xlsx workbook smaller than 12 MB.');
-        try { $workbookData = read_bweyamo_xlsx((string)$file['tmp_name']); }
+        try { $workbookData = read_pledges_xlsx((string)$file['tmp_name']); }
         catch (Throwable $e) { pj(false, $e->getMessage()); }
         $importYear = (int)$workbookData['year']; $sourceRows = $workbookData['rows'];
         if (!$sourceRows) pj(false, 'No pledge rows with an amount were found on the first worksheet.');
@@ -332,7 +332,7 @@ try {
                 $missingKey = $pledgeKey !== '' ? 'pledge:'.$pledgeKey : ($phoneKey !== '' ? 'phone:'.$phoneKey : 'name:'.$nameKey);
                 if (!isset($missingSeen[$missingKey])) {
                     $missingSeen[$missingKey] = true;
-                    $missingMembers[] = [$source['display_name'], 'Not Specified', $source['phone'], '', '', '', '', sprintf('%04d-01-01', $importYear), '', '', 'Prepared from BWEYAMO '.$importYear, 'Active', $source['pledge_no'], ''];
+                    $missingMembers[] = [$source['display_name'], 'Not Specified', $source['phone'], '', '', '', '', sprintf('%04d-01-01', $importYear), '', '', 'Prepared from pledges workbook '.$importYear, 'Active', $source['pledge_no'], ''];
                 }
                 continue;
             }
