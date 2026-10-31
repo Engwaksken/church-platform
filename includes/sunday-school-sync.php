@@ -111,13 +111,12 @@ function sunday_school_next_numbers(mysqli $conn, int $count): array
 
 /**
  * Runs the sync. Returns ['ran', 'min', 'max', 'enrolled', 'linked', 'moved', 'graduated',
- * 'no_class' (active pupils whose age has no class), 'no_dob' (active pupils without a date of birth),
- * 'gaps' (ages between min and max that no class covers)].
+ * and 'no_dob' (active pupils without a date of birth)].
  */
 function sunday_school_auto_sync(mysqli $conn): array
 {
     $result = ['ran' => false, 'min' => null, 'max' => null, 'enrolled' => 0, 'linked' => 0, 'moved' => 0,
-        'graduated' => 0, 'no_class' => 0, 'no_dob' => 0, 'gaps' => []];
+        'graduated' => 0, 'no_dob' => 0];
 
     try {
         if (!sunday_school_sync_prepare($conn)) return $result;
@@ -130,10 +129,6 @@ function sunday_school_auto_sync(mysqli $conn): array
         $max = max(array_column($classes, 'max'));
         $result['min'] = $min;
         $result['max'] = $max;
-        for ($age = $min; $age <= $max; $age++) {
-            if (sunday_school_class_for_age($classes, $age) === null) $result['gaps'][] = $age;
-        }
-
         $conn->begin_transaction();
 
         // 1. Enrol child members in the Sunday school age range.
@@ -213,10 +208,7 @@ function sunday_school_auto_sync(mysqli $conn): array
                 continue;
             }
             $classId = sunday_school_class_for_age($classes, $age);
-            if ($classId === null) {
-                $result['no_class']++;
-                continue;
-            }
+            if ($classId === null) continue;
             if ((int)$pupil['class_id'] !== $classId) {
                 $move->bind_param('ii', $classId, $id);
                 $move->execute();
