@@ -197,6 +197,7 @@ function read_bweyamo_xlsx(string $path): array {
         foreach ($rows as $number => $row) {
             if ($number <= 2) continue;
             $name = trim((string)($row[2] ?? '')); $pledged = (float)str_replace([',', ' '], '', (string)($row[6] ?? ''));
+            $pledgeNo = $pledgeNoCol ? trim((string)($row[$pledgeNoCol] ?? '')) : '';
             if ($name === '' || $pledged <= 0) continue;
             $payments = [];
             for ($col = 8; $col <= 61; $col++) {
@@ -207,15 +208,27 @@ function read_bweyamo_xlsx(string $path): array {
                 $date = (new DateTimeImmutable('1899-12-30'))->modify('+'.(int)$serial.' days')->format('Y-m-d');
                 $payments[] = ['date' => $date, 'amount' => $amount];
             }
-            $result[] = ['row' => $number, 'name' => $name, 'phone' => trim((string)($row[4] ?? '')), 'pledge_no' => $pledgeNoCol ? trim((string)($row[$pledgeNoCol] ?? '')) : '', 'pledged' => $pledged, 'payments' => $payments];
+            if ($pledgeNo === '') $pledgeNo = pledge_import_extract_no($name);
+            $result[] = ['row' => $number, 'name' => $name, 'display_name' => pledge_import_display_name($name), 'phone' => trim((string)($row[4] ?? '')), 'pledge_no' => $pledgeNo, 'pledged' => $pledged, 'payments' => $payments];
         }
         return ['year' => $year, 'rows' => $result];
     } finally { $zip->close(); }
 }
 function pledge_import_name_key(string $name): string {
-    $name = preg_replace('/\s*-\s*No\s*\d+\s*$/i', '', trim($name));
+    $name = trim($name);
     $name = function_exists('mb_strtolower') ? mb_strtolower($name, 'UTF-8') : strtolower($name);
     return preg_replace('/[^\pL\pN]+/u', '', $name) ?? '';
+}
+function pledge_import_name_base_key(string $name): string {
+    $name = preg_replace('/\s*-\s*No\.?\s*\d+\s*$/i', '', trim($name));
+    $name = function_exists('mb_strtolower') ? mb_strtolower($name, 'UTF-8') : strtolower($name);
+    return preg_replace('/[^\pL\pN]+/u', '', $name) ?? '';
+}
+function pledge_import_extract_no(string $name): string {
+    return preg_match('/\bNo\.?\s*[-:]?\s*(\d+)\s*$/i', trim($name), $m) ? $m[1] : '';
+}
+function pledge_import_display_name(string $name): string {
+    return trim((string)preg_replace('/\s*-\s*No\.?\s*\d+\s*$/i', '', trim($name)));
 }
 function pledge_import_phone_key(string $phone): string { return preg_replace('/\D+/', '', $phone) ?? ''; }
 function pledge_import_no_key(string $number): string { return strtoupper(preg_replace('/[^\pL\pN]+/u', '', trim($number)) ?? ''); }
@@ -234,9 +247,10 @@ try {
         $importYear = (int)$workbookData['year']; $sourceRows = $workbookData['rows'];
         if (!$sourceRows) pj(false, 'No pledge rows with an amount were found on the first worksheet.');
         $members = many("SELECT id, full_name, member_no, ".(col_exists('members','pledge_no') ? 'pledge_no' : "'' AS pledge_no").", ".(col_exists('members','phone') ? 'phone' : (col_exists('members','mobile') ? 'mobile AS phone' : "'' AS phone"))." FROM members");
-        $byName = []; $byPhone = []; $byPledgeNo = [];
+        $byName = []; $byBaseName = []; $byPhone = []; $byPledgeNo = [];
         foreach ($members as $member) {
             $nk = pledge_import_name_key((string)$member['full_name']); if ($nk !== '') $byName[$nk][] = $member;
+            $bk = pledge_import_name_base_key((string)$member['full_name']); if ($bk !== '') $byBaseName[$bk][] = $member;
             $pk = pledge_import_phone_key((string)$member['phone']); if ($pk !== '') $byPhone[$pk][] = $member;
             $pledgeKey = pledge_import_no_key((string)$member['pledge_no']); if ($pledgeKey !== '') $byPledgeNo[$pledgeKey][] = $member;
         }
@@ -244,16 +258,19 @@ try {
         // recorded payments so they can be reviewed/imported separately.
         $missingMembers = []; $missingSeen = []; $paidEntries = []; $skipped = [];
         foreach ($sourceRows as $source) {
-            $phoneKey = pledge_import_phone_key($source['phone']); $nameKey = pledge_import_name_key($source['name']); $pledgeKey = pledge_import_no_key($source['pledge_no'] ?? '');
-            $matches = $pledgeKey !== '' && isset($byPledgeNo[$pledgeKey]) ? $byPledgeNo[$pledgeKey] : ($phoneKey !== '' && count($byPhone[$phoneKey] ?? []) === 1 ? $byPhone[$phoneKey] : ($phoneKey !== '' && isset($byPhone[$phoneKey]) ? [] : ($byName[$nameKey] ?? [])));
-            foreach ($source['payments'] as $payment) $paidEntries[] = [$source['name'], $source['phone'], $source['pledge_no'], $importYear, $source['pledged'], $payment['date'], $payment['amount']];
+            $phoneKey = pledge_import_phone_key($source['phone']); $nameKey = pledge_import_name_key($source['name']); $baseNameKey = pledge_import_name_base_key($source['name']); $pledgeKey = pledge_import_no_key($source['pledge_no'] ?? '');
+            $matches = []; $ambiguous = false;
+            if ($pledgeKey !== '' && isset($byPledgeNo[$pledgeKey])) { $matches = $byPledgeNo[$pledgeKey]; $ambiguous = count($matches) !== 1; }
+            if (!$matches && $phoneKey !== '' && isset($byPhone[$phoneKey])) { $matches = $byPhone[$phoneKey]; $ambiguous = count($matches) !== 1; }
+            if (!$matches && isset($byName[$nameKey])) { $matches = $byName[$nameKey]; $ambiguous = count($matches) !== 1; }
+            if (!$matches && isset($byBaseName[$baseNameKey])) { $matches = $byBaseName[$baseNameKey]; $ambiguous = count($matches) !== 1; }
+            foreach ($source['payments'] as $payment) $paidEntries[] = [$source['display_name'], $source['phone'], $source['pledge_no'], $importYear, $source['pledged'], $payment['date'], $payment['amount']];
             if (count($matches) !== 1) {
-                $ambiguous = ($pledgeKey !== '' && count($byPledgeNo[$pledgeKey] ?? []) > 1) || ($phoneKey !== '' && count($byPhone[$phoneKey] ?? []) > 1) || count($byName[$nameKey] ?? []) > 1;
                 if ($ambiguous) { $skipped[] = 'Ambiguous member match; not exported as missing: '.$source['name'].' (Excel row '.$source['row'].')'; continue; }
                 $missingKey = $pledgeKey !== '' ? 'pledge:'.$pledgeKey : ($phoneKey !== '' ? 'phone:'.$phoneKey : 'name:'.$nameKey);
                 if (!isset($missingSeen[$missingKey])) {
                     $missingSeen[$missingKey] = true;
-                    $missingMembers[] = [$source['name'], 'Not Specified', $source['phone'], '', '', '', '', sprintf('%04d-01-01', $importYear), '', '', 'Prepared from BWEYAMO '.$importYear, 'Active', $source['pledge_no'], ''];
+                    $missingMembers[] = [$source['display_name'], 'Not Specified', $source['phone'], '', '', '', '', sprintf('%04d-01-01', $importYear), '', '', 'Prepared from BWEYAMO '.$importYear, 'Active', $source['pledge_no'], ''];
                 }
                 continue;
             }
