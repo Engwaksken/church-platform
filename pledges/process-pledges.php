@@ -218,7 +218,7 @@ try {
     if (!table_exists('pledges')) pj(false, 'pledges table does not exist.');
     $action = $_REQUEST['action'] ?? 'list';
 
-    if ($action === 'import_bweyamo_2025') {
+    if ($action === 'prepare_bweyamo') {
         if (!table_exists('pledge_payments')) pj(false, 'pledge_payments table does not exist.');
         $file = $_FILES['pledge_workbook'] ?? null;
         if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) pj(false, 'Select the BWEYAMO 2025 Excel workbook first.');
@@ -233,6 +233,26 @@ try {
             $nk = pledge_import_name_key((string)$member['full_name']); if ($nk !== '') $byName[$nk][] = $member;
             $pk = pledge_import_phone_key((string)$member['phone']); if ($pk !== '') $byPhone[$pk][] = $member;
         }
+        // Preparation is deliberately read-only: export only unmatched people and
+        // recorded payments so they can be reviewed/imported separately.
+        $missingMembers = []; $paidEntries = []; $skipped = [];
+        foreach ($sourceRows as $source) {
+            $phoneKey = pledge_import_phone_key($source['phone']); $nameKey = pledge_import_name_key($source['name']);
+            $matches = $phoneKey !== '' && count($byPhone[$phoneKey] ?? []) === 1 ? $byPhone[$phoneKey] : ($phoneKey !== '' && isset($byPhone[$phoneKey]) ? [] : ($byName[$nameKey] ?? []));
+            foreach ($source['payments'] as $payment) $paidEntries[] = [$source['name'], $source['phone'], $importYear, $source['pledged'], $payment['date'], $payment['amount']];
+            if (count($matches) !== 1) {
+                $ambiguous = ($phoneKey !== '' && count($byPhone[$phoneKey] ?? []) > 1) || count($byName[$nameKey] ?? []) > 1;
+                if ($ambiguous) { $skipped[] = 'Ambiguous member match; not exported as missing: '.$source['name'].' (Excel row '.$source['row'].')'; continue; }
+                $missingMembers[] = [$source['name'], '', $source['phone'], '', '', '', '', sprintf('%04d-01-01', $importYear), '', '', 'Prepared from BWEYAMO '.$importYear, 'Active', '', ''];
+                continue;
+            }
+        }
+        pj(true, "Prepared {$importYear} review files: ".count($missingMembers)." unmatched member(s), ".count($paidEntries)." paid pledge entry/entries. Nothing was imported.", [
+            'year' => $importYear,
+            'missing_members' => array_merge([['full_name','gender','phone','email','occupation','marital_status','date_of_birth','joined_date','baptism_date','address','notes','status','pledge_no','service_attended']], $missingMembers),
+            'paid_entries' => array_merge([['member_name','phone','pledge_year','amount_pledged','paid_on','amount_paid']], $paidEntries),
+            'skipped' => $skipped
+        ]);
         $typesReady = pledge_types_ready($conn); $marker = 'Imported from BWEYAMO '.$importYear.'.xlsx';
         $created = 0; $updated = 0; $paymentCount = 0; $skipped = [];
         $conn->begin_transaction();
@@ -299,7 +319,15 @@ try {
 
     if ($action === 'list') {
         $status = clean($_GET['status'] ?? '');
-        $where = $status !== '' ? "WHERE p.status='".hsql($status)."'" : '';
+        $year = (int)($_GET['year'] ?? 0);
+        $conditions = [];
+        if ($status !== '') $conditions[] = "p.status='".hsql($status)."'";
+        if ($year >= 2000 && $year <= 2100) {
+            $conditions[] = pledge_types_ready($conn)
+                ? "(p.pledge_year=$year OR (p.pledge_year IS NULL AND YEAR(p.pledge_date)=$year))"
+                : "YEAR(p.pledge_date)=$year";
+        }
+        $where = $conditions ? 'WHERE '.implode(' AND ', $conditions) : '';
         [$typeSelect, $typeJoin] = pledge_purpose_sql($conn);
         $rows = many("SELECT p.*, m.full_name AS full_name, m.member_no, m.email, m.phone, pr.name AS project_name $typeSelect
             FROM pledges p
@@ -309,12 +337,13 @@ try {
             ORDER BY p.pledge_date DESC, p.id DESC");
         foreach ($rows as &$r) $r['purpose'] = pledge_purpose($r);
         unset($r);
+        $statsWhere = $where;
         $stats = one("SELECT COALESCE(SUM(amount_pledged),0) total, COALESCE(SUM(amount_paid),0) paid,
             SUM(CASE WHEN status='Pending' THEN 1 ELSE 0 END) pending,
             SUM(CASE WHEN status='Partial' THEN 1 ELSE 0 END) partial,
             SUM(CASE WHEN status='Fulfilled' THEN 1 ELSE 0 END) fulfilled,
             SUM(CASE WHEN status IN('Pending','Partial') AND due_date IS NOT NULL AND due_date<CURDATE() THEN 1 ELSE 0 END) overdue
-            FROM pledges");
+            FROM pledges p $statsWhere");
         pj(true, '', ['items' => $rows, 'stats' => $stats ?: []]);
     }
 
@@ -375,6 +404,34 @@ try {
         pj(true, 'Pledge recorded successfully.', ['id' => $newId, 'pledge_no' => $memberPledgeNo]);
     }
 
+    if ($action === 'save_bulk') {
+        $entries = json_decode((string)($_POST['entries'] ?? ''), true);
+        if (!is_array($entries) || !$entries) pj(false, 'Add at least one pledge entry.');
+        if (count($entries) > 100) pj(false, 'A maximum of 100 pledge entries can be saved at once.');
+        $stmt = $conn->prepare('INSERT INTO pledges (pledge_no,member_id,pledge_reason,amount_pledged,amount_paid,pledge_date,status,notes) VALUES (?,?,?,?,0,?,\'Pending\',?)');
+        if (!$stmt) pj(false, 'Could not prepare pledge entries: '.$conn->error);
+        $saved = 0; $errors = [];
+        $conn->begin_transaction();
+        try {
+            foreach ($entries as $i => $entry) {
+                $memberId = (int)($entry['member_id'] ?? 0);
+                $amount = (float)($entry['amount_pledged'] ?? 0);
+                $reason = clean($entry['pledge_reason'] ?? '');
+                $date = clean($entry['pledge_date'] ?? date('Y-m-d'));
+                $notes = clean($entry['notes'] ?? '');
+                if ($memberId <= 0 || $amount <= 0 || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) throw new RuntimeException('Entry '.($i+1).': select a member, enter a positive amount, and provide a valid date.');
+                $pledgeNo = member_pledge_no($memberId);
+                if ($pledgeNo === '') throw new RuntimeException('Entry '.($i+1).': the selected member has no pledge number.');
+                $stmt->bind_param('sisdss', $pledgeNo, $memberId, $reason, $amount, $date, $notes);
+                if (!$stmt->execute()) throw new RuntimeException('Entry '.($i+1).' failed: '.$stmt->error);
+                $saved++;
+            }
+            $conn->commit();
+        } catch (Throwable $e) { $conn->rollback(); $stmt->close(); throw $e; }
+        $stmt->close();
+        pj(true, $saved.' pledge entries recorded successfully.', ['created' => $saved]);
+    }
+
     if ($action === 'pay') {
         if (!table_exists('pledge_payments')) pj(false, 'pledge_payments table does not exist.');
         $pledge_id = (int)($_POST['pledge_id'] ?? 0);
@@ -384,9 +441,7 @@ try {
         $notes = clean($_POST['notes'] ?? '');
         $p = one("SELECT * FROM pledges WHERE id=$pledge_id LIMIT 1");
         if (!$p) pj(false, 'Pledge not found.');
-        $balance = (float)$p['amount_pledged'] - (float)$p['amount_paid'];
         if ($amount <= 0) pj(false, 'Payment amount must be greater than zero.');
-        if ($amount > $balance) pj(false, 'Payment amount cannot exceed pledge balance.');
         $rno = hsql(next_no('RCP'));
         $ok = $conn->query("INSERT INTO pledge_payments (pledge_id,amount,paid_on,method,receipt_no,notes) VALUES ($pledge_id,$amount,'".hsql($date)."','".hsql($method)."','$rno','".hsql($notes)."')");
         if (!$ok) pj(false, 'Payment insert failed: '.$conn->error);
@@ -418,8 +473,6 @@ try {
         $p = one("SELECT amount_pledged FROM pledges WHERE id=$pledgeId LIMIT 1");
         if (!$p) pj(false, 'Pledge not found.');
         $others = (float)(one("SELECT COALESCE(SUM(amount),0) t FROM pledge_payments WHERE pledge_id=$pledgeId AND id<>$paymentId")['t'] ?? 0);
-        $max = (float)$p['amount_pledged'] - $others;
-        if ($amount > $max + 0.005) pj(false, 'Payments cannot exceed the amount pledged. The most this payment can be is UGX ' . number_format(max(0, $max)) . '.');
         $stmt = $conn->prepare('UPDATE pledge_payments SET amount=?, paid_on=?, method=?, notes=? WHERE id=?');
         $stmt->bind_param('dsssi', $amount, $date, $method, $notes, $paymentId);
         $stmt->execute();
