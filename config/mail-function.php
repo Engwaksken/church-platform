@@ -141,7 +141,7 @@ if (!function_exists('systemEmailTemplate')) {
         return "
         <div style='font-family:Arial,sans-serif;background:#f6f7fb;padding:24px;'>
             <div style='max-width:680px;margin:auto;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e5e7eb;'>
-                <div style='background:#4a1e8f;color:#ffffff;padding:18px 24px;'>
+                <div style='background:#ffffff;padding:18px 24px;border-bottom:3px solid #4a1e8f;color:#4a1e8f;'>
                     <h2 style='margin:0;font-size:22px;'>{$safeTitle}</h2>
                 </div>
                 <div style='padding:24px;color:#111827;font-size:15px;line-height:1.6;'>
@@ -269,6 +269,6 @@ if (!function_exists('brand_system_email')) {
         $brand = system_mail_branding($conn);
         $name = mail_h($brand['name']);
         $logo = $brand['logo'] !== '' ? '<img src="' . mail_h($brand['logo']) . '" alt="' . $name . '" style="display:block;max-width:160px;max-height:64px;margin:0 auto 12px">' : '';
-        return '<div style="font-family:Arial,sans-serif;background:#f4f5f8;padding:24px"><div style="max-width:680px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden"><div style="padding:20px 24px;text-align:center;background:#4a1e8f;color:#fff">' . $logo . '<strong style="font-size:20px">' . $name . '</strong></div><div style="padding:24px;color:#172033;line-height:1.6">' . $html . '</div><div style="padding:14px 24px;background:#f8fafc;color:#64748b;text-align:center;font-size:12px">Sent by ' . $name . '</div></div></div>';
+        return '<div style="font-family:Arial,sans-serif;background:#f4f5f8;padding:24px"><div style="max-width:680px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden"><div style="padding:20px 24px;text-align:center;background:#ffffff;border-bottom:4px solid #4a1e8f">' . $logo . '<strong style="font-size:20px;color:#4a1e8f">' . $name . '</strong></div><div style="padding:24px;color:#172033;line-height:1.6">' . $html . '</div><div style="padding:14px 24px;background:#f8fafc;color:#64748b;text-align:center;font-size:12px">Sent by ' . $name . '</div></div></div>';
     }
 }
