@@ -1190,7 +1190,7 @@ $memberId =
             $sidebarBaseUrl .
             'member/hymns.php',
             'fa-music',
-            'Church Hymns',
+            'Church Songs',
             $dir,
             $cur,
             'hymns.php',
@@ -1817,7 +1817,7 @@ $memberId =
             $sidebarBaseUrl .
             'worship_resources/hymns.php',
             'fa-music',
-            'Church Hymns',
+            'Church Songs',
             $dir,
             $cur,
             'hymns.php',

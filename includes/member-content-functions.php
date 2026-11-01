@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * Shared rules for member-facing church content: Health/Education department tips,
- * dashboard Bible verses, Orders of Service and Church of Uganda hymns.
+ * dashboard Bible verses, Orders of Service and Church Songs.
  * Tables are created by database/member_content.sql.
  */
 
@@ -41,7 +41,7 @@ function mc_worship_pages(): array
     return [
         'verses'           => ['label' => 'Bible Verses',     'icon' => 'fa-book-bible',  'href' => 'verses.php',           'permission' => 'bible_verses.manage'],
         'order_of_service' => ['label' => 'Order of Service', 'icon' => 'fa-list-ol',     'href' => 'order-of-service.php', 'permission' => 'order_of_service.manage'],
-        'hymns'            => ['label' => 'Church Hymns',     'icon' => 'fa-music',       'href' => 'hymns.php',            'permission' => 'hymns.manage'],
+        'hymns'            => ['label' => 'Church Songs',     'icon' => 'fa-music',       'href' => 'hymns.php',            'permission' => 'hymns.manage'],
     ];
 }
 
