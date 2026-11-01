@@ -6,7 +6,7 @@ require_once '../includes/member-content-functions.php';
 requireLogin();
 enforce_member_read_only();
 
-const WR_TABLES = ['verses' => 'bible_verses', 'order_of_service' => 'service_orders', 'hymns' => 'church_hymns'];
+const WR_TABLES = ['verses' => 'bible_verses', 'prayers' => 'church_prayers', 'order_of_service' => 'service_orders', 'hymns' => 'church_hymns'];
 
 $resource = (string)($_POST['resource'] ?? '');
 $pages = mc_worship_pages();
@@ -43,6 +43,24 @@ function wr_save_verse(mysqli $conn, ?array $existing, string $status, ?string $
     } else {
         $stmt = $conn->prepare('INSERT INTO bible_verses (reference, verse_text, translation, display_date, status, published_at, created_by, updated_by) VALUES (?,?,?,?,?,?,?,?)');
         $stmt->bind_param('ssssssii', $reference, $text, $translation, $displayDate, $status, $publishedAt, $uid, $uid);
+    }
+    if (!$stmt->execute()) throw new RuntimeException($stmt->error);
+    $stmt->close();
+}
+
+function wr_save_prayer(mysqli $conn, ?array $existing, string $status, ?string $publishedAt, int $uid): void
+{
+    $title = mc_post_text('title', 'Prayer title', 180, true);
+    $category = mc_post_text('prayer_category', 'Prayer category', 80);
+    $text = mc_post_text('prayer_text', 'Prayer text', 12000, true);
+    $reference = mc_post_text('scripture_reference', 'Scripture reference', 180);
+    if ($existing) {
+        $id = (int)$existing['id'];
+        $stmt = $conn->prepare('UPDATE church_prayers SET title=?,prayer_category=?,prayer_text=?,scripture_reference=?,status=?,published_at=?,updated_by=? WHERE id=?');
+        $stmt->bind_param('ssssssii', $title, $category, $text, $reference, $status, $publishedAt, $uid, $id);
+    } else {
+        $stmt = $conn->prepare('INSERT INTO church_prayers (title,prayer_category,prayer_text,scripture_reference,status,published_at,created_by,updated_by) VALUES (?,?,?,?,?,?,?,?)');
+        $stmt->bind_param('ssssssii', $title, $category, $text, $reference, $status, $publishedAt, $uid, $uid);
     }
     if (!$stmt->execute()) throw new RuntimeException($stmt->error);
     $stmt->close();
@@ -170,10 +188,10 @@ function wr_save_service_order(mysqli $conn, ?array $existing, string $status, ?
 try {
     if (strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') throw new RuntimeException('Invalid request.');
     ce_verify_csrf();
-    if (!mc_tables_ready($conn, array_values(WR_TABLES))) throw new RuntimeException('Run database/member_content.sql first.');
+if (!mc_tables_ready($conn, [$table])) throw new RuntimeException('Run database/member_content.sql first.');
     $action = (string)($_POST['action'] ?? '');
     $uid = ce_user_id();
-    $label = ['verses' => 'Bible verse', 'order_of_service' => 'Order of Service', 'hymns' => 'Hymn'][$resource];
+    $label = ['verses' => 'Bible verse', 'prayers' => 'Church Prayer', 'order_of_service' => 'Order of Service', 'hymns' => 'Church Song'][$resource];
 
     if ($action === 'save') {
         $id = (int)($_POST['id'] ?? 0);
@@ -182,6 +200,7 @@ try {
         $publishedAt = mc_published_at($status, $existing['status'] ?? null, $existing['published_at'] ?? null);
         match ($resource) {
             'verses' => wr_save_verse($conn, $existing, $status, $publishedAt, $uid),
+            'prayers' => wr_save_prayer($conn, $existing, $status, $publishedAt, $uid),
             'hymns' => wr_save_hymn($conn, $existing, $status, $publishedAt, $uid),
             'order_of_service' => wr_save_service_order($conn, $existing, $status, $publishedAt, $uid),
         };

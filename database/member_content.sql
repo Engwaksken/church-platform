@@ -46,6 +46,26 @@ CREATE TABLE IF NOT EXISTS bible_verses (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
+-- CHURCH PRAYERS (member prayer guide)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS church_prayers (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(180) NOT NULL,
+    prayer_category VARCHAR(80) NULL,
+    prayer_text TEXT NOT NULL,
+    scripture_reference VARCHAR(180) NULL,
+    status ENUM('Draft','Published') NOT NULL DEFAULT 'Draft',
+    published_at DATETIME NULL,
+    created_by INT NULL,
+    updated_by INT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_church_prayers_status (status),
+    INDEX idx_church_prayers_category (prayer_category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
 -- CHURCH SONGS
 -- ============================================================
 
@@ -118,6 +138,7 @@ INSERT INTO permissions(permission_key,permission_name,module_name) VALUES
 ('education_tips.manage','Create, edit, publish, unpublish and delete Education Department tips','Department Tips'),
 ('member.tips.view','View published Health and Education Department tips','Department Tips'),
 ('bible_verses.manage','Add, edit, publish and delete dashboard Bible verses','Worship Resources'),
+('prayers.manage','Add, edit, publish and delete Church Prayers','Worship Resources'),
 ('order_of_service.manage','Add, edit, publish and delete Orders of Service','Worship Resources'),
 ('hymns.manage','Add, edit, publish and delete Church Songs','Worship Resources'),
 ('member.worship.view','View published Orders of Service and Church Songs','Worship Resources')

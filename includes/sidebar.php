@@ -1750,6 +1750,7 @@ $memberId =
             sidebar_can('health_tips.manage')
             || sidebar_can('education_tips.manage')
             || sidebar_can('bible_verses.manage')
+            || sidebar_can('prayers.manage')
             || sidebar_can('order_of_service.manage')
             || sidebar_can('hymns.manage')
         ): ?>
@@ -1798,6 +1799,17 @@ $memberId =
             $cur,
             'verses.php',
             'bible_verses.manage'
+        );
+
+        navLink(
+            $sidebarBaseUrl .
+            'worship_resources/prayers.php',
+            'fa-praying-hands',
+            'Church Prayers',
+            $dir,
+            $cur,
+            'prayers.php',
+            'prayers.manage'
         );
 
 

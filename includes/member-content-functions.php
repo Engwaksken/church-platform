@@ -40,6 +40,7 @@ function mc_worship_pages(): array
 {
     return [
         'verses'           => ['label' => 'Bible Verses',     'icon' => 'fa-book-bible',  'href' => 'verses.php',           'permission' => 'bible_verses.manage'],
+        'prayers'          => ['label' => 'Church Prayers',   'icon' => 'fa-praying-hands','href' => 'prayers.php',          'permission' => 'prayers.manage'],
         'order_of_service' => ['label' => 'Order of Service', 'icon' => 'fa-list-ol',     'href' => 'order-of-service.php', 'permission' => 'order_of_service.manage'],
         'hymns'            => ['label' => 'Church Songs',     'icon' => 'fa-music',       'href' => 'hymns.php',            'permission' => 'hymns.manage'],
     ];
