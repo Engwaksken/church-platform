@@ -33,6 +33,8 @@ try {
         case 'dashboard':       mapi_action_dashboard($conn); break;
         case 'giving':          mapi_action_giving($conn); break;
         case 'pledges':         mapi_action_pledges($conn); break;
+        case 'role_tools':       mapi_action_role_tools($conn); break;
+        case 'record_collection': mapi_action_record_collection($conn); break;
         case 'announcements':   mapi_action_announcements($conn); break;
         case 'programs':        mapi_action_programs($conn); break;
         case 'order_of_service': mapi_action_order_of_service($conn); break;
@@ -340,6 +342,132 @@ function mapi_action_pledges(mysqli $conn): never
     }
     unset($p);
     mapi_ok(['items' => $items]);
+}
+
+/** Tools only appear for permissions explicitly granted to this account or its role. */
+function mapi_role_tool_permissions(): array
+{
+    return [
+        'offertory' => 'offertory.view',
+        'tithe' => 'tithe.view',
+        'thanksgiving' => 'thanksgiving.view',
+        'pledge_payment' => 'pledges.view',
+        'contribution' => 'contributions.view',
+        'good_samaritan' => 'good_samaritan.view',
+    ];
+}
+
+function mapi_user_can_tool(mysqli $conn, int $userId, string $permission): bool
+{
+    $role = strtolower(trim((string)(mapi_row($conn, 'SELECT role FROM users WHERE id=? LIMIT 1', 'i', [$userId])['role'] ?? '')));
+    if ($role === 'admin') return true;
+    if (!mapi_table($conn, 'permissions')) return false;
+    $hasRoles = mapi_table($conn, 'role_permissions');
+    $hasUsers = mapi_table($conn, 'user_permissions');
+    if (!$hasRoles && !$hasUsers) return false;
+    $joins = ($hasRoles ? ' LEFT JOIN role_permissions rp ON rp.permission_id=p.id AND LOWER(rp.role)=?' : '')
+        . ($hasUsers ? ' LEFT JOIN user_permissions up ON up.permission_id=p.id AND up.user_id=?' : '');
+    $allowed = $hasRoles && $hasUsers ? 'COALESCE(up.allowed,rp.allowed,0)' : ($hasUsers ? 'COALESCE(up.allowed,0)' : 'COALESCE(rp.allowed,0)');
+    $types = ($hasRoles ? 's' : '') . ($hasUsers ? 'i' : '') . 's';
+    $params = array_merge($hasRoles ? [$role] : [], $hasUsers ? [$userId] : [], [$permission]);
+    return (bool)mapi_row($conn, "SELECT 1 AS allowed FROM permissions p $joins WHERE p.permission_key=? AND $allowed=1 LIMIT 1", $types, $params);
+}
+
+function mapi_action_role_tools(mysqli $conn): never
+{
+    $auth = mapi_auth($conn);
+    $tools = [];
+    foreach (mapi_role_tool_permissions() as $tool => $permission) {
+        $tools[$tool] = mapi_user_can_tool($conn, $auth['user_id'], $permission);
+    }
+    $enabled = array_keys(array_filter($tools));
+    $members = [];
+    $projects = [];
+    $pledges = [];
+    if (array_intersect($enabled, ['tithe', 'thanksgiving', 'contribution', 'good_samaritan'])) {
+        $members = mapi_rows($conn, "SELECT id, member_no, full_name FROM members WHERE COALESCE(status,'Active')='Active' ORDER BY full_name LIMIT 2000");
+        foreach ($members as &$member) $member['id'] = (int)$member['id'];
+        unset($member);
+    }
+    if (in_array('contribution', $enabled, true) && mapi_table($conn, 'projects')) {
+        $projects = mapi_rows($conn, "SELECT id,name FROM projects WHERE COALESCE(status,'Active')='Active' ORDER BY name");
+        foreach ($projects as &$project) $project['id'] = (int)$project['id'];
+        unset($project);
+    }
+    if (in_array('pledge_payment', $enabled, true)) {
+        $pledges = mapi_rows($conn, "SELECT id,pledge_no,pledge_reason,amount_pledged,amount_paid FROM pledges WHERE status IN ('Pending','Partial') ORDER BY pledge_date DESC,id DESC LIMIT 1000");
+        foreach ($pledges as &$pledge) { $pledge['id'] = (int)$pledge['id']; $pledge['amount_pledged'] = (float)$pledge['amount_pledged']; $pledge['amount_paid'] = (float)$pledge['amount_paid']; }
+        unset($pledge);
+    }
+    mapi_ok(['items' => $enabled, 'tools' => $tools, 'members' => $members, 'projects' => $projects, 'pledges' => $pledges]);
+}
+
+function mapi_action_record_collection(mysqli $conn): never
+{
+    mapi_require_method('POST');
+    $auth = mapi_auth($conn);
+    $input = mapi_input();
+    $type = mapi_str($input, 'type', 40);
+    $permission = mapi_role_tool_permissions()[$type] ?? '';
+    if ($permission === '' || !mapi_user_can_tool($conn, $auth['user_id'], $permission)) mapi_fail(403, 'Your account is not assigned to record this collection.');
+    $amount = (float)($input['amount'] ?? 0);
+    $date = mapi_str($input, 'date', 10) ?: date('Y-m-d');
+    $method = mapi_str($input, 'method', 40) ?: 'Cash';
+    $notes = mapi_str($input, 'notes', 2000);
+    if ($amount <= 0 || !preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $dateParts)
+        || !checkdate((int)$dateParts[2], (int)$dateParts[3], (int)$dateParts[1])) mapi_fail(422, 'Enter a valid amount and date.');
+    if (!in_array($method, ['Cash', 'Mobile Money', 'Bank Transfer', 'Cheque', 'Other'], true)) mapi_fail(422, 'Select a valid payment method.');
+    $receipt = 'RCOU-' . date('Y') . '-' . strtoupper(bin2hex(random_bytes(4)));
+
+    if ($type === 'offertory') {
+        $envelope = max(0, (float)($input['envelope_total'] ?? 0));
+        $loose = max(0, (float)($input['loose_total'] ?? 0));
+        $extra = max(0, (float)($input['extra'] ?? 0));
+        if ($envelope + $loose + $extra <= 0) mapi_fail(422, 'Enter an envelope, loose or additional amount.');
+        $service = mapi_str($input, 'service_type', 80) ?: 'Sunday Service';
+        $counted = mapi_str($input, 'counted_by', 120) ?: (string)(mapi_member_profile($conn, $auth['member_id'])['full_name'] ?? '');
+        $witnessed = mapi_str($input, 'witnessed_by', 120);
+        $total = $envelope + $loose + $extra;
+        $st = $conn->prepare('INSERT INTO offertory (service_date,service_type,envelope_total,loose_total,total_amount,counted_by,witnessed_by,notes) VALUES (?,?,?,?,?,?,?,?)');
+        $st->bind_param('ssdddsss', $date, $service, $envelope, $loose, $total, $counted, $witnessed, $notes); $st->execute(); $id = $st->insert_id; $st->close();
+    } elseif ($type === 'tithe') {
+        $memberId = (int)($input['member_id'] ?? 0); $month = (int)($input['period_month'] ?? (int)date('n')); $year = (int)($input['period_year'] ?? (int)date('Y'));
+        if ($memberId > 0 && !mapi_row($conn, "SELECT id FROM members WHERE id=? AND COALESCE(status,'Active')='Active'", 'i', [$memberId])) mapi_fail(422, 'Select an active member.');
+        if ($month < 1 || $month > 12 || $year < 2000 || $year > 2100) mapi_fail(422, 'Select a valid tithe period.');
+        $st = $conn->prepare('INSERT INTO tithe (receipt_no,member_id,amount,period_month,period_year,tithe_date,payment_method,notes) VALUES (?,NULLIF(?,0),?,?,?,?,?,?)');
+        $st->bind_param('sidiisss', $receipt, $memberId, $amount, $month, $year, $date, $method, $notes); $st->execute(); $id = $st->insert_id; $st->close();
+    } elseif ($type === 'thanksgiving') {
+        $memberId = (int)($input['member_id'] ?? 0); $giver = mapi_str($input, 'giver_name', 120); $reason = mapi_str($input, 'reason', 250); $item = mapi_str($input, 'item_description', 250);
+        if ($memberId > 0 && !mapi_row($conn, "SELECT id FROM members WHERE id=? AND COALESCE(status,'Active')='Active'", 'i', [$memberId])) mapi_fail(422, 'Select an active member.');
+        if ($memberId <= 0 && $giver === '') $giver = (string)(mapi_member_profile($conn, $auth['member_id'])['full_name'] ?? '');
+        if ($reason === '') mapi_fail(422, 'Enter the thanksgiving reason.');
+        $st = $conn->prepare('INSERT INTO thanksgiving (receipt_no,member_id,giver_name,reason,amount,thanksgiving_date,payment_method,item_description,notes) VALUES (?,NULLIF(?,0),?,?,?,?,?,?,?)');
+        $st->bind_param('sissdssss', $receipt, $memberId, $giver, $reason, $amount, $date, $method, $item, $notes); $st->execute(); $id = $st->insert_id; $st->close();
+    } elseif ($type === 'good_samaritan') {
+        $memberId = (int)($input['member_id'] ?? 0);
+        if ($memberId > 0 && !mapi_row($conn, "SELECT id FROM members WHERE id=? AND COALESCE(status,'Active')='Active'", 'i', [$memberId])) mapi_fail(422, 'Select an active member.');
+        $st = $conn->prepare('INSERT INTO good_samaritan (receipt_no,member_id,amount,payment_method,given_on,notes,recorded_by) VALUES (?,NULLIF(?,0),?,?,?,?,?)');
+        $st->bind_param('sidsssi', $receipt, $memberId, $amount, $method, $date, $notes, $auth['user_id']); $st->execute(); $id = $st->insert_id; $st->close();
+    } elseif ($type === 'contribution') {
+        $memberId = (int)($input['member_id'] ?? 0); $projectId = (int)($input['project_id'] ?? 0);
+        if ($memberId <= 0 || $projectId <= 0) mapi_fail(422, 'Select a member and contribution project.');
+        if (!mapi_row($conn, "SELECT id FROM members WHERE id=? AND COALESCE(status,'Active')='Active'", 'i', [$memberId])) mapi_fail(422, 'Select an active member.');
+        if (!mapi_row($conn, "SELECT id FROM projects WHERE id=? AND COALESCE(status,'Active')='Active'", 'i', [$projectId])) mapi_fail(422, 'Select an active project.');
+        $st = $conn->prepare('INSERT INTO contributions (receipt_no,member_id,project_id,amount,payment_method,contributed_on,notes) VALUES (?,?,?,?,?,?,?)');
+        $st->bind_param('siidsss', $receipt, $memberId, $projectId, $amount, $method, $date, $notes); $st->execute(); $id = $st->insert_id; $st->close();
+    } else {
+        $pledgeId = (int)($input['pledge_id'] ?? 0);
+        $pledge = mapi_row($conn, "SELECT id,amount_pledged,amount_paid,status FROM pledges WHERE id=? AND status<>'Cancelled' LIMIT 1", 'i', [$pledgeId]);
+        if (!$pledge) mapi_fail(422, 'Select an active pledge.');
+        $balance = max(0, (float)$pledge['amount_pledged'] - (float)$pledge['amount_paid']);
+        if ($amount > $balance) mapi_fail(422, 'Payment exceeds the remaining pledge balance of ' . number_format($balance) . '.');
+        $receipt = 'PLG-' . date('Y') . '-' . strtoupper(bin2hex(random_bytes(4)));
+        $st = $conn->prepare('INSERT INTO pledge_payments (pledge_id,amount,paid_on,method,receipt_no,notes) VALUES (?,?,?,?,?,?)');
+        $st->bind_param('idssss', $pledgeId, $amount, $date, $method, $receipt, $notes); $st->execute(); $id = $st->insert_id; $st->close();
+        $paid = (float)$pledge['amount_paid'] + $amount; $status = $paid >= (float)$pledge['amount_pledged'] ? 'Fulfilled' : 'Partial';
+        $st = $conn->prepare('UPDATE pledges SET amount_paid=?,status=? WHERE id=?'); $st->bind_param('dsi', $paid, $status, $pledgeId); $st->execute(); $st->close();
+    }
+    mapi_ok(['message' => 'Collection recorded.', 'id' => (int)$id, 'receipt_no' => $receipt]);
 }
 
 /* ------------------------------------------------------------------ church news */

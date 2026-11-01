@@ -229,7 +229,7 @@ function mapi_member_profile(mysqli $conn, int $memberId): array
     foreach (['pledge_no', 'service_attended', 'gender', 'phone', 'email', 'address', 'joined_date', 'department', 'church_zone_id', 'photo'] as $col) {
         $optional[] = mapi_column($conn, 'members', $col) ? "m.`$col`" : "NULL AS `$col`";
     }
-    $row = mapi_row($conn, "SELECT m.id, m.member_no, $name AS full_name, " . implode(', ', $optional) . " FROM members m WHERE m.id=? LIMIT 1", 'i', [$memberId]) ?? [];
+    $row = mapi_row($conn, "SELECT m.id, m.member_no, $name AS full_name, " . implode(', ', $optional) . ", COALESCE(u.role,'') AS assigned_role FROM members m LEFT JOIN users u ON u.id=m.user_id WHERE m.id=? LIMIT 1", 'i', [$memberId]) ?? [];
     $row['id'] = (int)($row['id'] ?? 0);
 
     $zoneId = (int)($row['church_zone_id'] ?? 0);

@@ -13,6 +13,7 @@ if ($isMember) {
     $upcomingProgramCount = 0;
     $attendanceCount = 0;
     $eventCertificateCount = 0;
+    $pendingAppointmentCount = 0;
 
     if ($memberId > 0) {
         $stmt = $conn->prepare("SELECT m.* FROM members m WHERE m.id=? LIMIT 1");
@@ -44,6 +45,10 @@ if ($isMember) {
     if ($memberId > 0 && access_table_exists($conn, 'event_certificates') && access_table_exists($conn, 'event_attendance')) {
         $stmt = $conn->prepare('SELECT COUNT(*) total FROM event_certificates ec JOIN event_attendance ea ON ea.event_id=ec.event_id AND ea.member_id=ec.member_id AND ea.attended=1 WHERE ec.member_id=?');
         if ($stmt) { $stmt->bind_param('i', $memberId); $stmt->execute(); $eventCertificateCount = (int)($stmt->get_result()->fetch_assoc()['total'] ?? 0); $stmt->close(); }
+    }
+    if ($memberId > 0 && access_table_exists($conn, 'appointment_requests')) {
+        $stmt = $conn->prepare("SELECT COUNT(*) total FROM appointment_requests WHERE member_id=? AND status='Pending'");
+        if ($stmt) { $stmt->bind_param('i', $memberId); $stmt->execute(); $pendingAppointmentCount = (int)($stmt->get_result()->fetch_assoc()['total'] ?? 0); $stmt->close(); }
     }
 
     require_once 'includes/member-content-functions.php';
@@ -80,12 +85,16 @@ if ($isMember) {
                 <div class="stat-card"><span class="stat-icon"><i class="fas fa-sitemap"></i></span><div><strong class="stat-value"><?= number_format($activeDepartmentCount) ?></strong><span class="stat-label">Active Departments</span></div></div>
                 <div class="stat-card"><span class="stat-icon"><i class="fas fa-calendar-days"></i></span><div><strong class="stat-value"><?= number_format($upcomingProgramCount) ?></strong><span class="stat-label">Upcoming Programs</span></div></div>
                 <div class="stat-card"><span class="stat-icon"><i class="fas fa-clipboard-check"></i></span><div><strong class="stat-value"><?= number_format($attendanceCount) ?></strong><span class="stat-label">Attendance Records</span></div></div>
+                <a class="stat-card" href="<?= h(BASE_URL.'member/appointments.php') ?>"><span class="stat-icon"><i class="fas fa-calendar-check"></i></span><div><strong class="stat-value"><?= number_format($pendingAppointmentCount) ?></strong><span class="stat-label">Pending Appointments</span></div></a>
             </div>
 
             <div class="member-quick-grid">
                 <a href="<?= h(BASE_URL.'member/giving.php') ?>"><i class="fas fa-hand-holding-heart"></i><span>My Giving</span></a>
                 <a href="<?= h(BASE_URL.'member/children.php') ?>"><i class="fas fa-child"></i><span>My Children</span></a>
                 <a href="<?= h(BASE_URL.'member/attendance.php') ?>"><i class="fas fa-calendar-check"></i><span>My Attendance</span></a>
+                <a href="<?= h(BASE_URL.'member/appointments.php') ?>"><i class="fas fa-calendar-check"></i><span>My Appointments</span></a>
+                <a href="<?= h(BASE_URL.'member/pledges.php') ?>"><i class="fas fa-handshake"></i><span>My Pledges</span></a>
+                <a href="<?= h(BASE_URL.'member/prayers.php') ?>"><i class="fas fa-praying-hands"></i><span>Prayer Guide</span></a>
                 <a href="<?= h(BASE_URL.'member/events.php') ?>"><i class="fas fa-calendar-alt"></i><span>Church Events</span></a>
                 <a href="<?= h(BASE_URL.'member/event-certificates.php') ?>"><i class="fas fa-certificate"></i><span>Event Certificates (<?= number_format($eventCertificateCount) ?>)</span></a>
                 <a href="<?= h(BASE_URL.'member/projects.php') ?>"><i class="fas fa-project-diagram"></i><span>Projects</span></a>

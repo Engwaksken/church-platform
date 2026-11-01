@@ -1197,6 +1197,17 @@ $memberId =
             'member.worship.view'
         );
 
+        navLink(
+            $sidebarBaseUrl .
+            'member/prayers.php',
+            'fa-praying-hands',
+            'Prayer Guide',
+            $dir,
+            $cur,
+            'prayers.php',
+            'member.worship.view'
+        );
+
 
         navLink(
             $sidebarBaseUrl .

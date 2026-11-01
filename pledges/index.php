@@ -35,6 +35,12 @@ include '../includes/sidebar.php';
 .pledge-page-ellipsis{display:inline-grid;place-items:center;min-width:24px;height:36px;color:var(--text-muted)}
 .pledge-stat-summary{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
 .pledge-stat-summary span{padding:6px 12px;border:1px solid var(--border);border-radius:999px;font-size:12px;background:var(--primary-fade)}
+.pledges-module .module-stats-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:14px}
+.pledges-module .stat-card-click{padding:11px 13px;gap:9px;border-radius:11px;min-height:68px}
+.pledges-module .stat-card-click .stat-icon{width:34px;height:34px;border-radius:9px;font-size:15px}
+.pledges-module .stat-card-click .stat-value{font-size:1.12rem}
+.pledges-module .stat-card-click .stat-label{font-size:9px;margin-top:2px}
+.pledges-module .stat-card-click:not([data-detail="month"]){display:none}
 #statModal .table-responsive{max-height:55vh;overflow:auto}
 #statModal thead th{position:sticky;top:0;background:#fff;z-index:1}
 @media(max-width:767px){.pledge-pagination-bar{align-items:flex-start;flex-direction:column}}
@@ -46,6 +52,7 @@ include '../includes/sidebar.php';
     <p class="text-muted">Manage pledges, payments, PDF receipts, and reminders.</p>
   </div>
   <div class="d-flex gap-2">
+    <a class="btn btn-outline-primary" href="statistics.php"><i class="fas fa-chart-bar"></i> View All Statistics</a>
     <button type="button" class="btn btn-outline-primary" id="btnImportPledges"><i class="fas fa-file-import"></i> Import Excel</button>
     <button type="button" class="btn btn-outline-primary" id="btnUploadPaidCsv"><i class="fas fa-file-csv"></i> Upload Paid CSV</button>
     <button type="button" class="btn btn-outline" id="btnSendReminders"><i class="fas fa-bell"></i> Send Reminders</button>
@@ -289,7 +296,11 @@ async function openDetail(card){
   openModal('#statModal');
   try{ await refreshDetail(false); }catch(err){ alertBox(qs('#statAlert'),err.message,'error'); }
 }
-qsa('.stat-card-click').forEach(card=>card.addEventListener('click',()=>openDetail(card)));
+qsa('.stat-card-click').forEach(card=>card.addEventListener('click',async()=>{
+  if(card.dataset.detail!=='month')return;
+  qs('#pledgeYearFilter').value='';qs('#pledgeTypeFilter').value='';qs('#pledgeStatusFilter').value='';overdueOnly=false;
+  try{const [payments,list]=await Promise.all([req(cfg.endpoint+'?action=payments&month='+encodeURIComponent(new Date().toISOString().slice(0,7))),req(cfg.endpoint+'?action=list')]);if(!payments.success||!list.success)throw new Error('Could not load this month’s pledge payments.');rows=list.items||[];renderStats(list.stats||{});const ids=new Set((payments.items||[]).map(p=>Number(p.pledge_id)));pledgePager.set(rows.filter(r=>ids.has(Number(r.id))&&matchText(r,(qs('#pledgeSearch').value||'').trim().toLowerCase())),false);qs('#pageAlert').textContent=`Showing pledges paid during ${new Date().toLocaleDateString(undefined,{month:'long',year:'numeric'})}.`;qs('#pageAlert').className='ajax-alert success';}catch(err){alertBox(qs('#pageAlert'),err.message,'error');}
+}));
 qs('#statSearch').addEventListener('input',()=>applyDetailFilter(false));
 ['#statStatus','#statType','#statMethod'].forEach(s=>qs(s).addEventListener('change',()=>applyDetailFilter(false)));
 qs('#statMonth').addEventListener('change',()=>{ if(qs('#statMonth').value) refreshDetail(false).catch(err=>alertBox(qs('#statAlert'),err.message,'error')); });
