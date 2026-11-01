@@ -20,7 +20,7 @@ $recordFlags = JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP;
 <?php ce_show_flash(); ?>
 <div class="church-page-head">
     <div><h2><i class="fas fa-praying-hands"></i> Church Prayers</h2><p>Prepare prayer guides for members to use in daily devotion and church life.</p></div>
-    <?php if ($ready): ?><button type="button" class="btn btn-primary" id="addBtn"><i class="fas fa-plus"></i> Add Prayer</button><?php endif; ?>
+    <?php if ($ready): ?><button type="button" class="btn btn-outline-primary" data-content-bulk="prayers"><i class="fas fa-layer-group"></i> Add Multiple</button><button type="button" class="btn btn-primary" id="addBtn"><i class="fas fa-plus"></i> Add Prayer</button><?php endif; ?>
 </div>
 <?php mc_worship_tabs('prayers'); ?>
 <?php if (!$ready): ?>

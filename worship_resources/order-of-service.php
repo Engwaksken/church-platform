@@ -35,7 +35,7 @@ $recordFlags = JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_TAG | JSON_HEX_AMP;
 <?php ce_show_flash(); ?>
 <div class="church-page-head">
     <div><h2><i class="fas fa-list-ol"></i> Order of Service</h2><p>Publish the order of service so members can follow along. Members see published orders only.</p></div>
-    <?php if ($ready): ?><button type="button" class="btn btn-primary" id="addBtn"><i class="fas fa-plus"></i> Add Order of Service</button><?php endif; ?>
+    <?php if ($ready): ?><button type="button" class="btn btn-outline-primary" data-content-bulk="order_of_service"><i class="fas fa-layer-group"></i> Add Multiple</button><button type="button" class="btn btn-primary" id="addBtn"><i class="fas fa-plus"></i> Add Order of Service</button><?php endif; ?>
 </div>
 <?php mc_worship_tabs('order_of_service'); ?>
 

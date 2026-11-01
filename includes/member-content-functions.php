@@ -35,6 +35,12 @@ function mc_manageable_departments(): array
     return array_values(array_filter(array_keys(mc_tip_departments()), 'mc_can_manage_tips'));
 }
 
+/** Recognized languages used by communities in Uganda. */
+function mc_ugandan_languages(): array
+{
+    return ['Acholi','Alur','Ateso','Dhopadhola (Japadhola)','English','Ik','Kakwa','Karamojong (Ngakarimojong)','Kebu','Kumam','Kupsabiny (Sebei)','Lango','Lugbara','Luganda','Lugisu (Lumasaba)','Lunyole (Nyole)','Lusoga',"Ma'di",'Nubi','Nyangia','Runyankole','Rukiga','Runyoro','Rutooro','Samia','Other'];
+}
+
 /** Worship resource pages, keyed by page, with the permission that manages each. */
 function mc_worship_pages(): array
 {
