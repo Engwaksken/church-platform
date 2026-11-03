@@ -1444,6 +1444,19 @@ $memberId =
             'member.profile.view'
         );
 
+        require_once __DIR__ . '/procurement-functions.php';
+        if (isset($conn) && $conn instanceof mysqli && pr_can_access($conn)) {
+            navLink(
+                $sidebarBaseUrl . 'procurement/',
+                'fa-cart-flatbed',
+                'Procurement',
+                $dir,
+                $cur,
+                'procurement',
+                'dashboard.view'
+            );
+        }
+
         ?>
 
 
@@ -1946,6 +1959,21 @@ $memberId =
             'church_assets',
             'church_assets.view'
         );
+
+        // Procurement has its own access rules for department leaders and assigned
+        // member officers/assistants, so do not gate its menu link on a staff permission.
+        require_once __DIR__ . '/procurement-functions.php';
+        if (isset($conn) && $conn instanceof mysqli && pr_can_access($conn)) {
+            navLink(
+                $sidebarBaseUrl . 'procurement/',
+                'fa-cart-flatbed',
+                'Procurement',
+                $dir,
+                $cur,
+                'procurement',
+                'dashboard.view'
+            );
+        }
 
         ?>
 
