@@ -25,7 +25,7 @@ function ps_h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF
 .pledges-module,.pledges-module>.content-area{width:100%;max-width:100%;min-width:0}
 .pledges-module .table-responsive{display:block;width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .pledges-module .module-table{min-width:850px;table-layout:auto}
-@media(max-width:720px){.ps-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.ps-pagination{align-items:flex-start;flex-direction:column}}
+@media(max-width:720px){.ps-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important}.ps-pagination{align-items:flex-start;flex-direction:column}}
 @media(max-width:600px){
  .pledges-module .content-area{padding:12px 10px 24px}
  .ps-stats{gap:8px}
