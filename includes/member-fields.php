@@ -77,3 +77,24 @@ function member_fields_pledge_taken(mysqli $conn, string $pledgeNo, int $exclude
     $found = (bool)$stmt->get_result()->fetch_assoc(); $stmt->close();
     return $found;
 }
+
+/**
+ * Church zone choices as [['id'=>int,'name'=>string], ...], empty when members have no zone column
+ * or no zone table exists. Used by filters (e.g. pledges by zone).
+ */
+function member_fields_zone_options(mysqli $conn): array
+{
+    if (!member_fields_column_exists($conn, 'members', 'church_zone_id')) return [];
+    foreach (['church_zones', 'zones'] as $table) {
+        $r = $conn->query("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='$table'");
+        if (!$r || (int)$r->fetch_row()[0] === 0) continue;
+        foreach (['zone_name', 'name', 'title'] as $col) {
+            if (!member_fields_column_exists($conn, $table, $col)) continue;
+            $out = [];
+            $res = $conn->query("SELECT id, `$col` AS name FROM `$table` ORDER BY `$col`");
+            if ($res) while ($z = $res->fetch_assoc()) $out[] = ['id' => (int)$z['id'], 'name' => (string)$z['name']];
+            return $out;
+        }
+    }
+    return [];
+}

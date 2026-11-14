@@ -289,6 +289,49 @@ function pledge_month_range(string $month): array {
     $start = DateTimeImmutable::createFromFormat('!Y-m', $month) ?: new DateTimeImmutable('first day of this month');
     return [$start->format('Y-m-01'), $start->modify('first day of next month')->format('Y-m-d')];
 }
+/** [table, name column] of the church zones members belong to, or null when zones are not set up. */
+function pledge_zone_source(): ?array {
+    static $src = false;
+    if ($src !== false) return $src;
+    $src = null;
+    if (!col_exists('members', 'church_zone_id')) return null;
+    foreach (['church_zones', 'zones'] as $t) {
+        if (!table_exists($t)) continue;
+        foreach (['zone_name', 'name', 'title'] as $c) if (col_exists($t, $c)) return $src = [$t, $c];
+    }
+    return null;
+}
+/**
+ * Member zone / service filters from the request (zone_id, service), for queries that alias
+ * pledges as p and LEFT JOIN members m. Returns [extra SELECT, extra JOIN, WHERE conditions].
+ */
+function pledge_member_filters(): array {
+    $select = ''; $join = ''; $cond = [];
+    $zone = pledge_zone_source();
+    if ($zone) {
+        [$t, $c] = $zone;
+        $select .= ", m.church_zone_id, z.`$c` AS zone_name";
+        $join .= " LEFT JOIN `$t` z ON z.id=m.church_zone_id";
+        $zoneId = (int)($_GET['zone_id'] ?? 0);
+        if ($zoneId > 0) $cond[] = "m.church_zone_id=$zoneId";
+    } else {
+        $select .= ", NULL AS church_zone_id, '' AS zone_name";
+    }
+    if (col_exists('members', 'service_attended')) {
+        $select .= ", m.service_attended";
+        $service = clean($_GET['service'] ?? '');
+        if ($service !== '') $cond[] = "TRIM(m.service_attended)='".hsql($service)."'";
+    } else {
+        $select .= ", '' AS service_attended";
+    }
+    return [$select, $join, $cond];
+}
+/** Valid YYYY-MM-DD from the request, or ''. */
+function pledge_req_date(string $key): string {
+    $d = clean($_GET[$key] ?? '');
+    $dt = preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) ? DateTimeImmutable::createFromFormat('!Y-m-d', $d) : false;
+    return ($dt && $dt->format('Y-m-d') === $d) ? $d : '';
+}
 function pledge_import_phone_key(string $phone): string { return preg_replace('/\D+/', '', $phone) ?? ''; }
 function pledge_import_no_key(string $number): string { return strtoupper(preg_replace('/[^\pL\pN]+/u', '', trim($number)) ?? ''); }
 
@@ -469,7 +512,8 @@ try {
         $year = (int)($_GET['year'] ?? 0);
         $type = clean($_GET['type'] ?? '');
         $overdueOnly = (int)($_GET['overdue'] ?? 0) === 1;
-        $conditions = [];
+        [$memberSelect, $memberJoin, $memberConds] = pledge_member_filters();
+        $conditions = $memberConds;
         if ($status !== '') $conditions[] = "p.status='".hsql($status)."'";
         if ($overdueOnly) $conditions[] = "p.status IN('Pending','Partial') AND p.due_date IS NOT NULL AND p.due_date<CURDATE()";
         if ($type !== '' && in_array($type, pledge_types(), true)) {
@@ -482,9 +526,9 @@ try {
         }
         $where = $conditions ? 'WHERE '.implode(' AND ', $conditions) : '';
         [$typeSelect, $typeJoin] = pledge_purpose_sql($conn);
-        $rows = many("SELECT p.*, m.full_name AS full_name, m.member_no, m.email, m.phone, pr.name AS project_name $typeSelect
+        $rows = many("SELECT p.*, m.full_name AS full_name, m.member_no, m.email, m.phone, pr.name AS project_name $typeSelect $memberSelect
             FROM pledges p
-            LEFT JOIN members m ON m.id=p.member_id
+            LEFT JOIN members m ON m.id=p.member_id $memberJoin
             LEFT JOIN projects pr ON pr.id=p.project_id $typeJoin
             $where
             ORDER BY p.pledge_date DESC, p.id DESC");
@@ -493,39 +537,50 @@ try {
         // Cancelled pledges are left out of money totals unless the user filtered to them.
         $statsWhere = $where;
         if ($status !== 'Cancelled') $statsWhere .= ($statsWhere === '' ? 'WHERE ' : ' AND ')."p.status<>'Cancelled'";
-        $stats = one("SELECT COALESCE(SUM(amount_pledged),0) total, COALESCE(SUM(amount_paid),0) paid,
-            SUM(CASE WHEN status='Pending' THEN 1 ELSE 0 END) pending,
-            SUM(CASE WHEN status='Partial' THEN 1 ELSE 0 END) partial,
-            SUM(CASE WHEN status='Fulfilled' THEN 1 ELSE 0 END) fulfilled,
-            SUM(CASE WHEN status IN('Pending','Partial') AND due_date IS NOT NULL AND due_date<CURDATE() THEN 1 ELSE 0 END) overdue
-            FROM pledges p $statsWhere");
+        $memberFrom = "pledges p LEFT JOIN members m ON m.id=p.member_id $memberJoin";
+        $memberAnd = $memberConds ? ' AND '.implode(' AND ', $memberConds) : '';
+        $stats = one("SELECT COALESCE(SUM(p.amount_pledged),0) total, COALESCE(SUM(p.amount_paid),0) paid,
+            SUM(CASE WHEN p.status='Pending' THEN 1 ELSE 0 END) pending,
+            SUM(CASE WHEN p.status='Partial' THEN 1 ELSE 0 END) partial,
+            SUM(CASE WHEN p.status='Fulfilled' THEN 1 ELSE 0 END) fulfilled,
+            SUM(CASE WHEN p.status IN('Pending','Partial') AND p.due_date IS NOT NULL AND p.due_date<CURDATE() THEN 1 ELSE 0 END) overdue
+            FROM $memberFrom $statsWhere");
         $yearColumn = pledge_types_ready($conn) ? 'COALESCE(p.pledge_year,YEAR(p.pledge_date))' : 'YEAR(p.pledge_date)';
         $yearStats = one("SELECT COALESCE(SUM(CASE WHEN $yearColumn=".(int)date('Y')." THEN p.amount_pledged ELSE 0 END),0) this_year,
-            COALESCE(SUM(CASE WHEN $yearColumn=".((int)date('Y')-1)." THEN p.amount_pledged ELSE 0 END),0) last_year FROM pledges p WHERE p.status<>'Cancelled'");
+            COALESCE(SUM(CASE WHEN $yearColumn=".((int)date('Y')-1)." THEN p.amount_pledged ELSE 0 END),0) last_year FROM $memberFrom WHERE p.status<>'Cancelled'$memberAnd");
         $stats = array_merge($stats ?: [], $yearStats ?: []);
         // Money received this calendar month on pledges that are not cancelled.
         [$monthStart, $monthEnd] = pledge_month_range(date('Y-m'));
         $stats['paid_this_month'] = table_exists('pledge_payments')
             ? (float)(one("SELECT COALESCE(SUM(pp.amount),0) t FROM pledge_payments pp JOIN pledges p ON p.id=pp.pledge_id
-                WHERE pp.paid_on>='$monthStart' AND pp.paid_on<'$monthEnd' AND p.status<>'Cancelled'")['t'] ?? 0)
+                LEFT JOIN members m ON m.id=p.member_id $memberJoin
+                WHERE pp.paid_on>='$monthStart' AND pp.paid_on<'$monthEnd' AND p.status<>'Cancelled'$memberAnd")['t'] ?? 0)
             : 0.0;
         pj(true, '', ['items' => $rows, 'stats' => $stats ?: []]);
     }
 
     if ($action === 'payments') {
-        // Payments received in one month (YYYY-MM, default this month), for the "Paid This Month" list.
+        // Payments received in one month (YYYY-MM, default this month), for the "Paid This Month" list,
+        // or between date_from and date_to (inclusive) when given. zone_id / service narrow by member.
         if (!table_exists('pledge_payments')) pj(true, '', ['items' => [], 'month' => date('Y-m')]);
         $month = clean($_GET['month'] ?? '');
         if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) $month = date('Y-m');
         [$monthStart, $monthEnd] = pledge_month_range($month);
+        $from = pledge_req_date('date_from'); $to = pledge_req_date('date_to');
+        if ($from !== '' || $to !== '') {
+            $monthStart = $from !== '' ? $from : '1900-01-01';
+            $monthEnd = (new DateTimeImmutable($to !== '' ? $to : date('Y-m-d')))->modify('+1 day')->format('Y-m-d');
+        }
+        [$memberSelect, $memberJoin, $memberConds] = pledge_member_filters();
+        $memberAnd = $memberConds ? ' AND '.implode(' AND ', $memberConds) : '';
         [$typeSelect, $typeJoin] = pledge_purpose_sql($conn);
         $items = many("SELECT pp.id, pp.pledge_id, pp.amount, pp.paid_on, pp.method, pp.receipt_no,
-                p.pledge_no, p.pledge_reason, p.status, m.full_name, m.member_no, pr.name AS project_name $typeSelect
+                p.pledge_no, p.pledge_reason, p.status, m.full_name, m.member_no, pr.name AS project_name $typeSelect $memberSelect
             FROM pledge_payments pp
             JOIN pledges p ON p.id=pp.pledge_id
-            LEFT JOIN members m ON m.id=p.member_id
+            LEFT JOIN members m ON m.id=p.member_id $memberJoin
             LEFT JOIN projects pr ON pr.id=p.project_id $typeJoin
-            WHERE pp.paid_on>='$monthStart' AND pp.paid_on<'$monthEnd' AND p.status<>'Cancelled'
+            WHERE pp.paid_on>='$monthStart' AND pp.paid_on<'$monthEnd' AND p.status<>'Cancelled'$memberAnd
             ORDER BY pp.paid_on DESC, pp.id DESC");
         foreach ($items as &$r) $r['purpose'] = pledge_purpose($r);
         unset($r);

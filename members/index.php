@@ -239,7 +239,7 @@ $exportQuery = http_build_query(array_filter(['search'=>$search,'status'=>$statu
     @media(max-width:1100px){.member-stats-grid{grid-template-columns:repeat(2,1fr)}}
     /* Add Members modal: bulk rows */
     .mb-defaults-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
-    .mb-row-grid{display:grid;grid-template-columns:28px minmax(180px,2.2fr) minmax(80px,.8fr) minmax(85px,.9fr) minmax(100px,1fr) minmax(120px,1.3fr) minmax(95px,1fr) minmax(95px,1fr) minmax(82px,.8fr) 36px;gap:6px;align-items:start}
+    .mb-row-grid{display:grid;grid-template-columns:28px minmax(180px,2.2fr) minmax(80px,.8fr) minmax(85px,.9fr) minmax(100px,1fr) minmax(120px,1.3fr) minmax(95px,1fr) minmax(105px,1fr) minmax(95px,1fr) minmax(82px,.8fr) 36px;gap:6px;align-items:start}
     #memberRowsHeader{padding:8px 20px;background:#f5f1ff;border-bottom:2px solid var(--border);font-size:10.5px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.5px;align-items:center}
     #memberRowsContainer{max-height:420px;overflow-y:auto;padding:10px 20px}
     .member-bulk-row{padding:8px 0;border-bottom:1px solid #f0ecfa}
@@ -592,6 +592,7 @@ $exportQuery = http_build_query(array_filter(['search'=>$search,'status'=>$statu
                         <div><i class="fas fa-phone"></i> Phone</div>
                         <div><i class="fas fa-envelope"></i> Email</div>
                         <div><i class="fas fa-briefcase"></i> Occupation</div>
+                        <div><i class="fas fa-map-marker-alt"></i> Zone</div>
                         <div><i class="fas fa-church"></i> Service</div>
                         <div><i class="fas fa-toggle-on"></i> Status</div>
                         <div></div>
@@ -1041,6 +1042,12 @@ window.MEMBER_MODULE = {
                        class="form-control form-control-sm" placeholder="Occupation">
             </div>
             <div class="form-group">
+                <label class="mb-cell-label">Church Zone</label>
+                <select name="members[${idx}][church_zone_id]" class="form-control form-control-sm">
+                    ${buildZoneOptions(document.getElementById('bulkZoneId')?.value || '')}
+                </select>
+            </div>
+            <div class="form-group">
                 <label class="mb-cell-label">Service</label>
                 <input type="text" name="members[${idx}][service_attended]" list="memberServiceOptions"
                        class="form-control form-control-sm" placeholder="Service"
@@ -1104,6 +1111,7 @@ window.MEMBER_MODULE = {
         getAllRows().forEach(row => {
             const sel = (name) => row.querySelector(`[name$="[${name}]"]`);
             if (sel('status')) sel('status').value = status;
+            if (sel('church_zone_id')) sel('church_zone_id').value = zoneId;
             if (service && sel('service_attended')) sel('service_attended').value = service;
         });
     });
@@ -1176,7 +1184,7 @@ window.MEMBER_MODULE = {
             fd.append(`members[${i}][status]`,      g('status') || sharedStatus);
             fd.append(`members[${i}][joined_date]`,    sharedJoined);
             fd.append(`members[${i}][dept_id]`,         sharedDept);
-            fd.append(`members[${i}][church_zone_id]`,  sharedZone);
+            fd.append(`members[${i}][church_zone_id]`,  g('church_zone_id') || sharedZone);
         });
 
         const btn     = document.getElementById('bulkSubmitBtn');
