@@ -98,3 +98,39 @@ function member_fields_zone_options(mysqli $conn): array
     }
     return [];
 }
+
+/** Pledge number key for comparing: lower-case letters/digits only, leading zeros dropped ("P-007" -> "p7"). */
+function member_fields_pledge_key(string $v): string
+{
+    $k = preg_replace('/[^a-z0-9]/', '', strtolower($v)) ?? '';
+    return preg_replace_callback('/\d+/', fn($m) => ltrim($m[0], '0') === '' ? '0' : ltrim($m[0], '0'), $k) ?? '';
+}
+
+/**
+ * When a search looks like a pledge number (e.g. "12", "P-012", "p 12"), the ids of members whose
+ * pledge number is exactly that number, so the list shows only them instead of every member whose
+ * pledge no, phone or member no merely contains the digits. Null when it is not a pledge number
+ * search or nobody has that pledge number (the normal text search is used then).
+ */
+function member_fields_pledge_search_ids(mysqli $conn, string $search): ?array
+{
+    $search = trim($search);
+    if (!preg_match('/^[a-z]{0,4}[-\/ ]?\d+$/i', $search) || !member_fields_column_exists($conn, 'members', 'pledge_no')) return null;
+    $key = member_fields_pledge_key($search);
+    $digits = preg_replace('/\D/', '', $search);
+    $digitKey = member_fields_pledge_key($digits);
+    $stmt = $conn->prepare("SELECT id, pledge_no FROM members WHERE pledge_no LIKE ?");
+    $like = '%' . ltrim($digits, '0') . '%';
+    $stmt->bind_param('s', $like); $stmt->execute();
+    $res = $stmt->get_result();
+    $exact = []; $byNumber = [];
+    while ($r = $res->fetch_assoc()) {
+        $pn = (string)$r['pledge_no'];
+        if (member_fields_pledge_key($pn) === $key) $exact[] = (int)$r['id'];
+        elseif (member_fields_pledge_key(preg_replace('/\D/', '', $pn) ?? '') === $digitKey) $byNumber[] = (int)$r['id'];
+    }
+    $stmt->close();
+    // "12" also finds "P-012"; "P-12" only finds pledge numbers with the same prefix unless none exist.
+    $ids = $exact ?: $byNumber;
+    return $ids ?: null;
+}

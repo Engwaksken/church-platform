@@ -84,7 +84,11 @@ if($dateTo!=='' && !preg_match('/^\d{4}-\d{2}-\d{2}$/',$dateTo)) $dateTo='';
 if($dateFrom!=='' && $dateTo!=='' && $dateFrom>$dateTo){[$dateFrom,$dateTo]=[$dateTo,$dateFrom];}
 
 $baseWhere='WHERE 1=1'; $baseParams=[]; $baseTypes='';
-if($search!==''){
+$pledgeIds = $search!=='' ? member_fields_pledge_search_ids($conn,$search) : null;
+if($pledgeIds){
+    // Searching a pledge number: show only the member(s) holding exactly that number.
+    $baseWhere.=' AND m.id IN ('.implode(',',array_map('intval',$pledgeIds)).')';
+}elseif($search!==''){
     $baseWhere.=" AND (m.full_name LIKE ? OR m.member_no LIKE ? OR m.phone LIKE ? OR m.email LIKE ? OR m.occupation LIKE ? OR m.department LIKE ? OR d.name LIKE ?";
     $like='%'.$search.'%';
     for($i=0;$i<7;$i++){$baseParams[]=$like;$baseTypes.='s';}

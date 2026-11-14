@@ -366,7 +366,10 @@ function fetch_all_members(mysqli $conn, string $search = '', string $status = '
     $params = [];
     $types  = '';
 
-    if ($search !== '') {
+    $pledgeIds = $search !== '' ? member_fields_pledge_search_ids($conn, $search) : null;
+    if ($pledgeIds) {
+        $where .= ' AND m.id IN (' . implode(',', array_map('intval', $pledgeIds)) . ')';
+    } elseif ($search !== '') {
         $like = '%' . $search . '%';
         $where .= " AND (m.full_name LIKE ?
                      OR m.member_no LIKE ? OR m.phone LIKE ? OR m.email LIKE ?
