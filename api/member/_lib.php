@@ -10,6 +10,12 @@ const MAPI_TOKEN_DAYS = 90;
 const MAPI_LOCK_MINUTES = 15;
 const MAPI_MAX_FAILS_PER_IDENTIFIER = 5;
 const MAPI_MAX_FAILS_PER_IP = 20;
+const MAPI_RESET_CODE_MINUTES = 15;
+const MAPI_RESET_MAX_TRIES = 5;
+const MAPI_RESET_MAX_REQUESTS = 3;         // per number per hour
+const MAPI_RESET_MAX_REQUESTS_PER_IP = 10; // per hour
+const MAPI_LOGIN_CODE_MINUTES = 10;        // staff sign-in codes, same as the website
+const MAPI_LOGIN_CODE_MAX_TRIES = 5;
 
 function mapi_json(int $status, array $payload): never
 {
@@ -140,6 +146,35 @@ function mapi_clear_failures(mysqli $conn, string $identifier): void
 /* ------------------------------------------------------------------ members and tokens */
 
 /**
+ * Active account that signs in with $identifier: a membership or pledge number first, otherwise the
+ * website username or email of any active user (staff, leaders, admins, and members too).
+ * Returns user_id, password, member_id (0 when the user has no active member record), full_name,
+ * email and role; null when nothing matches or the value is ambiguous.
+ */
+function mapi_find_account(mysqli $conn, string $identifier): ?array
+{
+    $member = mapi_find_member_account($conn, $identifier);
+    if ($member) {
+        $user = mapi_row($conn, 'SELECT full_name, email, role FROM users WHERE id=? LIMIT 1', 'i', [(int)$member['user_id']]) ?? [];
+        return $member + ['full_name' => (string)($user['full_name'] ?? ''), 'email' => (string)($user['email'] ?? ''), 'role' => (string)($user['role'] ?? '')];
+    }
+    $rows = mapi_rows(
+        $conn,
+        "SELECT u.id AS user_id, u.password, u.full_name, u.email, u.role
+         FROM users u
+         WHERE (u.username=? OR u.email=?) AND LOWER(TRIM(COALESCE(u.status,'Active')))='active'
+         LIMIT 2",
+        'ss',
+        [$identifier, $identifier]
+    );
+    if (count($rows) !== 1) return null;
+    $account = $rows[0];
+    $memberRow = mapi_row($conn, "SELECT id FROM members WHERE user_id=? AND LOWER(TRIM(COALESCE(status,'Active')))='active' ORDER BY id LIMIT 1", 'i', [(int)$account['user_id']]);
+    $account['member_id'] = (int)($memberRow['id'] ?? 0);
+    return $account;
+}
+
+/**
  * Active member account whose membership number or pledge number matches $identifier.
  * Returns null when nothing matches, or when the value matches two different members.
  */
@@ -185,23 +220,26 @@ function mapi_bearer_token(): string
 }
 
 /**
- * The signed-in member for this request, or a 401 response. The member and their
- * login must still be active, so deactivating either ends app access immediately.
+ * The signed-in account for this request, or a 401 response. The login (and the member record, for
+ * member sign-ins) must still be active, so deactivating either ends app access immediately.
+ * Staff accounts without a member record have member_id 0.
  */
 function mapi_auth(mysqli $conn): array
 {
+    static $auth = null;
+    if ($auth !== null) return $auth;
     $token = mapi_bearer_token();
     if ($token === '') mapi_fail(401, 'Please sign in.');
     $hash = hash('sha256', $token);
     $session = mapi_row(
         $conn,
-        "SELECT t.id AS token_id, t.user_id, t.member_id
+        "SELECT t.id AS token_id, t.user_id, t.member_id, COALESCE(u.role,'') AS role
          FROM member_api_tokens t
          JOIN users u ON u.id=t.user_id
-         JOIN members m ON m.id=t.member_id AND m.user_id=t.user_id
+         LEFT JOIN members m ON m.id=t.member_id AND m.user_id=t.user_id
          WHERE t.token_hash=? AND t.revoked_at IS NULL AND t.expires_at>NOW()
            AND LOWER(TRIM(COALESCE(u.status,'Active')))='active'
-           AND LOWER(TRIM(COALESCE(m.status,'Active')))='active'
+           AND (t.member_id=0 OR (m.id IS NOT NULL AND LOWER(TRIM(COALESCE(m.status,'Active')))='active'))
          LIMIT 1",
         's',
         [$hash]
@@ -212,7 +250,105 @@ function mapi_auth(mysqli $conn): array
     $stmt->bind_param('i', $id);
     $stmt->execute();
     $stmt->close();
-    return ['token_id' => $id, 'user_id' => (int)$session['user_id'], 'member_id' => (int)$session['member_id']];
+    return $auth = [
+        'token_id' => $id,
+        'user_id' => (int)$session['user_id'],
+        'member_id' => (int)$session['member_id'],
+        'role' => strtolower(trim((string)$session['role'])),
+    ];
+}
+
+/** Stops with 403 for staff accounts that have no member record. */
+function mapi_require_member(array $auth, string $message = 'This part of the app is for church members.'): void
+{
+    if ($auth['member_id'] <= 0) mapi_fail(403, $message);
+}
+
+/**
+ * Permissions the app uses, granted to the account or its role on the website (Users > Permissions).
+ * Admins have every permission; member accounts never get staff permissions.
+ */
+function mapi_user_can(mysqli $conn, int $userId, string $permission): bool
+{
+    static $cache = [];
+    $key = "$userId:$permission";
+    if (array_key_exists($key, $cache)) return $cache[$key];
+    $role = strtolower(trim((string)(mapi_row($conn, 'SELECT role FROM users WHERE id=? LIMIT 1', 'i', [$userId])['role'] ?? '')));
+    if ($role === 'admin') return $cache[$key] = true;
+    if ($role === 'member' || !mapi_table($conn, 'permissions')) return $cache[$key] = false;
+    $hasRoles = mapi_table($conn, 'role_permissions');
+    $hasUsers = mapi_table($conn, 'user_permissions');
+    if (!$hasRoles && !$hasUsers) return $cache[$key] = false;
+    $joins = ($hasRoles ? ' LEFT JOIN role_permissions rp ON rp.permission_id=p.id AND LOWER(rp.role)=?' : '')
+        . ($hasUsers ? ' LEFT JOIN user_permissions up ON up.permission_id=p.id AND up.user_id=?' : '');
+    $allowed = $hasRoles && $hasUsers ? 'COALESCE(up.allowed,rp.allowed,0)' : ($hasUsers ? 'COALESCE(up.allowed,0)' : 'COALESCE(rp.allowed,0)');
+    $types = ($hasRoles ? 's' : '') . ($hasUsers ? 'i' : '') . 's';
+    $params = array_merge($hasRoles ? [$role] : [], $hasUsers ? [$userId] : [], [$permission]);
+    return $cache[$key] = (bool)mapi_row($conn, "SELECT 1 AS allowed FROM permissions p $joins WHERE p.permission_key=? AND $allowed=1 LIMIT 1", $types, $params);
+}
+
+/** Collection tools and the website permission each needs. */
+function mapi_role_tool_permissions(): array
+{
+    return [
+        'offertory' => 'offertory.view',
+        'tithe' => 'tithe.view',
+        'thanksgiving' => 'thanksgiving.view',
+        'pledge_payment' => 'pledges.view',
+        'contribution' => 'contributions.view',
+        'good_samaritan' => 'good_samaritan.view',
+    ];
+}
+
+/**
+ * What the app shows this account: 'member' features when it has a member record, collection tools
+ * and 'pledges' (staff pledge management) for the permissions it holds.
+ */
+function mapi_capabilities(mysqli $conn, array $auth): array
+{
+    $caps = [];
+    if ($auth['member_id'] > 0) $caps[] = 'member';
+    foreach (mapi_role_tool_permissions() as $tool => $permission) {
+        if (mapi_user_can($conn, $auth['user_id'], $permission)) $caps[] = $tool;
+    }
+    if (mapi_user_can($conn, $auth['user_id'], 'pledges.view')) $caps[] = 'pledges';
+    return $caps;
+}
+
+/** The signed-in login: name, username, role and what the app may show. */
+function mapi_account(mysqli $conn, array $auth): array
+{
+    $cols = ['id', 'username', 'full_name', 'email', 'role'];
+    if (mapi_column($conn, 'users', 'phone')) $cols[] = 'phone';
+    $user = mapi_row($conn, 'SELECT `' . implode('`,`', $cols) . '` FROM users WHERE id=? LIMIT 1', 'i', [$auth['user_id']]) ?? [];
+    $role = trim((string)($user['role'] ?? ''));
+    return [
+        'user_id' => (int)($user['id'] ?? 0),
+        'username' => (string)($user['username'] ?? ''),
+        'full_name' => trim((string)($user['full_name'] ?? '')) ?: (string)($user['username'] ?? ''),
+        'email' => (string)($user['email'] ?? ''),
+        'phone' => (string)($user['phone'] ?? ''),
+        'role' => $role,
+        'is_member' => $auth['member_id'] > 0,
+        'is_staff' => $role !== '' && strtolower($role) !== 'member',
+        'capabilities' => mapi_capabilities($conn, $auth),
+    ];
+}
+
+/**
+ * Profile shown in the app: the member record for members; for staff without one, the login's own
+ * name and contact details in the same shape so screens can show them.
+ */
+function mapi_profile(mysqli $conn, array $auth): array
+{
+    if ($auth['member_id'] > 0) return mapi_member_profile($conn, $auth['member_id']);
+    $account = mapi_account($conn, $auth);
+    return [
+        'id' => 0, 'member_no' => null, 'full_name' => $account['full_name'], 'pledge_no' => null,
+        'service_attended' => null, 'gender' => null, 'phone' => $account['phone'] ?: null, 'email' => $account['email'] ?: null,
+        'address' => null, 'joined_date' => null, 'department' => null, 'church_zone_id' => null, 'church_zone' => null,
+        'assigned_role' => $account['role'], 'photo_url' => null,
+    ];
 }
 
 /** Member profile returned by the API. */
@@ -269,6 +405,13 @@ function mapi_password_errors(string $current, string $new, string $confirm, str
 {
     $errors = [];
     if ($currentHash === '' || !password_verify($current, $currentHash)) $errors[] = 'Your current password is incorrect.';
+    return array_merge($errors, mapi_new_password_errors($new, $confirm, $currentHash));
+}
+
+/** Rules for a new password, without checking the current one (also used by reset_password). */
+function mapi_new_password_errors(string $new, string $confirm, string $currentHash): array
+{
+    $errors = [];
     if (strlen($new) < 8) $errors[] = 'The new password must contain at least 8 characters.';
     if (!preg_match('/[A-Z]/', $new)) $errors[] = 'The new password must contain an uppercase letter.';
     if (!preg_match('/[a-z]/', $new)) $errors[] = 'The new password must contain a lowercase letter.';

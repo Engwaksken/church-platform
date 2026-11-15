@@ -2,16 +2,21 @@
 declare(strict_types=1);
 
 /**
- * Member mobile app API. Call as api/member/?action=<name>.
- * Sign in with a membership number or pledge number and the member's portal password,
- * then send "Authorization: Bearer <token>" on every other request.
- * Members can only read their own records and published church content.
+ * Church mobile app API. Call as api/member/?action=<name>.
+ * Every active website user can sign in: members with their membership or pledge number (or username/email)
+ * and portal password; staff without a member record with their username or email, password and a code
+ * emailed to them. Then send "Authorization: Bearer <token>" on every other request.
+ * Members only read their own records and published church content; staff tools follow the permissions
+ * assigned on the website (Users > Permissions).
  */
 
 require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../includes/member-content-functions.php';
 require_once __DIR__ . '/_lib.php';
+require_once __DIR__ . '/_auth.php';
+require_once __DIR__ . '/_staff.php';
 require_once __DIR__ . '/../../includes/pledge-types.php';
+require_once __DIR__ . '/../../includes/member-notify.php';
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 $conn->set_charset('utf8mb4');
@@ -23,18 +28,33 @@ try {
     }
 
     switch ($action) {
+        case 'branding':        mapi_action_branding($conn); break;
         case 'login':           mapi_action_login($conn); break;
+        case 'verify_login_code': mapi_action_verify_login_code($conn); break;
+        case 'resend_login_code': mapi_action_resend_login_code($conn); break;
         case 'logout':          mapi_action_logout($conn); break;
         case 'me':              mapi_action_me($conn); break;
         case 'change_password': mapi_action_change_password($conn); break;
+        case 'forgot_password': mapi_action_forgot_password($conn); break;
+        case 'reset_password':  mapi_action_reset_password($conn); break;
+        case 'notification_settings':        mapi_action_notification_settings($conn); break;
+        case 'update_notification_settings': mapi_action_update_notification_settings($conn); break;
+        case 'register_device': mapi_action_register_device($conn); break;
+        case 'notifications':   mapi_action_notifications($conn); break;
+        case 'mark_notifications_read': mapi_action_mark_notifications_read($conn); break;
         case 'zones':           mapi_action_zones($conn); break;
         case 'update_profile':  mapi_action_update_profile($conn); break;
         case 'update_photo':    mapi_action_update_photo($conn); break;
         case 'dashboard':       mapi_action_dashboard($conn); break;
         case 'giving':          mapi_action_giving($conn); break;
         case 'pledges':         mapi_action_pledges($conn); break;
-        case 'role_tools':       mapi_action_role_tools($conn); break;
+        case 'role_tools':      mapi_action_role_tools($conn); break;
         case 'record_collection': mapi_action_record_collection($conn); break;
+        case 'pledge_options':  mapi_action_pledge_options($conn); break;
+        case 'staff_pledges':   mapi_action_staff_pledges($conn); break;
+        case 'pledge_detail':   mapi_action_pledge_detail($conn); break;
+        case 'save_pledge':     mapi_action_save_pledge($conn); break;
+        case 'pledge_payments': mapi_action_pledge_payments($conn); break;
         case 'announcements':   mapi_action_announcements($conn); break;
         case 'programs':        mapi_action_programs($conn); break;
         case 'order_of_service': mapi_action_order_of_service($conn); break;
@@ -50,50 +70,132 @@ try {
 
 /* ------------------------------------------------------------------ account */
 
-function mapi_action_login(mysqli $conn): never
+/** Public branding used before sign-in. */
+function mapi_action_branding(mysqli $conn): never
 {
-    mapi_require_method('POST');
-    $input = mapi_input();
-    $identifier = mapi_str($input, 'identifier', 80);
-    $password = (string)($input['password'] ?? '');
-    $device = mapi_str($input, 'device_name', 120);
-    if ($identifier === '' || $password === '') mapi_fail(422, 'Enter your membership or pledge number and your password.');
-
-    $key = mb_strtolower($identifier);
-    if (mapi_is_locked($conn, $key)) mapi_fail(429, 'Too many failed attempts. Please wait ' . MAPI_LOCK_MINUTES . ' minutes and try again.');
-
-    $account = mapi_find_member_account($conn, $identifier);
-    // Verify against a dummy hash when no account matches so response time does not reveal valid numbers.
-    $hash = $account ? (string)$account['password'] : password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT);
-    if (!password_verify($password, $hash) || !$account) {
-        mapi_record_failure($conn, $key);
-        mapi_fail(401, 'The membership/pledge number or password is incorrect.');
+    $logo = mapi_setting($conn, 'site_logo', mapi_setting($conn, 'logo', ''));
+    if ($logo !== '' && !preg_match('#^https?://#i', $logo) && defined('BASE_URL')) {
+        $logo = rtrim(BASE_URL, '/') . '/' . ltrim($logo, '/');
     }
-    mapi_clear_failures($conn, $key);
+    mapi_ok(['church' => [
+        'name' => mapi_setting($conn, 'site_name', defined('APP_NAME') ? APP_NAME : 'Church'),
+        'subtitle' => mapi_setting($conn, 'site_subtitle', ''),
+        'logo_url' => $logo,
+    ]]);
+}
 
-    // The old guessable member password (Change@ + member number digits) no longer signs anyone in.
-    if (str_starts_with($password, 'Change@')) {
-        $memberNo = (string)(mapi_row($conn, 'SELECT member_no FROM members WHERE id=? LIMIT 1', 'i', [(int)$account['member_id']])['member_no'] ?? '');
-        $base = 'Change@' . preg_replace('/\D+/', '', $memberNo);
-        if (in_array($password, [$base, $base . '@1234', $base . '1234'], true)) {
-            mapi_fail(403, 'For your security, your starting password has been retired. Use "Forgot password" on the church website to choose a new one, or contact the church office.');
-        }
-    }
-
-    $token = mapi_issue_token($conn, (int)$account['user_id'], (int)$account['member_id'], $device);
+/** Token and profile returned after a successful sign-in. */
+function mapi_signed_in(mysqli $conn, int $userId, int $memberId, string $device): never
+{
+    $token = mapi_issue_token($conn, $userId, $memberId, $device);
     $mustChange = false;
     try {
-        $flag = mapi_row($conn, 'SELECT must_change_password FROM users WHERE id=? LIMIT 1', 'i', [(int)$account['user_id']]);
+        $flag = mapi_row($conn, 'SELECT must_change_password FROM users WHERE id=? LIMIT 1', 'i', [$userId]);
         $mustChange = (int)($flag['must_change_password'] ?? 0) === 1;
     } catch (Throwable $e) {
         // Older database without the column: nothing to change.
     }
+    $auth = ['token_id' => 0, 'user_id' => $userId, 'member_id' => $memberId, 'role' => ''];
     mapi_ok([
         'token' => $token,
         'must_change_password' => $mustChange,
         'expires_in_days' => MAPI_TOKEN_DAYS,
-        'member' => mapi_member_profile($conn, (int)$account['member_id']),
+        'member' => mapi_profile($conn, $auth),
+        'account' => mapi_account($conn, $auth),
     ]);
+}
+
+function mapi_action_login(mysqli $conn): never
+{
+    mapi_require_method('POST');
+    $input = mapi_input();
+    $identifier = mapi_str($input, 'identifier', 190);
+    $password = (string)($input['password'] ?? '');
+    $device = mapi_str($input, 'device_name', 120);
+    if ($identifier === '' || $password === '') mapi_fail(422, 'Enter your membership number, pledge number, username or email, and your password.');
+
+    $key = mb_substr(mb_strtolower($identifier), 0, 80);
+    if (mapi_is_locked($conn, $key)) mapi_fail(429, 'Too many failed attempts. Please wait ' . MAPI_LOCK_MINUTES . ' minutes and try again.');
+
+    $account = mapi_find_account($conn, $identifier);
+    // Verify against a dummy hash when no account matches so response time does not reveal valid numbers.
+    $hash = $account ? (string)$account['password'] : password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT);
+    if (!password_verify($password, $hash) || !$account) {
+        mapi_record_failure($conn, $key);
+        mapi_fail(401, 'The sign-in details or password are incorrect.');
+    }
+    mapi_clear_failures($conn, $key);
+    $memberId = (int)$account['member_id'];
+
+    // The old guessable member password (Change@ + member number digits) no longer signs anyone in.
+    if ($memberId > 0 && str_starts_with($password, 'Change@')) {
+        $memberNo = (string)(mapi_row($conn, 'SELECT member_no FROM members WHERE id=? LIMIT 1', 'i', [$memberId])['member_no'] ?? '');
+        $base = 'Change@' . preg_replace('/\D+/', '', $memberNo);
+        if (in_array($password, [$base, $base . '@1234', $base . '1234'], true)) {
+            mapi_fail(403, 'For your security, your starting password has been retired. Use "Forgot password" to choose a new one, or contact the church office.');
+        }
+    }
+
+    // Members sign straight in; other accounts confirm with a code emailed to them, as on the website.
+    if ($memberId > 0) mapi_signed_in($conn, (int)$account['user_id'], $memberId, $device);
+    $pending = mapi_start_login_code($conn, $account, $device);
+    mapi_ok([
+        'requires_code' => true,
+        'challenge' => $pending['challenge'],
+        'masked_email' => $pending['masked_email'],
+        'expires_in_minutes' => MAPI_LOGIN_CODE_MINUTES,
+        'message' => 'We emailed a 6-digit sign-in code to ' . $pending['masked_email'] . '. It expires in ' . MAPI_LOGIN_CODE_MINUTES . ' minutes.',
+    ]);
+}
+
+/** Second step of a staff sign-in: the emailed code. */
+function mapi_action_verify_login_code(mysqli $conn): never
+{
+    mapi_require_method('POST');
+    $input = mapi_input();
+    $challenge = strtolower(mapi_str($input, 'challenge', 64));
+    $code = preg_replace('/\D+/', '', mapi_str($input, 'code', 12)) ?? '';
+    $pending = mapi_find_login_code($conn, $challenge);
+    if (!$pending) mapi_fail(410, 'This sign-in has expired. Please sign in again.');
+    if (strlen($code) !== 6) mapi_fail(422, 'Enter the 6-digit code from the email.');
+    if (!password_verify($code, (string)$pending['code_hash'])) {
+        $id = (int)$pending['id'];
+        $stmt = $conn->prepare('UPDATE member_api_login_codes SET attempts=attempts+1 WHERE id=?');
+        $stmt->bind_param('i', $id);
+        $stmt->execute();
+        $stmt->close();
+        $left = MAPI_LOGIN_CODE_MAX_TRIES - (int)$pending['attempts'] - 1;
+        if ($left <= 0) mapi_fail(410, 'Too many incorrect codes. Please sign in again.');
+        mapi_fail(422, "Incorrect code. $left attempt(s) remaining.");
+    }
+    $id = (int)$pending['id'];
+    $stmt = $conn->prepare('UPDATE member_api_login_codes SET used_at=NOW() WHERE id=?');
+    $stmt->bind_param('i', $id);
+    $stmt->execute();
+    $stmt->close();
+    mapi_signed_in($conn, (int)$pending['user_id'], 0, (string)($pending['device_name'] ?? ''));
+}
+
+/** Emails a new code for a pending staff sign-in (at most once a minute). */
+function mapi_action_resend_login_code(mysqli $conn): never
+{
+    mapi_require_method('POST');
+    $challenge = strtolower(mapi_str(mapi_input(), 'challenge', 64));
+    $pending = mapi_find_login_code($conn, $challenge);
+    if (!$pending) mapi_fail(410, 'This sign-in has expired. Please sign in again.');
+    $wait = 60 - (time() - strtotime((string)$pending['last_sent_at']));
+    if ($wait > 0) mapi_fail(429, "Please wait $wait seconds before asking for another code.");
+    $code = (string)random_int(100000, 999999);
+    $account = ['user_id' => (int)$pending['user_id'], 'full_name' => (string)$pending['full_name'], 'email' => (string)$pending['email']];
+    if (!mapi_send_login_code($conn, $account, (string)$pending['email'], $code)) mapi_fail(502, 'The sign-in code could not be emailed. Please try again later.');
+    $hash = password_hash($code, PASSWORD_DEFAULT);
+    $expires = date('Y-m-d H:i:s', time() + MAPI_LOGIN_CODE_MINUTES * 60);
+    $id = (int)$pending['id'];
+    $stmt = $conn->prepare('UPDATE member_api_login_codes SET code_hash=?, attempts=0, last_sent_at=NOW(), expires_at=? WHERE id=?');
+    $stmt->bind_param('ssi', $hash, $expires, $id);
+    $stmt->execute();
+    $stmt->close();
+    mapi_ok(['message' => 'A new code was sent to ' . mapi_mask_email((string)$pending['email']) . '.']);
 }
 
 function mapi_action_logout(mysqli $conn): never
@@ -104,6 +206,8 @@ function mapi_action_logout(mysqli $conn): never
     $stmt->bind_param('i', $auth['token_id']);
     $stmt->execute();
     $stmt->close();
+    // This phone stops getting push notifications.
+    if (mapi_table($conn, 'member_push_devices')) mn_exec($conn, 'DELETE FROM member_push_devices WHERE api_token_id=?', 'i', [$auth['token_id']]);
     mapi_ok(['message' => 'Signed out.']);
 }
 
@@ -113,8 +217,13 @@ function mapi_action_me(mysqli $conn): never
     $logo = mapi_setting($conn, 'site_logo', mapi_setting($conn, 'logo', ''));
     if ($logo !== '' && !preg_match('#^https?://#i', $logo) && defined('BASE_URL')) $logo = rtrim(BASE_URL, '/') . '/' . ltrim($logo, '/');
     mapi_ok([
-        'member' => mapi_member_profile($conn, $auth['member_id']),
-        'church' => ['name' => mapi_setting($conn, 'site_name', 'Rongoro COU'), 'logo_url' => $logo],
+        'member' => mapi_profile($conn, $auth),
+        'account' => mapi_account($conn, $auth),
+        'church' => [
+            'name' => mapi_setting($conn, 'site_name', defined('APP_NAME') ? APP_NAME : 'Church'),
+            'subtitle' => mapi_setting($conn, 'site_subtitle', ''),
+            'logo_url' => $logo,
+        ],
     ]);
 }
 
@@ -151,6 +260,209 @@ function mapi_action_change_password(mysqli $conn): never
     mapi_ok(['message' => 'Your password was changed. Use it for the app and the website.']);
 }
 
+/**
+ * Sends a 6-digit reset code to the phone and email on file for a membership or pledge number, username or email.
+ * The reply is the same whether or not it matched, so it cannot be used to find valid accounts.
+ */
+function mapi_action_forgot_password(mysqli $conn): never
+{
+    mapi_require_method('POST');
+    if (!mapi_table($conn, 'member_api_password_resets')) mapi_fail(503, 'Password reset is not set up yet. Please contact the church office.');
+    $identifier = mapi_str(mapi_input(), 'identifier', 190);
+    if ($identifier === '') mapi_fail(422, 'Enter your membership number, pledge number, username or email.');
+
+    $key = mb_substr(mb_strtolower($identifier), 0, 80);
+    $ip = mapi_client_ip();
+    $since = date('Y-m-d H:i:s', time() - 3600);
+    $byIdentifier = mapi_row($conn, 'SELECT COUNT(*) c FROM member_api_password_resets WHERE identifier=? AND created_at>=?', 'ss', [$key, $since]);
+    $byIp = mapi_row($conn, 'SELECT COUNT(*) c FROM member_api_password_resets WHERE ip_address=? AND created_at>=?', 'ss', [$ip, $since]);
+    if ((int)$byIdentifier['c'] >= MAPI_RESET_MAX_REQUESTS || (int)$byIp['c'] >= MAPI_RESET_MAX_REQUESTS_PER_IP) {
+        mapi_fail(429, 'Too many reset requests. Please wait an hour and try again, or contact the church office.');
+    }
+
+    $account = mapi_find_account($conn, $identifier);
+    $userId = $account ? (int)$account['user_id'] : null;
+    $code = (string)random_int(100000, 999999);
+    $codeHash = $account ? password_hash($code, PASSWORD_DEFAULT) : null;
+    $now = date('Y-m-d H:i:s');
+    $expires = date('Y-m-d H:i:s', time() + MAPI_RESET_CODE_MINUTES * 60);
+    if ($account) {
+        // Only the newest code works.
+        $stmt = $conn->prepare('UPDATE member_api_password_resets SET used_at=NOW() WHERE user_id=? AND used_at IS NULL');
+        $stmt->bind_param('i', $userId);
+        $stmt->execute();
+        $stmt->close();
+    }
+    $stmt = $conn->prepare('INSERT INTO member_api_password_resets (identifier, ip_address, user_id, code_hash, created_at, expires_at) VALUES (?,?,?,?,?,?)');
+    $stmt->bind_param('ssisss', $key, $ip, $userId, $codeHash, $now, $expires);
+    $stmt->execute();
+    $stmt->close();
+    // Keep the table small: requests older than a day no longer matter.
+    $conn->query('DELETE FROM member_api_password_resets WHERE created_at < NOW() - INTERVAL 1 DAY');
+
+    if ($account) {
+        $contacts = mapi_reset_contacts($conn, (int)$account['member_id'], (int)$userId);
+        if (!mapi_send_reset_code($conn, $contacts, $code)) {
+            error_log('[Member API] forgot_password: no reset code could be sent for user ' . $userId);
+        }
+    }
+    mapi_ok([
+        'message' => 'If these details belong to an active account with a phone number or email on file, a 6-digit code has been sent. '
+            . 'It expires in ' . MAPI_RESET_CODE_MINUTES . ' minutes. If nothing arrives, contact the church office.',
+        'expires_in_minutes' => MAPI_RESET_CODE_MINUTES,
+    ]);
+}
+
+/** Sets a new password with a code from forgot_password, and signs the account out of the app everywhere. */
+function mapi_action_reset_password(mysqli $conn): never
+{
+    mapi_require_method('POST');
+    if (!mapi_table($conn, 'member_api_password_resets')) mapi_fail(503, 'Password reset is not set up yet. Please contact the church office.');
+    $input = mapi_input();
+    $identifier = mapi_str($input, 'identifier', 190);
+    $code = mapi_str($input, 'code', 10);
+    $new = (string)($input['new_password'] ?? '');
+    $confirm = (string)($input['confirm_password'] ?? '');
+    if ($identifier === '' || $code === '') mapi_fail(422, 'Enter your sign-in details and the code you received.');
+
+    $key = mb_substr(mb_strtolower($identifier), 0, 80);
+    if (mapi_is_locked($conn, $key)) mapi_fail(429, 'Too many failed attempts. Please wait ' . MAPI_LOCK_MINUTES . ' minutes and try again.');
+
+    $account = mapi_find_account($conn, $identifier);
+    $reset = $account ? mapi_row(
+        $conn,
+        'SELECT id, code_hash FROM member_api_password_resets
+         WHERE user_id=? AND used_at IS NULL AND expires_at>NOW() AND attempts<? AND code_hash IS NOT NULL
+         ORDER BY id DESC LIMIT 1',
+        'ii',
+        [(int)$account['user_id'], MAPI_RESET_MAX_TRIES]
+    ) : null;
+    if (!$reset || !preg_match('/^\d{6}$/', $code) || !password_verify($code, (string)$reset['code_hash'])) {
+        if ($reset) {
+            $stmt = $conn->prepare('UPDATE member_api_password_resets SET attempts=attempts+1 WHERE id=?');
+            $stmt->bind_param('i', $reset['id']);
+            $stmt->execute();
+            $stmt->close();
+        }
+        mapi_record_failure($conn, $key);
+        mapi_fail(422, 'The code is incorrect or has expired. Check the code or request a new one.');
+    }
+
+    $userId = (int)$account['user_id'];
+    $errors = mapi_new_password_errors($new, $confirm, (string)$account['password']);
+    if ($errors) mapi_fail(422, implode(' ', $errors));
+
+    $hash = password_hash($new, PASSWORD_DEFAULT);
+    $stmt = $conn->prepare('UPDATE users SET password=? WHERE id=?');
+    $stmt->bind_param('si', $hash, $userId);
+    $stmt->execute();
+    $stmt->close();
+    try {
+        $stmt = $conn->prepare('UPDATE users SET must_change_password=0 WHERE id=?');
+        $stmt->bind_param('i', $userId);
+        $stmt->execute();
+        $stmt->close();
+    } catch (Throwable $e) {
+        // Older database without the column.
+    }
+    $stmt = $conn->prepare('UPDATE member_api_password_resets SET used_at=NOW() WHERE user_id=? AND used_at IS NULL');
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $stmt->close();
+    // Anyone who knew the old password is signed out of the app.
+    $stmt = $conn->prepare('UPDATE member_api_tokens SET revoked_at=NOW() WHERE user_id=? AND revoked_at IS NULL');
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $stmt->close();
+    mapi_clear_failures($conn, $key);
+    mapi_ok(['message' => 'Your password was reset. Use it for the app and the website.']);
+}
+
+/* ------------------------------------------------------------------ notifications */
+
+function mapi_require_notifications(mysqli $conn): void
+{
+    if (!mn_ready($conn)) mapi_fail(503, 'Notifications are not set up yet. Please contact the church office.');
+}
+
+/** The member's choices per category, and which channels can reach them. */
+function mapi_action_notification_settings(mysqli $conn): never
+{
+    $auth = mapi_auth($conn);
+    mapi_require_member($auth, 'Notification settings are for member accounts.');
+    mapi_require_notifications($conn);
+    $prefs = mn_prefs($conn, $auth['member_id']);
+    $categories = [];
+    foreach (mn_categories() as $key => $c) {
+        $categories[] = ['key' => $key, 'label' => $c['label'], 'description' => $c['description']] + $prefs[$key];
+    }
+    $contact = mn_contact($conn, $auth['member_id']);
+    mapi_ok([
+        'categories' => $categories,
+        'channels' => [
+            'push' => ['available' => mn_push_configured(), 'note' => mn_push_configured() ? null : 'Push notifications are not switched on by the church yet.'],
+            'email' => ['available' => $contact['email'] !== '', 'note' => $contact['email'] !== '' ? $contact['email'] : 'Add an email address to your profile to get emails.'],
+            'sms' => ['available' => $contact['phone'] !== '' && mn_sms_configured($conn), 'note' => $contact['phone'] === '' ? 'Add a phone number to your profile to get SMS.' : (mn_sms_configured($conn) ? $contact['phone'] : 'SMS is not switched on by the church yet.')],
+        ],
+    ]);
+}
+
+function mapi_action_update_notification_settings(mysqli $conn): never
+{
+    mapi_require_method('POST');
+    $auth = mapi_auth($conn);
+    mapi_require_member($auth, 'Notification settings are for member accounts.');
+    mapi_require_notifications($conn);
+    $settings = mapi_input()['settings'] ?? null;
+    if (!is_array($settings)) mapi_fail(422, 'No settings were sent.');
+    mn_save_prefs($conn, $auth['member_id'], $settings);
+    mapi_ok(['message' => 'Your notification settings were saved.']);
+}
+
+/** Saves this phone's push token so it can receive notifications while signed in (members only). */
+function mapi_action_register_device(mysqli $conn): never
+{
+    mapi_require_method('POST');
+    $auth = mapi_auth($conn);
+    if ($auth['member_id'] <= 0) mapi_ok(['message' => 'Push notifications are sent to member accounts.']);
+    mapi_require_notifications($conn);
+    $input = mapi_input();
+    $token = mapi_str($input, 'fcm_token', 255);
+    $platform = mapi_str($input, 'platform', 20);
+    if ($token === '' || !preg_match('/^[A-Za-z0-9_:\-]+$/', $token)) mapi_fail(422, 'Invalid push token.');
+    mn_exec($conn, 'INSERT INTO member_push_devices (member_id, user_id, api_token_id, fcm_token, platform, last_seen_at) VALUES (?,?,?,?,?,NOW())
+        ON DUPLICATE KEY UPDATE member_id=VALUES(member_id), user_id=VALUES(user_id), api_token_id=VALUES(api_token_id), platform=VALUES(platform), last_seen_at=NOW()',
+        'iiiss', [$auth['member_id'], $auth['user_id'], $auth['token_id'], $token, $platform]);
+    mapi_ok(['message' => 'This phone will get push notifications.']);
+}
+
+/** The member's latest notifications, newest first (empty for staff accounts). */
+function mapi_action_notifications(mysqli $conn): never
+{
+    $auth = mapi_auth($conn);
+    if ($auth['member_id'] <= 0) mapi_ok(['items' => [], 'unread' => 0]);
+    mapi_require_notifications($conn);
+    $items = mapi_rows($conn, 'SELECT id, category, title, body, created_at, read_at FROM member_notifications
+        WHERE member_id=? ORDER BY id DESC LIMIT 100', 'i', [$auth['member_id']]);
+    $unread = 0;
+    foreach ($items as &$n) {
+        $n['id'] = (int)$n['id'];
+        if ($n['read_at'] === null) $unread++;
+    }
+    unset($n);
+    mapi_ok(['items' => $items, 'unread' => $unread]);
+}
+
+function mapi_action_mark_notifications_read(mysqli $conn): never
+{
+    mapi_require_method('POST');
+    $auth = mapi_auth($conn);
+    if ($auth['member_id'] <= 0) mapi_ok(['message' => 'Marked as read.']);
+    mapi_require_notifications($conn);
+    mn_exec($conn, 'UPDATE member_notifications SET read_at=NOW() WHERE member_id=? AND read_at IS NULL', 'i', [$auth['member_id']]);
+    mapi_ok(['message' => 'Marked as read.']);
+}
+
 /** Church zones a member can choose on their profile. */
 function mapi_action_zones(mysqli $conn): never
 {
@@ -169,6 +481,7 @@ function mapi_action_update_profile(mysqli $conn): never
 {
     mapi_require_method('POST');
     $auth = mapi_auth($conn);
+    mapi_require_member($auth, 'Staff accounts change their details on the church website.');
     $input = mapi_input();
     $email = mb_strtolower(mapi_str($input, 'email', 120));
     $phone = mapi_str($input, 'phone', 25);
@@ -227,6 +540,7 @@ function mapi_action_update_photo(mysqli $conn): never
 {
     mapi_require_method('POST');
     $auth = mapi_auth($conn);
+    mapi_require_member($auth, 'Profile photos are for member accounts.');
     if (!mapi_column($conn, 'members', 'photo')) mapi_fail(422, 'Profile photos are not available.');
     $photo = $_FILES['photo'] ?? null;
     if (!is_array($photo) || ($photo['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
@@ -270,7 +584,7 @@ function mapi_action_dashboard(mysqli $conn): never
     $auth = mapi_auth($conn);
     $memberId = $auth['member_id'];
     $pledges = ['total_pledged' => 0.0, 'total_paid' => 0.0, 'balance' => 0.0, 'open' => 0];
-    if (mapi_table($conn, 'pledges')) {
+    if ($memberId > 0 && mapi_table($conn, 'pledges')) {
         $row = mapi_row($conn, "SELECT COALESCE(SUM(amount_pledged),0) pledged, COALESCE(SUM(amount_paid),0) paid,
                 SUM(status IN ('Pending','Partial')) open_count
             FROM pledges WHERE member_id=? AND status<>'Cancelled'", 'i', [$memberId]);
@@ -278,9 +592,11 @@ function mapi_action_dashboard(mysqli $conn): never
             'balance' => max(0, (float)$row['pledged'] - (float)$row['paid']), 'open' => (int)$row['open_count']];
     }
     mapi_ok([
-        'member' => mapi_member_profile($conn, $memberId),
+        'member' => mapi_profile($conn, $auth),
+        'account' => mapi_account($conn, $auth),
         'verses' => mc_dashboard_verses($conn, 3),
         'pledges' => $pledges,
+        'work' => mapi_work_summary($conn, $auth),
         'announcements' => array_slice(mapi_published_announcements($conn), 0, 3),
         'programs' => array_slice(mapi_upcoming_programs($conn), 0, 3),
     ]);
@@ -291,6 +607,7 @@ function mapi_action_dashboard(mysqli $conn): never
 function mapi_action_giving(mysqli $conn): never
 {
     $auth = mapi_auth($conn);
+    mapi_require_member($auth, 'Giving history is for member accounts.');
     // Each giving type mapped to: table, date column, amount column, reference and description columns.
     $types = [
         'tithe'         => ['tithe', 'tithe_date', 'amount', 'receipt_no', "CONCAT_WS(' ', 'Tithe', period_month, period_year)"],
@@ -318,6 +635,7 @@ function mapi_action_giving(mysqli $conn): never
 function mapi_action_pledges(mysqli $conn): never
 {
     $auth = mapi_auth($conn);
+    mapi_require_member($auth, 'My pledges is for member accounts.');
     if (!mapi_table($conn, 'pledges')) mapi_ok(['items' => []]);
     $projectJoin = mapi_table($conn, 'projects') ? 'LEFT JOIN projects pr ON pr.id=p.project_id' : '';
     $projectName = $projectJoin ? 'pr.name' : 'NULL';
@@ -342,132 +660,6 @@ function mapi_action_pledges(mysqli $conn): never
     }
     unset($p);
     mapi_ok(['items' => $items]);
-}
-
-/** Tools only appear for permissions explicitly granted to this account or its role. */
-function mapi_role_tool_permissions(): array
-{
-    return [
-        'offertory' => 'offertory.view',
-        'tithe' => 'tithe.view',
-        'thanksgiving' => 'thanksgiving.view',
-        'pledge_payment' => 'pledges.view',
-        'contribution' => 'contributions.view',
-        'good_samaritan' => 'good_samaritan.view',
-    ];
-}
-
-function mapi_user_can_tool(mysqli $conn, int $userId, string $permission): bool
-{
-    $role = strtolower(trim((string)(mapi_row($conn, 'SELECT role FROM users WHERE id=? LIMIT 1', 'i', [$userId])['role'] ?? '')));
-    if ($role === 'admin') return true;
-    if (!mapi_table($conn, 'permissions')) return false;
-    $hasRoles = mapi_table($conn, 'role_permissions');
-    $hasUsers = mapi_table($conn, 'user_permissions');
-    if (!$hasRoles && !$hasUsers) return false;
-    $joins = ($hasRoles ? ' LEFT JOIN role_permissions rp ON rp.permission_id=p.id AND LOWER(rp.role)=?' : '')
-        . ($hasUsers ? ' LEFT JOIN user_permissions up ON up.permission_id=p.id AND up.user_id=?' : '');
-    $allowed = $hasRoles && $hasUsers ? 'COALESCE(up.allowed,rp.allowed,0)' : ($hasUsers ? 'COALESCE(up.allowed,0)' : 'COALESCE(rp.allowed,0)');
-    $types = ($hasRoles ? 's' : '') . ($hasUsers ? 'i' : '') . 's';
-    $params = array_merge($hasRoles ? [$role] : [], $hasUsers ? [$userId] : [], [$permission]);
-    return (bool)mapi_row($conn, "SELECT 1 AS allowed FROM permissions p $joins WHERE p.permission_key=? AND $allowed=1 LIMIT 1", $types, $params);
-}
-
-function mapi_action_role_tools(mysqli $conn): never
-{
-    $auth = mapi_auth($conn);
-    $tools = [];
-    foreach (mapi_role_tool_permissions() as $tool => $permission) {
-        $tools[$tool] = mapi_user_can_tool($conn, $auth['user_id'], $permission);
-    }
-    $enabled = array_keys(array_filter($tools));
-    $members = [];
-    $projects = [];
-    $pledges = [];
-    if (array_intersect($enabled, ['tithe', 'thanksgiving', 'contribution', 'good_samaritan'])) {
-        $members = mapi_rows($conn, "SELECT id, member_no, full_name FROM members WHERE COALESCE(status,'Active')='Active' ORDER BY full_name LIMIT 2000");
-        foreach ($members as &$member) $member['id'] = (int)$member['id'];
-        unset($member);
-    }
-    if (in_array('contribution', $enabled, true) && mapi_table($conn, 'projects')) {
-        $projects = mapi_rows($conn, "SELECT id,name FROM projects WHERE COALESCE(status,'Active')='Active' ORDER BY name");
-        foreach ($projects as &$project) $project['id'] = (int)$project['id'];
-        unset($project);
-    }
-    if (in_array('pledge_payment', $enabled, true)) {
-        $pledges = mapi_rows($conn, "SELECT id,pledge_no,pledge_reason,amount_pledged,amount_paid FROM pledges WHERE status IN ('Pending','Partial') ORDER BY pledge_date DESC,id DESC LIMIT 1000");
-        foreach ($pledges as &$pledge) { $pledge['id'] = (int)$pledge['id']; $pledge['amount_pledged'] = (float)$pledge['amount_pledged']; $pledge['amount_paid'] = (float)$pledge['amount_paid']; }
-        unset($pledge);
-    }
-    mapi_ok(['items' => $enabled, 'tools' => $tools, 'members' => $members, 'projects' => $projects, 'pledges' => $pledges]);
-}
-
-function mapi_action_record_collection(mysqli $conn): never
-{
-    mapi_require_method('POST');
-    $auth = mapi_auth($conn);
-    $input = mapi_input();
-    $type = mapi_str($input, 'type', 40);
-    $permission = mapi_role_tool_permissions()[$type] ?? '';
-    if ($permission === '' || !mapi_user_can_tool($conn, $auth['user_id'], $permission)) mapi_fail(403, 'Your account is not assigned to record this collection.');
-    $amount = (float)($input['amount'] ?? 0);
-    $date = mapi_str($input, 'date', 10) ?: date('Y-m-d');
-    $method = mapi_str($input, 'method', 40) ?: 'Cash';
-    $notes = mapi_str($input, 'notes', 2000);
-    if ($amount <= 0 || !preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date, $dateParts)
-        || !checkdate((int)$dateParts[2], (int)$dateParts[3], (int)$dateParts[1])) mapi_fail(422, 'Enter a valid amount and date.');
-    if (!in_array($method, ['Cash', 'Mobile Money', 'Bank Transfer', 'Cheque', 'Other'], true)) mapi_fail(422, 'Select a valid payment method.');
-    $receipt = 'RCOU-' . date('Y') . '-' . strtoupper(bin2hex(random_bytes(4)));
-
-    if ($type === 'offertory') {
-        $envelope = max(0, (float)($input['envelope_total'] ?? 0));
-        $loose = max(0, (float)($input['loose_total'] ?? 0));
-        $extra = max(0, (float)($input['extra'] ?? 0));
-        if ($envelope + $loose + $extra <= 0) mapi_fail(422, 'Enter an envelope, loose or additional amount.');
-        $service = mapi_str($input, 'service_type', 80) ?: 'Sunday Service';
-        $counted = mapi_str($input, 'counted_by', 120) ?: (string)(mapi_member_profile($conn, $auth['member_id'])['full_name'] ?? '');
-        $witnessed = mapi_str($input, 'witnessed_by', 120);
-        $total = $envelope + $loose + $extra;
-        $st = $conn->prepare('INSERT INTO offertory (service_date,service_type,envelope_total,loose_total,total_amount,counted_by,witnessed_by,notes) VALUES (?,?,?,?,?,?,?,?)');
-        $st->bind_param('ssdddsss', $date, $service, $envelope, $loose, $total, $counted, $witnessed, $notes); $st->execute(); $id = $st->insert_id; $st->close();
-    } elseif ($type === 'tithe') {
-        $memberId = (int)($input['member_id'] ?? 0); $month = (int)($input['period_month'] ?? (int)date('n')); $year = (int)($input['period_year'] ?? (int)date('Y'));
-        if ($memberId > 0 && !mapi_row($conn, "SELECT id FROM members WHERE id=? AND COALESCE(status,'Active')='Active'", 'i', [$memberId])) mapi_fail(422, 'Select an active member.');
-        if ($month < 1 || $month > 12 || $year < 2000 || $year > 2100) mapi_fail(422, 'Select a valid tithe period.');
-        $st = $conn->prepare('INSERT INTO tithe (receipt_no,member_id,amount,period_month,period_year,tithe_date,payment_method,notes) VALUES (?,NULLIF(?,0),?,?,?,?,?,?)');
-        $st->bind_param('sidiisss', $receipt, $memberId, $amount, $month, $year, $date, $method, $notes); $st->execute(); $id = $st->insert_id; $st->close();
-    } elseif ($type === 'thanksgiving') {
-        $memberId = (int)($input['member_id'] ?? 0); $giver = mapi_str($input, 'giver_name', 120); $reason = mapi_str($input, 'reason', 250); $item = mapi_str($input, 'item_description', 250);
-        if ($memberId > 0 && !mapi_row($conn, "SELECT id FROM members WHERE id=? AND COALESCE(status,'Active')='Active'", 'i', [$memberId])) mapi_fail(422, 'Select an active member.');
-        if ($memberId <= 0 && $giver === '') $giver = (string)(mapi_member_profile($conn, $auth['member_id'])['full_name'] ?? '');
-        if ($reason === '') mapi_fail(422, 'Enter the thanksgiving reason.');
-        $st = $conn->prepare('INSERT INTO thanksgiving (receipt_no,member_id,giver_name,reason,amount,thanksgiving_date,payment_method,item_description,notes) VALUES (?,NULLIF(?,0),?,?,?,?,?,?,?)');
-        $st->bind_param('sissdssss', $receipt, $memberId, $giver, $reason, $amount, $date, $method, $item, $notes); $st->execute(); $id = $st->insert_id; $st->close();
-    } elseif ($type === 'good_samaritan') {
-        $memberId = (int)($input['member_id'] ?? 0);
-        if ($memberId > 0 && !mapi_row($conn, "SELECT id FROM members WHERE id=? AND COALESCE(status,'Active')='Active'", 'i', [$memberId])) mapi_fail(422, 'Select an active member.');
-        $st = $conn->prepare('INSERT INTO good_samaritan (receipt_no,member_id,amount,payment_method,given_on,notes,recorded_by) VALUES (?,NULLIF(?,0),?,?,?,?,?)');
-        $st->bind_param('sidsssi', $receipt, $memberId, $amount, $method, $date, $notes, $auth['user_id']); $st->execute(); $id = $st->insert_id; $st->close();
-    } elseif ($type === 'contribution') {
-        $memberId = (int)($input['member_id'] ?? 0); $projectId = (int)($input['project_id'] ?? 0);
-        if ($memberId <= 0 || $projectId <= 0) mapi_fail(422, 'Select a member and contribution project.');
-        if (!mapi_row($conn, "SELECT id FROM members WHERE id=? AND COALESCE(status,'Active')='Active'", 'i', [$memberId])) mapi_fail(422, 'Select an active member.');
-        if (!mapi_row($conn, "SELECT id FROM projects WHERE id=? AND COALESCE(status,'Active')='Active'", 'i', [$projectId])) mapi_fail(422, 'Select an active project.');
-        $st = $conn->prepare('INSERT INTO contributions (receipt_no,member_id,project_id,amount,payment_method,contributed_on,notes) VALUES (?,?,?,?,?,?,?)');
-        $st->bind_param('siidsss', $receipt, $memberId, $projectId, $amount, $method, $date, $notes); $st->execute(); $id = $st->insert_id; $st->close();
-    } else {
-        $pledgeId = (int)($input['pledge_id'] ?? 0);
-        $pledge = mapi_row($conn, "SELECT id,amount_pledged,amount_paid,status FROM pledges WHERE id=? AND status<>'Cancelled' LIMIT 1", 'i', [$pledgeId]);
-        if (!$pledge) mapi_fail(422, 'Select an active pledge.');
-        $balance = max(0, (float)$pledge['amount_pledged'] - (float)$pledge['amount_paid']);
-        if ($amount > $balance) mapi_fail(422, 'Payment exceeds the remaining pledge balance of ' . number_format($balance) . '.');
-        $receipt = 'PLG-' . date('Y') . '-' . strtoupper(bin2hex(random_bytes(4)));
-        $st = $conn->prepare('INSERT INTO pledge_payments (pledge_id,amount,paid_on,method,receipt_no,notes) VALUES (?,?,?,?,?,?)');
-        $st->bind_param('idssss', $pledgeId, $amount, $date, $method, $receipt, $notes); $st->execute(); $id = $st->insert_id; $st->close();
-        $paid = (float)$pledge['amount_paid'] + $amount; $status = $paid >= (float)$pledge['amount_pledged'] ? 'Fulfilled' : 'Partial';
-        $st = $conn->prepare('UPDATE pledges SET amount_paid=?,status=? WHERE id=?'); $st->bind_param('dsi', $paid, $status, $pledgeId); $st->execute(); $st->close();
-    }
-    mapi_ok(['message' => 'Collection recorded.', 'id' => (int)$id, 'receipt_no' => $receipt]);
 }
 
 /* ------------------------------------------------------------------ church news */
